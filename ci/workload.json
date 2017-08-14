@@ -1,0 +1,67 @@
+[
+    {
+      "ParameterKey": "VPCID",
+      "ParameterValue": "vpc-19500560"
+    },
+    {
+      "ParameterKey": "BastionSecurityGroupID",
+      "ParameterValue": "sg-ea2af39a"
+    },
+    {
+      "ParameterKey": "RemoteAccessCIDR",
+      "ParameterValue": "104.129.194.133/32"
+    },
+    {
+        "ParameterKey": "KeyPairName",
+        "ParameterValue": "a3scas"
+    },
+    {
+        "ParameterKey": "OperatorEmail",
+        "ParameterValue": "operator@example.com"
+    },
+    {
+        "ParameterKey": "PrivateSubnet1ID",
+        "ParameterValue": "subnet-5a007000"
+    },
+    {
+        "ParameterKey": "PrivateSubnet2ID",
+        "ParameterValue": "subnet-7f10e81b"
+    },
+    {
+        "ParameterKey": "PublicSubnet1ID",
+        "ParameterValue": "subnet-301e6e6a"
+    },
+    {
+        "ParameterKey": "PublicSubnet2ID",
+        "ParameterValue": "subnet-8313ebe7"
+    },
+    {
+        "ParameterKey": "S3BucketName",
+        "ParameterValue": "mae-teststack"
+    },
+    {
+        "ParameterKey": "WorkloadInstanceType",
+        "ParameterValue": "m4.xlarge"
+    },
+    {
+        "ParameterKey": "WorkloadNodesDesiredCapacity",
+        "ParameterValue": "1"
+    },
+    {
+        "ParameterKey": "WorkloadNodesMaxSize",
+        "ParameterValue": "4"
+    },
+    {
+        "ParameterKey": "WorkloadNodesMinSize",
+        "ParameterValue": "1"
+    },
+    {
+        "ParameterKey": "QSS3BucketName",
+        "ParameterValue": "ace-qs"
+
+    },
+    {
+        "ParameterKey": "QSS3KeyPrefix",
+        "ParameterValue": ""
+    }
+]
