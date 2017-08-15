@@ -23,7 +23,7 @@
                     },
                     "Parameters": [
                         "KeyPairName",
-                        "BastionSecurityGroupID",
+//                        "BastionSecurityGroupID",
                         "WorkloadInstanceType"
                     ]
                 },
@@ -57,9 +57,9 @@
                 }
             ],
             "ParameterLabels": {
-                "BastionSecurityGroupID": {
-                    "default": "Bastion Security Group ID"
-                },
+//                "BastionSecurityGroupID": {
+//                    "default": "Bastion Security Group ID"
+//                },
                 "KeyPairName": {
                     "default": "SSH Key Name"
                 },
@@ -109,10 +109,10 @@
         }
     },
     "Parameters": {
-        "BastionSecurityGroupID": {
-            "Description": "ID of the bastion host security group to enable SSH connections (e.g., sg-7f16e910)",
-            "Type": "AWS::EC2::SecurityGroup::Id"
-        },
+//        "BastionSecurityGroupID": {
+//            "Description": "ID of the bastion host security group to enable SSH connections (e.g., sg-7f16e910)",
+//            "Type": "AWS::EC2::SecurityGroup::Id"
+//        },
         "KeyPairName": {
             "Description": "Name of an existing EC2 key pair. All instances will launch with this key pair.",
             "Type": "AWS::EC2::KeyPair::KeyName"
@@ -511,14 +511,19 @@
                             "Ref": "ELBSecurityGroup"
                         }
                     },
-                    {
-                        "IpProtocol": "tcp",
-                        "FromPort": "22",
-                        "ToPort": "22",
-                        "SourceSecurityGroupId": {
-                            "Ref": "BastionSecurityGroupID"
-                        }
+                  {
+                    "IpProtocol": "tcp",
+                    "FromPort": "22",
+                    "ToPort": "22",
+                    "SourceSecurityGroupId": {
+                      "Ref": {
+                        "Fn::GetAtt": [
+                          "BastionStack",
+                          "Outputs.BastionSecurityGroup"
+                        ]
+                      }
                     }
+                  }
                 ]
             }
         },
@@ -749,17 +754,69 @@
                 },
                 "AccessControl": "BucketOwnerFullControl"
             }
+        },
+        "BastionStack": {
+             "Type": "AWS::CloudFormation::Stack",
+            "Properties": {
+                "TemplateURL": {
+                    "Fn::Sub": [
+                        "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}templates/linux-bastion.template",
+                        {
+                            "QSS3Region": {
+                                "Fn::If": [
+                                    "GovCloudCondition",
+                                    "s3-us-gov-west-1",
+                                    "s3"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "Parameters": {
+                    "KeyPairName": {
+                        "Ref": "KeyPairName"
+                    },
+                    "PublicSubnet1ID": {
+                        "Ref": "PublicSubnet1ID"
+                    },
+                    "PublicSubnet2ID": {
+                        "Ref": "PublicSubnet2ID"
+                    },
+                    "QSS3BucketName": {
+                        "Ref": "QSS3BucketName"
+                    },
+                    "QSS3KeyPrefix": {
+                        "Ref": "QSS3KeyPrefix"
+                    },
+                    "RemoteAccessCIDR": {
+                        "Ref": "RemoteAccessCIDR"
+                    },
+                    "VPCID": {
+                        "Ref": "VPCID"
+                    }
+                }
+            }
         }
     },
     "Outputs": {
-        "ELBDNSName": {
-            "Description": "ELB DNS Name",
-            "Value": {
-                "Fn::GetAtt": [
-                    "ElasticLoadBalancer",
-                    "DNSName"
-                ]
-            }
+      "ELBDNSName": {
+        "Description": "ELB DNS Name",
+        "Value": {
+          "Fn::GetAtt": [
+            "ElasticLoadBalancer",
+            "DNSName"
+          ]
         }
+      },
+      "BastionIPV4": {
+        "Description": "Bastion IP address",
+        "Value": {
+          "Fn::GetAtt": [
+            "BastionStack",
+            "Outputs.EIP1"
+          ]
+      }
     }
+    }
+
 }

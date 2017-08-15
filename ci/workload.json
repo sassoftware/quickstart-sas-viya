@@ -3,10 +3,10 @@
       "ParameterKey": "VPCID",
       "ParameterValue": "vpc-19500560"
     },
-    {
-      "ParameterKey": "BastionSecurityGroupID",
-      "ParameterValue": "sg-ea2af39a"
-    },
+//    {
+//      "ParameterKey": "BastionSecurityGroupID",
+//      "ParameterValue": "sg-ea2af39a"
+//    },
     {
       "ParameterKey": "RemoteAccessCIDR",
       "ParameterValue": "104.129.194.133/32"
