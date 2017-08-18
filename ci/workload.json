@@ -3,13 +3,10 @@
       "ParameterKey": "VPCID",
       "ParameterValue": "vpc-19500560"
     },
-//    {
-//      "ParameterKey": "BastionSecurityGroupID",
-//      "ParameterValue": "sg-ea2af39a"
-//    },
+
     {
       "ParameterKey": "RemoteAccessCIDR",
-      "ParameterValue": "104.129.194.133/32"
+      "ParameterValue": "149.173.0.0/16"
     },
     {
         "ParameterKey": "KeyPairName",
@@ -43,17 +40,21 @@
         "ParameterKey": "WorkloadInstanceType",
         "ParameterValue": "m4.xlarge"
     },
-    {
+  {
+    "ParameterKey": "BastionInstanceType",
+    "ParameterValue": "m4.4xlarge"
+  },
+  {
         "ParameterKey": "WorkloadNodesDesiredCapacity",
-        "ParameterValue": "1"
+        "ParameterValue": "0"
     },
     {
         "ParameterKey": "WorkloadNodesMaxSize",
-        "ParameterValue": "4"
+        "ParameterValue": "1"
     },
     {
         "ParameterKey": "WorkloadNodesMinSize",
-        "ParameterValue": "1"
+        "ParameterValue": "0"
     },
     {
         "ParameterKey": "QSS3BucketName",

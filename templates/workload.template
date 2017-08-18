@@ -23,8 +23,8 @@
                     },
                     "Parameters": [
                         "KeyPairName",
-//                        "BastionSecurityGroupID",
-                        "WorkloadInstanceType"
+                        "WorkloadInstanceType",
+                        "BastionInstanceType"
                     ]
                 },
                 {
@@ -57,9 +57,6 @@
                 }
             ],
             "ParameterLabels": {
-//                "BastionSecurityGroupID": {
-//                    "default": "Bastion Security Group ID"
-//                },
                 "KeyPairName": {
                     "default": "SSH Key Name"
                 },
@@ -93,7 +90,10 @@
                 "WorkloadInstanceType": {
                     "default": "Workload Servers Instance Type"
                 },
-                "WorkloadNodesDesiredCapacity": {
+              "BastionInstanceType": {
+                "default": "Bastion Instance Type"
+              },
+              "WorkloadNodesDesiredCapacity": {
                     "default": "Workload Nodes Desired Capacity"
                 },
                 "WorkloadNodesMaxSize": {
@@ -109,10 +109,6 @@
         }
     },
     "Parameters": {
-//        "BastionSecurityGroupID": {
-//            "Description": "ID of the bastion host security group to enable SSH connections (e.g., sg-7f16e910)",
-//            "Type": "AWS::EC2::SecurityGroup::Id"
-//        },
         "KeyPairName": {
             "Description": "Name of an existing EC2 key pair. All instances will launch with this key pair.",
             "Type": "AWS::EC2::KeyPair::KeyName"
@@ -193,7 +189,24 @@
             "Description": "Type of EC2 instance for the Workload instances",
             "Type": "String"
         },
-        "WorkloadNodesDesiredCapacity": {
+      "BastionInstanceType": {
+        "AllowedValues": [
+          "t2.micro",
+          "t2.small",
+          "t2.medium",
+          "t2.large",
+          "m3.large",
+          "m3.xlarge",
+          "m3.2xlarge",
+          "m4.large",
+          "m4.xlarge",
+          "m4.2xlarge",
+          "m4.4xlarge"
+        ],
+        "Default": "t2.micro",
+        "Description": "Amazon EC2 instance type for the bastion instances",
+        "Type": "String"
+      },        "WorkloadNodesDesiredCapacity": {
             "Default": "2",
             "Description": "The desired capacity for the Workload nodes Auto Scaling group",
             "Type": "String"
@@ -305,7 +318,17 @@
             }
         }
     },
-    "Resources": {
+  "Conditions": {
+    "GovCloudCondition": {
+      "Fn::Equals": [
+        {
+          "Ref": "AWS::Region"
+        },
+        "us-gov-west-1"
+      ]
+    }
+  },
+  "Resources": {
         "NotificationTopic": {
             "Type": "AWS::SNS::Topic",
             "Properties": {
@@ -516,12 +539,10 @@
                     "FromPort": "22",
                     "ToPort": "22",
                     "SourceSecurityGroupId": {
-                      "Ref": {
                         "Fn::GetAtt": [
                           "BastionStack",
-                          "Outputs.BastionSecurityGroup"
+                          "Outputs.BastionSecurityGroupID"
                         ]
-                      }
                     }
                   }
                 ]
@@ -530,7 +551,20 @@
         "WorkloadASLaunchConfig": {
             "Type": "AWS::AutoScaling::LaunchConfiguration",
             "Metadata": {
-                "AWS::CloudFormation::Init": {
+              "AWS::CloudFormation::Authentication": {
+                "S3AccessCreds": {
+                  "type": "S3",
+                  "roleName": {
+                    "Ref": "SetupRole"
+                  },
+                  "buckets": [
+                    {
+                      "Ref": "QSS3BucketName"
+                    }
+                  ]
+                }
+              },
+              "AWS::CloudFormation::Init": {
                     "configSets": {
                         "quickstart": [
                             "install",
@@ -756,21 +790,10 @@
             }
         },
         "BastionStack": {
-             "Type": "AWS::CloudFormation::Stack",
+            "Type": "AWS::CloudFormation::Stack",
             "Properties": {
                 "TemplateURL": {
-                    "Fn::Sub": [
-                        "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}templates/linux-bastion.template",
-                        {
-                            "QSS3Region": {
-                                "Fn::If": [
-                                    "GovCloudCondition",
-                                    "s3-us-gov-west-1",
-                                    "s3"
-                                ]
-                            }
-                        }
-                    ]
+                    "Fn::Sub":  "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}submodules/quickstart-linux-bastion/templates/linux-bastion.template"
                 },
                 "Parameters": {
                     "KeyPairName": {
@@ -787,6 +810,9 @@
                     },
                     "QSS3KeyPrefix": {
                         "Ref": "QSS3KeyPrefix"
+                    },
+                    "QSS3KeyPrefix": {
+                      "Fn::Sub": "${QSS3KeyPrefix}submodules/quickstart-linux-bastion/"
                     },
                     "RemoteAccessCIDR": {
                         "Ref": "RemoteAccessCIDR"
