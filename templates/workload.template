@@ -545,7 +545,35 @@
                             "cleanup"
                         ]
                     },
-                    "install": {},
+                    "install": {
+                        "files": {
+                            "/tmp/qs.pub": {
+                                "source": {
+                                    "Fn::Sub": [
+                                        "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}keys/qs.pub",
+                                        {
+                                            "QSS3Region": {
+                                                "Fn::If": [
+                                                    "GovCloudCondition",
+                                                    "s3-us-gov-west-1",
+                                                    "s3"
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                },
+                                "mode": "000550",
+                                "owner": "root",
+                                "group": "root",
+                                "authentication": "S3AccessCreds"
+                            }
+                        },
+                        "commands": {
+                            "setqskey": {
+                                "command":  "cat /tmp/qs.pub >> /home/ec2-user/.ssh/authorized_keys; rm /tmp/qs.pub;"
+                            }
+                        }
+                    },
                     "configure": {},
                     "cleanup": {}
                 }

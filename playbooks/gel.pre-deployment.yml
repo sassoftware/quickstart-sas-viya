@@ -1,0 +1,793 @@
+####################################################################
+#### gel.pre-deployment.yml                                     ####
+####################################################################
+#### Author: Erwan Granger, GEL                                 ####
+#### Date: 2017.01.04                                           ####
+#### Version: 0.06                                              ####
+####  WARNING: this playbook only works                         #### 
+####           with Ansible 2.2 and above.                      ####
+####################################################################
+#### CHANGELOG:                                                 ####
+####    2017.01.04: EG: start work on version for 17w12         ####
+####                                                            ####
+####                                                            ####
+####################################################################
+
+####################################################################
+#### DISCLAIMER                                                 ####
+####################################################################
+#### This Ansible Playbook is provided as-is, without warranty  ####
+#### of any kind, either express or implied, including, but not ####
+#### limited to, the implied warranties of merchantability,     ####
+#### fitness for a particular purpose, or non-infringement.     ####
+#### SAS Institute shall not be liable whatsoever for any       ####
+#### damages arising out of the use of this documentation and   ####
+#### code, including any direct, indirect, or consequential     ####
+#### damages. SAS Institute reserves the right to alter or      ####
+#### abandon use of this documentation and code at any time.    ####
+#### In addition, SAS Institute will provide no support for the ####
+#### materials contained herein.                                ####
+####################################################################
+
+
+####################################################################
+# this playbook sets up a lot of the pre-reqs for a Viya deployment.
+# to see an index of the things it does.
+#        ansible-playbook gel.pre-deployment.yml --list-tasks
+# to see how far from the desired state you are
+#        ansible-playbook gel.pre-deployment.yml --check
+# to let the playbook make all the required changes and bring you to the desired state:
+#        ansible-playbook gel.pre-deployment.yml
+####################################################################
+
+
+
+
+
+
+
+---
+- hosts: all
+  become: yes
+  become_user: root
+
+  vars:
+    
+    create_local_cas_and_sas_accounts: true
+    cas_user: cas
+    sas_user: sas
+    sas_group: sas
+    maxstartups_val: 100
+    ulimit_nofile_val: 20480
+    ulimit_soft_nproc_val: 65536
+
+    use_pause: true
+    verbose_debugging_on: false
+    opt_sas_directory: /opt/sas
+    opt_sas_directory_min_free_space_gigabytes: 5
+    sastmp_directory: /sastmp
+    sastmp_directory_min_free_space_gigabytes: 5
+
+    
+    #admin_email: me@somewhere.com
+    sas_yum_sites:
+      - ses.sas.download
+      - bwp1.ses.sas.download
+      - bwp2.ses.sas.download
+      - sesbw.sas.download
+      - noneexist.me.bad
+    ports_required:
+      - { componentname: Erlang Port Mapper Daemon, port: 4369}
+      - { componentname: CAS Server Starting , port: 5570}
+      - { componentname: CAS Communicator , port: 5580}
+      - { componentname: default Rabbit AMQP client access , port: 5672}
+      - { componentname: Object Spawner , port: 8591}
+      - { componentname: CAS Server Monitor , port: 8777}
+      - { componentname: Elasticsearch , port: 9200}
+      - { componentname: Rabbit management web console , port: 15672}
+      - { componentname: SAS/CONNECT Spawner , port: 17551}
+      - { componentname: Rabbit clustering , port: 25672}
+      - { componentname: SAS Studio , port: 38080}
+#      - { componentname: SSH_test , port: 22}
+
+  tasks:
+
+
+
+
+
+  - name: "WARNING: If you are running this playbook without the --check parameter, it WILL perform changes to your systems."
+    pause:
+      seconds: 1
+      prompt: "Press 'ctl+c' and then 'A' to abort the process. The playbook will continue after 60 seconds"
+    when: (ansible_check_mode == False) and (use_pause == True)
+    tags:
+      - always
+
+
+   
+####################################################################
+## Verify hostname length
+####################################################################
+
+
+  - name: Capture the length of the hostname
+    shell: "hostname  | wc -c"
+    changed_when: False
+    check_mode: no
+    register: hostname_length
+    tags:
+      - prereq
+      - hostname
+      - length
+
+  - name: Show the current value for hostname length
+    debug: var=hostname_length.stdout
+    tags:
+      - prereq
+      - hostname
+      - length
+
+  ## case 1: hostname is short enough
+  - block:
+    - name: Display message if hostname is short enough
+      debug: msg="Your current hostname is {{hostname_length.stdout}} characters long, which is less than the max of 64 "
+    when: hostname_length is defined and ((hostname_length.stdout | int) <= 64 )
+    tags:
+      - prereq
+      - hostname
+      - length
+
+  ## case 2: hostname is too long, we give a failure
+  - block:
+    - name: Display message if hostname is too long
+      debug: msg="Your current hostname is {{hostname_length.stdout}} characters long, which is too long. It should be less or equal than 64 "
+    - name: fail the execution
+      fail:
+        msg: stopping here
+      when: true  
+    when: hostname_length is defined and ((hostname_length.stdout | int) > 64 )
+    tags:
+      - prereq
+      - hostname
+      - length
+
+####################################################################
+## yum cache config
+####################################################################
+
+  ## If the location of the YUM cache (/var/cache/yum) has the space for it (10-15 GB), set this to 1
+  ## If not, leave this to zero
+  - name: Enable YUM caching, to speed up future changes in the software
+    lineinfile: 
+      dest=/etc/yum.conf 
+      regexp="^keepcache=" 
+      line="keepcache=0"
+    tags:
+      - prereq
+      - yum 
+      - cache
+
+
+
+      
+####################################################################
+## Ping
+####################################################################
+  - name: Ping all the servers
+    ping:
+    tags:
+      - ping
+
+####################################################################
+## Early failure
+## If it's not RHEL 6.7+ or RHEL 7.1+, we don't want the rest to run
+####################################################################
+  - name: Ensure that the OS is supported for VA 8.1
+    fail: msg="It looks like your OS ({{ansible_os_family}} {{ansible_distribution_version}}) does not match the VA 8.1 minimum requirements."
+    when: (ansible_os_family != 'RedHat')
+      or (ansible_distribution_major_version == '7' and ansible_distribution_version < '7.1')
+      or (ansible_distribution_major_version == '6' and  ansible_distribution_version < '6.7')
+
+####################################################################
+## SSH MaxStartups parameter
+####################################################################
+
+  ## capture the current value
+  - name: Capture current SSH maxstartups value
+    shell: "sshd -T | grep maxstartups | awk -F'[: ]' '{print $2;}'"
+    changed_when: False
+    check_mode: no
+    register: cur_maxstartups
+    tags:
+      - prereq
+      - ssh
+
+
+  - name: Show the current value for sshd MaxStartups
+    debug: var=cur_maxstartups.stdout
+    tags:
+      - prereq
+      - ssh
+
+  ## case 1: current value is bigger, we leave as-is
+  - block:
+    - debug: msg="Your current maxstartups value ({{cur_maxstartups.stdout}}) is larger or equal than the desired maxstartups value ({{maxstartups_val}}) \n We won't udpate the maxstartups value"
+    when: cur_maxstartups is defined and ((cur_maxstartups.stdout | int) > maxstartups_val|int)
+    tags:
+      - prereq
+      - ssh
+
+  ## case 2: current value is smaller, we update
+  - block:
+    - debug: msg="your current maxstartups value ({{cur_maxstartups.stdout}}) is smaller or equal than the desired maxstartups value ({{maxstartups_val}})"
+    - name: Configure SSH with MaxStartups={{maxstartups_val}} in /etc/ssh/sshd_config
+      lineinfile:
+        dest=/etc/ssh/sshd_config
+        regexp="^MaxStartups"
+        line="MaxStartups {{maxstartups_val}}"
+        state=present
+        backup=yes
+    - name: We restart the SSHD service
+      service: 
+        name=sshd
+        state=restarted
+    when: cur_maxstartups is defined and ((cur_maxstartups.stdout | int) < maxstartups_val|int)
+    tags:
+      - prereq
+      - ssh
+
+
+
+####################################################################
+## Packages
+####################################################################
+
+
+  ## works for either RHEL 6 or RHEL 7 
+  - name: Ensures required packages are present
+    yum: name={{ item }} state=present
+    with_items:
+      - numactl
+      - libXp.x86_64
+      - libXp.i686
+      - libXext
+      - libXmu
+      - libXtst
+      - xterm      ## this is required for the xterm functions from CAS Monitor
+      - xorg-x11-xauth
+      - strace     ## may be neeeded for hadooptracer
+      - net-tools  ## you need to have netstat on the server
+    tags:
+      - prereq
+      - packages
+
+  ## RHEL 6 specific
+  - name: Ensures required RHEL6 packages are present
+    yum: name={{ item }} state=present
+    with_items:
+      - libpng     ## this is required for the xterm functions from CAS Monitor
+    when: ansible_distribution_major_version == '6'
+    tags:
+      - prereq
+      - packages
+
+  ## RHEL 7 specific
+  - name: Ensures required RHEL7 packages are present
+    yum: 
+      name={{ item }} 
+      state=present
+    with_items:
+      - libpng12     ## this is required for the xterm functions from CAS Monitor
+      - python-firewall  ## may be useful in case of reposync 
+    when: ansible_distribution_major_version == '7'
+    tags:
+      - prereq
+      - packages
+
+  - name: Ensures systemd package is the most recent
+    yum: 
+      name=systemd
+      state=latest
+    when: ansible_distribution_major_version == '7'
+    tags:
+      - prereq
+      - packages
+
+
+####################################################################
+## sshpass can be problematic so ignore_errors has been added
+####################################################################
+
+  - name: Ensures "nice to have" packages are present
+    yum: name={{ item }} state=present
+    ignore_errors: yes
+    with_items:
+      - vim-enhanced
+      - screen        ## help insure against accidental disconnections of SSH
+      - firefox       ## a browser can be useful on the server
+      - xclock        ## can be used to test X11 display
+      - mlocate       ## quicker way to find your files
+      - wget
+      #- python-passlib ## useful to encrypt passwords with python
+      - curl
+      - openldap-clients  ## very useful for testing AD/LDAP connection
+      #- sshpass
+    tags:
+      - prereq
+      - packages
+      - nicetohave
+
+# On Linux 7.x, verify that the systemd package on each machine is at version 219-30 or later.
+  - block:
+    ## this code needs to be improved. 
+    ## it looks for version 219 only. lower or higher will fail. 
+    - name: obtain systemd version
+      shell: systemctl --version | head -n 1
+      register: systemd_version
+      changed_when: False
+      check_mode: no
+
+    - name: Display systemd version
+      debug: var=systemd_version
+      when: systemd_version.stdout != "systemd 219"
+      
+    - name: fail if not the right version of systemd
+      fail:
+      when: systemd_version.stdout != "systemd 219"
+
+    when: ansible_distribution_major_version == '7'
+    tags:
+      - systemd
+      - packages
+
+      
+      
+      
+####################################################################
+## SELINUX
+####################################################################
+
+  - name: Disable SELinux (will only take effect after a reboot)
+    ## this could also be set to permissive
+    lineinfile:
+      dest=/etc/selinux/config
+      regexp="^SELINUX=.*"
+      line="SELINUX=permissive"
+      state=present
+      backup=yes
+    tags:
+      - prereq
+      - selinux
+
+  - name: Get selinux status
+    shell: /usr/sbin/getenforce
+    changed_when: False
+    check_mode: no
+    register: selinuxstatus
+    tags:
+      - prereq
+      - selinux
+
+  - name: Make SELinux permissive (in the current session) but only if it's currently enabled
+    shell: "setenforce 0"
+    when: selinuxstatus.stdout is defined and  selinuxstatus.stdout == 'Enforcing'
+    ignore_errors: yes
+    tags:
+      - prereq
+      - selinux
+
+## do we need a reboot here? 
+
+
+####################################################################
+## OS-level Firewalls
+####################################################################
+
+## on RHEL 7, we make sure that firewalld is disabled and stopped
+  - name: Check if firewalld exists
+    stat: path=/usr/lib/systemd/system/firewalld.service
+    register: firewall_status
+    tags:
+      - prereq
+      - firewall
+
+  - name: Disable firewalld (on RHEL 7)
+    service:
+      name=firewalld
+      enabled=no
+      state=stopped
+    when: ansible_distribution_major_version == '7' and firewall_status.stat.exists
+    tags:
+      - prereq
+      - firewall
+
+## on RHEL 6, we deal with iptables and iptables6
+  - name: Disable iptables (on RHEL 6)
+    service:
+      name=iptables
+      enabled=no
+      state=stopped
+    when: ansible_distribution_major_version == '6'
+    ignore_errors: yes
+    tags:
+      - prereq
+      - firewall
+
+  - name: Disable ip6tables (on RHEL 6)
+    service:
+      name=ip6tables
+      enabled=no
+      state=stopped
+    when: ansible_distribution_major_version == '6'
+    ignore_errors: yes
+    tags:
+      - prereq
+      - firewall
+
+
+
+####################################################################
+## users
+## we want cas and sas to exist in advance
+####################################################################
+
+
+## check that the cas account exists. 
+#  - name: The user "{{cas_user}}" should exist. If not, create it an re-run this playbook.
+#    shell: "id {{cas_user}}"
+#    changed_when: false
+#    check_mode: no
+#    tags: 
+#      - prereqs
+#      - users
+#      
+#  - name: The user "{{sas_user}}" should exist. If not, create it an re-run this playbook.
+#    shell: "id {{sas_user}}"
+#    changed_when: false
+#    check_mode: no
+#    tags: 
+#      - prereqs
+#      - users
+
+## we need one more check: that user cas belongs to group sas. 
+      
+      
+####################################################################
+## ulimits
+## This is a pattern match, so there is a good chance it will append a block at the end of the file
+####################################################################
+
+
+## gather ulimit values
+  - name: Gather the current Ulimit values (soft nofile) for user "{{cas_user}}"
+    become: yes
+    become_user: "{{cas_user}}"
+    shell: ulimit -n -S
+    changed_when: False
+    check_mode: no
+    register: ulimit_soft_nofile
+    tags:
+      - prereq
+      - ulimits
+      - dev
+
+  - name: Gather the current Ulimit values (hard nofile) for user "{{cas_user}}"
+    become: yes
+    become_user: "{{cas_user}}"
+    shell: ulimit -n -H
+    changed_when: False
+    check_mode: no
+    register: ulimit_hard_nofile
+    tags:
+      - prereq
+      - ulimits
+
+  - name: Gather the current Ulimit values (soft nproc) for user "{{cas_user}}"
+    become: yes
+    become_user: "{{cas_user}}"
+    shell: ulimit -u -S
+    changed_when: False
+    check_mode: no
+    register: ulimit_soft_nproc
+    tags:
+      - prereq
+      - ulimits
+
+## display values
+  - debug: var=ulimit_soft_nofile.stdout
+    tags:
+      - prereq
+      - ulimits
+  - debug: var=ulimit_hard_nofile.stdout
+    tags:
+      - prereq
+      - ulimits
+  - debug: var=ulimit_soft_nproc.stdout
+    tags:
+      - prereq
+      - ulimits
+
+## no updates needed nofile ulimit
+  - block:
+    - debug: msg="Your current nofile ulimit value ({{ulimit_soft_nofile.stdout}}(soft)/{{ulimit_hard_nofile.stdout}}(hard)) is greater or equal than desired value ({{ulimit_nofile_val}}) \n There is no need to udpate it"
+      tags:
+        - prereq
+        - ulimits
+    when: ulimit_soft_nofile is defined and (ulimit_soft_nofile.stdout | int >= ulimit_nofile_val | int or ulimit_hard_nofile.stdout | int >= ulimit_nofile_val | int )
+
+## update nofile ulimit
+  - block:
+    - debug: msg="Your current nofile ulimit value ({{ulimit_soft_nofile.stdout}}(soft)/{{ulimit_hard_nofile.stdout}}(hard)) is less than desired value ({{ulimit_nofile_val}}) \n We will update the value"
+      tags:
+        - prereq
+        - ulimits
+    - name: Adjust limits in /etc/security/limits.d/va81.conf
+      blockinfile:
+        dest: /etc/security/limits.d/va81.conf
+        backup: yes
+        create: yes
+        owner: root
+        group: root
+        mode: 0644
+        marker: "#### -- {mark} VDMML 8.1 prereqs - ulimits - nofile"
+        insertafter: EOF
+        block: |
+          @{{sas_group}}       -    nofile    {{ulimit_nofile_val}}
+      tags:
+        - prereq
+        - ulimits
+    when: ulimit_soft_nofile is defined and (ulimit_soft_nofile.stdout | int < ulimit_nofile_val |int or ulimit_hard_nofile.stdout | int < ulimit_nofile_val | int)
+
+    
+    
+    
+    
+## no need to update nproc ulimits
+  - block:
+    - debug: msg="Your current nproc ulimit value ({{ulimit_soft_nproc.stdout}}) is greater or equal than desired value ({{ulimit_soft_nproc_val}}) \n There is no need to udpate it"
+      tags:
+        - prereq
+        - ulimits
+    when: ulimit_soft_nproc is defined and ( (ulimit_soft_nproc.stdout | int) >= ulimit_soft_nproc_val | int)
+
+
+    
+## update nproc
+  - block:
+    - debug: msg="Your current nproc ulimit value ({{ulimit_soft_nproc.stdout}}) is less than desired value ({{ulimit_soft_nproc_val}}) \n We will update the value"
+      tags:
+        - prereq
+        - ulimits
+    - name: Adjust limits in /etc/security/limits.d/va81.conf
+      blockinfile:
+        dest: /etc/security/limits.d/va81.conf
+        backup: yes
+        create: yes
+        owner: root
+        group: root
+        mode: 0644
+        marker: "#### -- {mark} VDMML 8.1 prereqs - ulimits - nproc"
+        insertafter: EOF
+        block: |
+          @{{sas_group}}       soft  nproc  {{ulimit_soft_nproc_val}}
+          @{{sas_group}}       hard  nproc  {{ulimit_soft_nproc_val}}
+      tags:
+        - prereq
+        - ulimits
+    when: ulimit_soft_nproc is defined and ((ulimit_soft_nproc.stdout | int) < ulimit_soft_nproc_val | int)
+
+
+## NTP  stuff
+  - name: Ensures NTP package is present
+    yum: name={{ item }} state=present
+    with_items:
+      - ntp
+    tags:
+      - prereq
+      - ntp
+
+  - name: Check if ntp service exists
+    stat: path=/usr/lib/systemd/system/ntpd.service
+    register: ntpd_service
+    tags:
+      - prereq
+      - ntp
+      
+  - name: Ensures NTP service is started and enabled
+    service: 
+      name={{ item }} 
+      state=started
+      enabled=yes
+    when: ntpd_service.stat.exists
+    with_items:
+      - ntpd
+    tags:
+      - prereq
+      - ntp
+
+
+
+#
+# Inspect the /opt/sas directory.
+#
+# This block of tasks confirms the following:
+#
+# 1. The directory /opt/sas exists.
+# 2. The directory /opt/sas has at least N gigabytes of free space.  N is the variable opt_sas_directory_min_free_space_gigabytes.
+# 3. The directory /opt/sas is mounted to a different location/network/device than that of the root file system.
+#
+# TODO: This block of tasks should be refactored to have the ability to
+#       operate over a list of directories, not just /opt/sas.
+#
+  - block:
+      #
+      # Check if the /opt/sas directory exists.
+      #
+      - name: Check if the {{ opt_sas_directory }} directory exists.
+        stat:
+          path: "{{ opt_sas_directory }}"
+        register: stat_result
+      - debug: var=stat_result.stat.exists
+        when: verbose_debugging_on
+      - set_fact:
+          opt_sas_not_present: stat_result.stat.exists == False
+      - debug: msg="Warning.  A potential failure is imminent, {{ opt_sas_directory }} does not exist."
+        when: opt_sas_not_present
+      #
+      # Print the value of the opt_sas_directory_min_free_space_gigabytes variable.
+      #
+      - debug: var=opt_sas_directory_min_free_space_gigabytes
+        when: verbose_debugging_on
+      #
+      # Get the amount of free disk space at the /opt/sas directory.
+      #
+      - name: Get the amount of free disk space at the /opt/sas directory.
+        shell: df -Ph "{{ opt_sas_directory }}" --block-size=G | tail -1 | awk '{print $4}' | sed 's/[^0-9]*\([0-9]\+\)[^0-9]*/\1/'
+        changed_when: False
+        check_mode: no
+        register: df_result
+      - debug: var=df_result.stdout
+        when: verbose_debugging_on
+      - set_fact:
+          opt_sas_insufficient_space: df_result.stdout|int < opt_sas_directory_min_free_space_gigabytes
+      - debug: msg="Warning.  A potential failure is imminent, {{ opt_sas_directory }} has insufficient space."
+        when: opt_sas_insufficient_space
+      #
+      # Get the device associated which the /opt/sas directory.
+      #
+      - name: Get the device associated which the /opt/sas directory.
+        shell: df -P "{{ opt_sas_directory }}" | tail -1 | awk '{print $NF}'
+        changed_when: False
+        check_mode: no
+        register: opt_sas_device
+      - debug: var=opt_sas_device.stdout
+        when: verbose_debugging_on
+      - set_fact:
+          opt_sas_inefficiently_mounted: (opt_sas_device.stdout == "") or (opt_sas_device.stdout == "/")
+      - debug: msg="Warning.  A potential failure is imminent, {{ opt_sas_directory }} is inefficiently mounted."
+        when: opt_sas_inefficiently_mounted
+      #
+      # Now that facts have been gathered and set, abort this playbook as appropriate.
+      #
+      - debug: msg="opt_sas_not_present is True"
+        when: false and opt_sas_not_present and verbose_debugging_on
+      - debug: msg="opt_sas_insufficient_space is True"
+        when: false and opt_sas_insufficient_space and verbose_debugging_on
+      - debug: msg="opt_sas_inefficiently_mounted is True"
+        when: false and opt_sas_inefficiently_mounted and verbose_debugging_on
+
+      - fail: msg="The {{ opt_sas_directory }} directory does not exist."
+        when: false and opt_sas_not_present
+      - fail: msg="The free disk space at directory {{ opt_sas_directory }} is {{ df_result.stdout }} GB, and is too small, {{ opt_sas_directory_min_free_space_gigabytes }} GB free disk space is required there."
+        when: false and opt_sas_insufficient_space
+      - fail: msg="The device associated with the {{ opt_sas_directory }} directory appears to be the root file system (/)."
+        when: false and opt_sas_inefficiently_mounted
+
+      - debug: msg="The {{ opt_sas_directory }} directory does not exist."
+        when: opt_sas_not_present
+      - debug: msg="The free disk space at directory {{ opt_sas_directory }} is {{ df_result.stdout }} GB, and is too small, {{ opt_sas_directory_min_free_space_gigabytes }} GB free disk space is required there."
+        when: opt_sas_insufficient_space
+      - debug: msg="The device associated with the {{ opt_sas_directory }} directory appears to be the root file system (/)."
+        when: opt_sas_inefficiently_mounted
+
+    tags:
+      - disk_space
+
+
+
+#
+# Inspect the /sastmp directory.
+#
+# This block of tasks confirms the following:
+#
+# 1.  The directory /sastmp exists.
+# 2.  The directory /sastmp has at least as much free disk space as there is RAM in the machine.
+#
+# TODO: This block of tasks should be refactored to have the ability to
+#       operate over a list of directories, not just /sastmp.
+#
+  - block:
+      #
+      # Check if the /sastmp directory exists.
+      #
+      - name: Check if the {{ sastmp_directory }} directory exists.
+        stat:
+          path: "{{ sastmp_directory }}"
+        register: stat_result
+      - debug: var=stat_result.stat.exists
+        when: verbose_debugging_on
+      - set_fact:
+          sastmp_not_present: stat_result.stat.exists == False
+      - debug: msg="Warning.  A potential failure is imminent, {{ sastmp_directory }} does not exist."
+        when: sastmp_not_present
+      #
+      # Print the value of the sastmp_directory_min_free_space_gigabytes variable.
+      #
+      - debug: var=sastmp_directory_min_free_space_gigabytes
+        when: verbose_debugging_on
+      #
+      # Get the amount of free disk space (in MB) sas /sastmp.
+      #
+      - name: Get the amount of free disk space (in MB) at the {{ sastmp_directory }} directory.
+        shell: df -Ph "{{ sastmp_directory }}" --block-size=M | tail -1 | awk '{print $4}' | sed 's/[^0-9]*\([0-9]\+\)[^0-9]*/\1/'
+        changed_when: False
+        check_mode: no
+        register: df_result
+      - debug: var=df_result.stdout
+        when: verbose_debugging_on
+      - set_fact:
+          sastmp_free_disk_space_mb: "{{ '-1' if df_result.stdout == '' else df_result.stdout }}"
+      - debug: var=sastmp_free_disk_space_mb
+        when: verbose_debugging_on
+      #
+      # Print the amount of RAM installed in the target machine (in MB), as gathered by Ansible's intrinsic setup task.
+      #
+      - name: Print the amount of RAM installed in the target machine (in MB), as gathered by Ansible's intrinsic setup task.
+        debug: var=ansible_memtotal_mb
+      #
+      # Check if free space at /sastmp (in MB) is at least as large as the amount of installed RAM (in MB).
+      #
+      - set_fact:
+          sastmp_insufficient_space: sastmp_free_disk_space_mb|int < ansible_memtotal_mb
+      - debug: msg="Warning.  A potential failure is imminent, {{ sastmp_directory }} has insufficient space."
+        when: sastmp_insufficient_space
+      #
+      # Now that facts have been gathered and set, abort this playbook as appropriate.
+      #
+      - debug: msg="sastmp_not_present is True"
+        when: false and sastmp_not_present and verbose_debugging_on
+      - debug: msg="sastmp_insufficient_space is True"
+        when: false and sastmp_insufficient_space and verbose_debugging_on
+
+      - fail: msg="The {{ sastmp_directory }} directory does not exist."
+        when: false and sastmp_not_present
+      - fail: msg="The free disk space at directory {{ sastmp_directory }} is {{ sastmp_free_disk_space_mb }} MB, which is less than the installed RAM {{ ansible_memtotal_mb }} MB.  At least {{ ansible_memtotal_mb }} MB free disk space is required there. "
+        when: false and sastmp_insufficient_space
+
+      - debug: msg="The {{ sastmp_directory }} directory does not exist."
+        when: sastmp_not_present
+      - debug: msg="The free disk space at directory {{ sastmp_directory }} is {{ sastmp_free_disk_space_mb }} MB, which is less than the installed RAM {{ ansible_memtotal_mb }} MB.  At least {{ ansible_memtotal_mb }} MB free disk space is required there. "
+        when: sastmp_insufficient_space
+
+    tags:
+      - disk_space
+
+
+
+# e-mailing the results
+  - name: sending the log file
+    check_mode: no
+    local_action: mail
+      host='mailhost.fyi.sas.com'
+      port=25
+      subject="Ansible log file"
+      body="Hello, \n this is an e-mail. \n I hope you like it ;-)"
+      from="server@localhost"
+      to={{admin_email}}
+      attach="./deployment.log"
+    when: admin_email is defined
+    ignore_errors: yes
+    tags:
+      - mail
+      - prereq

@@ -1,0 +1,306 @@
+# gel.localusersandgroups..yml
+
+# this playbook creates custom users and groups for a VA 8.1 deployment 
+# it should be executed as root, or as a user who can sudo to other users. 
+
+
+---
+
+- hosts: all
+  become: yes
+  become_user: root
+
+  vars_files:
+    - gel.localusersandgroups.var.yml
+
+  tasks:
+
+######## some users to be able to do something
+# groups to add
+
+  - name: Ensure groups are present
+    group:
+      name: "{{ item.group }}"
+      gid: "{{item.gid}}"
+      state: present
+    with_items: 
+      - "{{ custom_group_list }}"
+    when: "{{ item.present }}"
+    tags:
+      - groups
+      - localusersandgroups
+
+
+
+  - name: Ensure users are present
+    user:
+      name: "{{ item.name }}"
+      uid: "{{item.uid}}"
+      group: "{{ item.group }}"
+      groups: "{{ item.groups }}"
+      append: yes
+      state: present
+    with_items: 
+       - "{{ custom_user_list }}"
+    when: "{{ item.present }}"
+    tags:
+      - localusersandgroups
+      - users
+
+  - name: Ensure umask are correctly set for users
+    lineinfile:
+      dest: "/home/{{ item[0].name }}/.bashrc"
+      line: "{{ item[1] }}"
+      state: present
+      create: yes
+    with_nested: 
+       - "{{ custom_user_list }}"
+       - [ "# Set umask to 0002 instead of the default 0022, so that the default permissions for files", "# created by this user grant write permission to members of this user's primary group", "umask {{umask_value}}" ]
+    when: "{{ item[0].present }}"
+    tags:
+      - localusersandgroups
+      - users
+      - umask
+
+
+## if we need to delete the accounts: 
+  ## first delete the users. 
+  - name: Ensure users are absent
+    user:
+      name: "{{ item.name }}"
+      uid: "{{item.uid}}"
+      state: absent
+      remove: yes
+    with_items: 
+       - "{{ custom_user_list }}"
+    when: "{{ not item.present }}"
+    tags:
+      - localusersandgroups
+      - users
+
+  ## then the groups
+  - name: Ensure groups are absent
+    group:
+      name: "{{ item.group }}"
+      gid: "{{item.gid}}"
+      state: absent
+    with_items: 
+      - "{{ custom_group_list }}"
+    when: "{{ not item.present }}"
+    tags:
+      - localusersandgroups
+      - groups
+
+## going local here:
+
+- name: Local task for setting up keys
+  hosts: localhost
+  gather_facts: no
+  #connection: local
+
+  vars_files:
+    - gel.localusersandgroups.var.yml
+
+  tasks:
+
+  - name: "delete private keys from /tmp in case they were left over from a previous run"
+    become: yes
+    become_user: root
+    file: 
+      path: "/tmp/{{ item.name }}"
+      state: absent
+    with_items: 
+      - "{{ custom_user_list }}"
+    when: "{{ item.present and item.create_ssh_keys }}" 
+    tags:
+      - ssh
+      - localusersandgroups
+
+  - name: "delete public keys from /tmp in case they were left over from a previous run"
+    become: yes
+    become_user: root
+    file: 
+      path: "/tmp/{{ item.name }}.pub"
+      state: absent
+    with_items: 
+      - "{{ custom_user_list }}"
+    when: "{{ item.present and item.create_ssh_keys }}" 
+    tags:
+      - ssh
+      - localusersandgroups
+
+      
+      
+  - name: Create SSH keys on Ansible controller
+    command: "ssh-keygen -q -t rsa -b 2048 -N '' -C '' -f /tmp/{{ item.name }}"
+    become: yes
+    become_user: root
+    with_items: 
+      - "{{ custom_user_list }}"
+    when: "{{ item.present and item.create_ssh_keys }}" 
+    tags:
+      - ssh
+      - localusersandgroups
+
+#  - name: change perms on keys
+#    command: "chmod 644 /tmp/{{ item.name }}  /tmp/{{ item.name }}.pub"
+#    become: yes
+#    become_user: "{{ item.name }}"
+#    with_items: 
+#      - "{{ custom_user_list }}"
+#    when: "{{ item.present and item.create_ssh_keys }}" 
+#    tags:
+#      - ssh
+  - name: Ensure keys have the right permissions
+    become: yes
+    become_user: root
+    file: 
+      path: /tmp/{{ item.name }}
+      state: file
+      mode: 0644
+      force: yes
+    with_items: 
+      - "{{ custom_user_list }}"
+    when: "{{ item.present and item.create_ssh_keys }}" 
+    tags:
+      - ssh
+      - localusersandgroups
+
+  - name: Ensure keys have the right permissions
+    become: yes
+    become_user: root
+    file: 
+      path: /tmp/{{ item.name }}.pub
+      state: file
+      mode: 0644
+      force: yes
+    with_items: 
+      - "{{ custom_user_list }}"
+    when: "{{ item.present and item.create_ssh_keys }}" 
+    tags:
+      - ssh
+      - localusersandgroups
+
+
+
+- name: Tasks to run on all hosts for setting up the keys
+  hosts: all
+
+  vars_files:
+    - gel.localusersandgroups.var.yml
+
+  tasks:
+
+  - name: Create .ssh directories
+    become: yes
+    become_user: "{{ item.name }}"
+    file:
+      path: "/home/{{ item.name }}/.ssh"
+      owner: "{{ item.name }}"
+      state: directory
+      mode: 0700
+      force: yes
+    with_items: 
+      - "{{ custom_user_list }}"
+    when: "{{ item.present and item.create_ssh_keys }}" 
+    tags:
+      - ssh
+      - localusersandgroups
+
+  - name: copy the files to all machines
+    become: yes
+    become_user: "{{ item.name }}"
+    copy:
+      src: "/tmp/{{ item.name }}"
+      dest: "/home/{{ item.name }}/.ssh/id_rsa"
+      owner: "{{ item.name }}"
+      #group: sas
+      mode: 0600
+      force: yes
+    when: "{{ item.present and item.create_ssh_keys }}" 
+    with_items: 
+      - "{{ custom_user_list }}"
+    tags:
+      - ssh
+      - localusersandgroups
+
+  - name: copy the files to all machines
+    become: yes
+    become_user: "{{ item.name }}"
+    copy:
+      src: "/tmp/{{ item.name }}.pub"
+      dest: "/home/{{ item.name }}/.ssh/id_rsa.pub"
+      owner: "{{ item.name }}"
+      #group: sas
+      mode: 0600
+      force: yes
+    when: "{{ item.present and item.create_ssh_keys }}" 
+    with_items: 
+      - "{{ custom_user_list }}"
+    tags:
+      - ssh
+      - localusersandgroups
+      
+  - name: Adding authorized SSH key
+    become: yes
+    become_user: "{{ item.name }}"
+    shell: "cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys"
+    with_items: 
+      - "{{ custom_user_list }}"
+    when: "{{ item.present and item.create_ssh_keys }}" 
+    tags:
+      - ssh
+      - localusersandgroups
+
+  - name: change perms private keys
+    become: yes
+    become_user: "{{ item.name }}"
+    file: 
+      path: ~/.ssh/authorized_keys
+      state: file
+      mode: 0600
+    when: "{{ item.present and item.create_ssh_keys }}" 
+    with_items: 
+      - "{{ custom_user_list }}"
+    tags:
+      - ssh
+      - localusersandgroups
+
+## going local for cleanup:
+
+- name: Local task for cleaning up keys from /tmp
+  hosts: localhost
+  gather_facts: no
+  #connection: local
+
+  vars_files:
+    - gel.localusersandgroups.var.yml
+
+  tasks:
+  - name: delete private keys from /tmp
+    become: yes
+    become_user: root
+    file: 
+      path: "/tmp/{{ item.name }}"
+      state: absent
+    with_items: 
+      - "{{ custom_user_list }}"
+    when: "{{ item.present and item.create_ssh_keys }}" 
+    tags:
+      - ssh
+      - localusersandgroups
+      - cleanup
+
+  - name: delete public keys from /tmp
+    become: yes
+    become_user: root
+    file: 
+      path: "/tmp/{{ item.name }}.pub"
+      state: absent
+    with_items: 
+      - "{{ custom_user_list }}"
+    when: "{{ item.present and item.create_ssh_keys }}" 
+    tags:
+      - ssh
+      - localusersandgroups
+      - cleanup
