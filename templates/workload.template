@@ -82,15 +82,6 @@
                 "BastionInstanceType": {
                     "default": "Bastion Instance Type"
                 },
-                "ViyaServicesNodeDesiredCapacity": {
-                    "default": "Viya Services Node Desired Capacity"
-                },
-                "ViyaServicesNodeMaxSize": {
-                    "default": "Viya Services Node Max Size"
-                },
-                "ViyaServicesNodeMinSize": {
-                    "default": "Viya Services Node Min Size"
-                },
                 "RemoteAccessCIDR": {
                     "default": "Allowed External Access CIDR"
                 }
@@ -176,21 +167,7 @@
             "Description": "Amazon EC2 instance type for the bastion instances",
             "Type": "String"
         },
-        "ViyaServicesNodeDesiredCapacity": {
-            "Default": "1",
-            "Description": "The desired capacity for the Viya Services node Auto Scaling group",
-            "Type": "String"
-        },
-        "ViyaServicesNodeMaxSize": {
-            "Default": "1",
-            "Description": "The maximum size of the Auto Scaling group",
-            "Type": "String"
-        },
-        "ViyaServicesNodeMinSize": {
-            "Default": "1",
-            "Description": "The minimum size of the Auto Scaling group",
-            "Type": "String"
-        },
+
         "RemoteAccessCIDR": {
             "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
             "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/x",
@@ -334,6 +311,33 @@
                         "IpProtocol": "tcp",
                         "FromPort": "443",
                         "ToPort": "443",
+                        "CidrIp": {
+                            "Ref": "RemoteAccessCIDR"
+                        }
+                    }
+                ]
+            }
+        },
+        "BastionSecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "GroupDescription": "Enables SSH Access to Bastion Hosts",
+                "VpcId": {
+                    "Ref": "VPCID"
+                },
+                "SecurityGroupIngress": [
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "22",
+                        "ToPort": "22",
+                        "CidrIp": {
+                            "Ref": "RemoteAccessCIDR"
+                        }
+                    },
+                    {
+                        "IpProtocol": "icmp",
+                        "FromPort": "-1",
+                        "ToPort": "-1",
                         "CidrIp": {
                             "Ref": "RemoteAccessCIDR"
                         }
@@ -511,17 +515,14 @@
                         "FromPort": "22",
                         "ToPort": "22",
                         "SourceSecurityGroupId": {
-                            "Fn::GetAtt": [
-                                "BastionStack",
-                                "Outputs.BastionSecurityGroupID"
-                            ]
+                            "Ref" : "BastionSecurityGroup"
                         }
                     }
                 ]
             }
         },
-        "ViyaServicesNodeASLaunchConfig": {
-            "Type": "AWS::AutoScaling::LaunchConfiguration",
+        "ViyaServicesNode": {
+            "Type": "AWS::EC2::Instance",
             "Metadata": {
                 "AWS::CloudFormation::Authentication": {
                     "S3AccessCreds": {
@@ -562,16 +563,24 @@
                         "RHEL74HVM"
                     ]
                 },
-                "InstanceMonitoring": "true",
+                "SubnetId": {
+                    "Ref": "PrivateSubnet1ID"
+                },
                 "IamInstanceProfile": {
                     "Ref": "SetupRoleProfile"
                 },
                 "InstanceType": {
                     "Ref": "ViyaServicesNodeInstanceType"
                 },
-                "SecurityGroups": [
+                "SecurityGroupIds": [
                     {
                         "Ref": "ViyaServicesNodeSecurityGroup"
+                    }
+                ],
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "Viya Services node"
                     }
                 ],
                 "UserData": {
@@ -597,7 +606,7 @@
                                 {
                                     "Ref": "AWS::StackName"
                                 },
-                                " --resource ViyaServicesNodeASLaunchConfig --configsets quickstart --region ",
+                                " --resource ViyaServicesNode --configsets quickstart --region ",
                                 {
                                     "Ref": "AWS::Region"
                                 },
@@ -607,7 +616,7 @@
                                 {
                                     "Ref": "AWS::StackName"
                                 },
-                                " --resource ViyaServicesNodeScalingGroup --region ",
+                                " --resource ViyaServicesNode --region ",
                                 {
                                     "Ref": "AWS::Region"
                                 },
@@ -615,140 +624,6 @@
                             ]
                         ]
                     }
-                }
-            }
-        },
-        "ViyaServicesNodeScaleUpPolicy": {
-            "Type": "AWS::AutoScaling::ScalingPolicy",
-            "Properties": {
-                "AdjustmentType": "ChangeInCapacity",
-                "AutoScalingGroupName": {
-                    "Ref": "ViyaServicesNodeAutoScalingGroup"
-                },
-                "Cooldown": "300",
-                "ScalingAdjustment": "1"
-            }
-        },
-        "ViyaServicesNodeScaleDownPolicy": {
-            "Type": "AWS::AutoScaling::ScalingPolicy",
-            "Properties": {
-                "AdjustmentType": "ChangeInCapacity",
-                "AutoScalingGroupName": {
-                    "Ref": "ViyaServicesNodeAutoScalingGroup"
-                },
-                "Cooldown": "300",
-                "ScalingAdjustment": "-1"
-            }
-        },
-        "CPUAlarmHigh": {
-            "Type": "AWS::CloudWatch::Alarm",
-            "Properties": {
-                "AlarmDescription": "Scale-up if CPU > 60% for 5 minutes",
-                "MetricName": "CPUUtilization",
-                "Namespace": "AWS/EC2",
-                "Statistic": "Average",
-                "Period": "60",
-                "EvaluationPeriods": "5",
-                "Threshold": "60",
-                "AlarmActions": [
-                    {
-                        "Ref": "ViyaServicesNodeScaleUpPolicy"
-                    }
-                ],
-                "Dimensions": [
-                    {
-                        "Name": "AutoScalingGroupName",
-                        "Value": {
-                            "Ref": "ViyaServicesNodeAutoScalingGroup"
-                        }
-                    }
-                ],
-                "ComparisonOperator": "GreaterThanThreshold"
-            }
-        },
-        "CPUAlarmLow": {
-            "Type": "AWS::CloudWatch::Alarm",
-            "Properties": {
-                "AlarmDescription": "Scale-down if CPU < 40% for 30 minutes",
-                "MetricName": "CPUUtilization",
-                "Namespace": "AWS/EC2",
-                "Statistic": "Average",
-                "Period": "60",
-                "EvaluationPeriods": "30",
-                "Threshold": "40",
-                "AlarmActions": [
-                    {
-                        "Ref": "ViyaServicesNodeScaleDownPolicy"
-                    }
-                ],
-                "Dimensions": [
-                    {
-                        "Name": "AutoScalingGroupName",
-                        "Value": {
-                            "Ref": "ViyaServicesNodeAutoScalingGroup"
-                        }
-                    }
-                ],
-                "ComparisonOperator": "LessThanThreshold"
-            }
-        },
-        "ViyaServicesNodeAutoScalingGroup": {
-            "Type": "AWS::AutoScaling::AutoScalingGroup",
-            "Properties": {
-                "VPCZoneIdentifier": [
-                    {
-                        "Ref": "PrivateSubnet1ID"
-                    },
-                    {
-                        "Ref": "PrivateSubnet2ID"
-                    }
-                ],
-                "Cooldown": "600",
-                "DesiredCapacity": {
-                    "Ref": "ViyaServicesNodeDesiredCapacity"
-                },
-                "HealthCheckGracePeriod": "600",
-                "HealthCheckType": "EC2",
-                "LaunchConfigurationName": {
-                    "Ref": "ViyaServicesNodeASLaunchConfig"
-                },
-                "LoadBalancerNames": [
-                    {
-                        "Ref": "ElasticLoadBalancer"
-                    }
-                ],
-                "MaxSize": {
-                    "Ref": "ViyaServicesNodeMaxSize"
-                },
-                "MinSize": {
-                    "Ref": "ViyaServicesNodeMinSize"
-                },
-                "NotificationConfiguration": {
-                    "TopicARN": {
-                        "Ref": "NotificationTopic"
-                    },
-                    "NotificationTypes": [
-                        "autoscaling:EC2_INSTANCE_LAUNCH",
-                        "autoscaling:EC2_INSTANCE_LAUNCH_ERROR",
-                        "autoscaling:EC2_INSTANCE_TERMINATE",
-                        "autoscaling:EC2_INSTANCE_TERMINATE_ERROR",
-                        "autoscaling:TEST_NOTIFICATION"
-                    ]
-                },
-                "Tags": [
-                    {
-                        "Key": "Name",
-                        "Value": "Viya Services node",
-                        "PropagateAtLaunch": "true"
-                    }
-                ]
-            },
-            "CreationPolicy": {
-                "ResourceSignal": {
-                    "Count": {
-                        "Ref": "ViyaServicesNodeDesiredCapacity"
-                    },
-                    "Timeout": "PT2H"
                 }
             }
         },
@@ -781,16 +656,19 @@
                         "Ref": "QSS3BucketName"
                     },
                     "QSS3KeyPrefix": {
-                        "Ref": "QSS3KeyPrefix"
-                    },
-                    "QSS3KeyPrefix": {
                         "Fn::Sub": "${QSS3KeyPrefix}submodules/quickstart-linux-bastion/"
                     },
-                    "RemoteAccessCIDR": {
-                        "Ref": "RemoteAccessCIDR"
+                    "BastionSecurityGroup": {
+                        "Ref": "BastionSecurityGroup"
                     },
                     "VPCID": {
                         "Ref": "VPCID"
+                    },
+                    "ViyaServicesNodeIp": {
+                        "Fn::GetAtt": [
+                            "ViyaServicesNode",
+                            "PrivateIp"
+                        ]
                     }
                 }
             }
@@ -819,8 +697,8 @@
             "Description": "Viya Services IP address",
             "Value": {
                 "Fn::GetAtt": [
-                    "BastionStack",
-                    "Outputs.EIP1"
+                    "ViyaServicesNode",
+                    "PrivateIp"
                 ]
             }
         }
