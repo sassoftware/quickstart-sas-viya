@@ -23,19 +23,8 @@
                     },
                     "Parameters": [
                         "KeyPairName",
-                        "WorkloadInstanceType",
+                        "ViyaServicesNodeInstanceType",
                         "BastionInstanceType"
-                    ]
-                },
-                {
-                    "Label": {
-                        "default": "Workload Nodes Configuration"
-                    },
-                    "Parameters": [
-                        "WorkloadNodesMinSize",
-                        "WorkloadNodesMaxSize",
-                        "WorkloadNodesDesiredCapacity",
-                        "OperatorEmail"
                     ]
                 },
                 {
@@ -87,24 +76,24 @@
                 "VPCID": {
                     "default": "VPC ID"
                 },
-                "WorkloadInstanceType": {
-                    "default": "Workload Servers Instance Type"
+                "ViyaServicesNodeInstanceType": {
+                    "default": "Viya Services Node Instance Type"
                 },
-              "BastionInstanceType": {
-                "default": "Bastion Instance Type"
-              },
-              "WorkloadNodesDesiredCapacity": {
-                    "default": "Workload Nodes Desired Capacity"
+                "BastionInstanceType": {
+                    "default": "Bastion Instance Type"
                 },
-                "WorkloadNodesMaxSize": {
-                    "default": "Workload Nodes Max Size"
+                "ViyaServicesNodeDesiredCapacity": {
+                    "default": "Viya Services Node Desired Capacity"
                 },
-                "WorkloadNodesMinSize": {
-                    "default": "Workload Nodes Min Size"
+                "ViyaServicesNodeMaxSize": {
+                    "default": "Viya Services Node Max Size"
+                },
+                "ViyaServicesNodeMinSize": {
+                    "default": "Viya Services Node Min Size"
                 },
                 "RemoteAccessCIDR": {
                     "default": "Allowed External Access CIDR"
-                },
+                }
             }
         }
     },
@@ -116,6 +105,7 @@
         "OperatorEmail": {
             "AllowedPattern": "([a-zA-Z0-9_\\-\\.]+)@((\\[[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.)|(([a-zA-Z0-9\\-]+\\.)+))([a-zA-Z]{2,4}|[0-9]{1,3})(\\]?)",
             "ConstraintDescription": "Must be a valid email address.",
+            "Default": "operator@email.com",
             "Description": "Email address that notifications of any scaling operations will be sent to",
             "Type": "String"
         },
@@ -159,65 +149,45 @@
             "Description": "ID of your existing VPC for deployment",
             "Type": "AWS::EC2::VPC::Id"
         },
-        "WorkloadInstanceType": {
+        "ViyaServicesNodeInstanceType": {
             "AllowedValues": [
+                "i3.2xlarge"
+            ],
+            "ConstraintDescription": "Must contain valid instance type",
+            "Default": "i3.2xlarge",
+            "Description": "Type of EC2 instance for the Viya Services instances",
+            "Type": "String"
+        },
+        "BastionInstanceType": {
+            "AllowedValues": [
+                "t2.micro",
+                "t2.small",
+                "t2.medium",
                 "t2.large",
-                "m4.large",
-                "m4.xlarge",
-                "m4.2xlarge",
-                "m4.4xlarge",
-                "m4.10xlarge",
-                "m3.medium",
                 "m3.large",
                 "m3.xlarge",
                 "m3.2xlarge",
-                "c4.large",
-                "c4.xlarge",
-                "c4.2xlarge",
-                "c4.4xlarge",
-                "c4.8xlarge",
-                "c3.large",
-                "c3.xlarge",
-                "c3.2xlarge",
-                "c3.4xlarge",
-                "c3.8xlarge",
-                "r3.large",
-                "r3.xlarge"
+                "m4.large",
+                "m4.xlarge",
+                "m4.2xlarge",
+                "m4.4xlarge"
             ],
-            "ConstraintDescription": "Must contain valid instance type",
-            "Default": "m4.xlarge",
-            "Description": "Type of EC2 instance for the Workload instances",
+            "Default": "t2.micro",
+            "Description": "Amazon EC2 instance type for the bastion instances",
             "Type": "String"
         },
-      "BastionInstanceType": {
-        "AllowedValues": [
-          "t2.micro",
-          "t2.small",
-          "t2.medium",
-          "t2.large",
-          "m3.large",
-          "m3.xlarge",
-          "m3.2xlarge",
-          "m4.large",
-          "m4.xlarge",
-          "m4.2xlarge",
-          "m4.4xlarge"
-        ],
-        "Default": "t2.micro",
-        "Description": "Amazon EC2 instance type for the bastion instances",
-        "Type": "String"
-      },        "WorkloadNodesDesiredCapacity": {
-            "Default": "2",
-            "Description": "The desired capacity for the Workload nodes Auto Scaling group",
+        "ViyaServicesNodeDesiredCapacity": {
+            "Default": "1",
+            "Description": "The desired capacity for the Viya Services node Auto Scaling group",
             "Type": "String"
         },
-        "WorkloadNodesMaxSize": {
-            "Default": "4",
+        "ViyaServicesNodeMaxSize": {
+            "Default": "1",
             "Description": "The maximum size of the Auto Scaling group",
             "Type": "String"
         },
-        "WorkloadNodesMinSize": {
-            "Default": "2",
+        "ViyaServicesNodeMinSize": {
+            "Default": "1",
             "Description": "The minimum size of the Auto Scaling group",
             "Type": "String"
         },
@@ -226,7 +196,7 @@
             "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/x",
             "Description": "Allowed CIDR block for external SSH to the application",
             "Type": "String"
-        },
+        }
     },
     "Rules": {
         "KeyPairsNotEmpty": {
@@ -305,7 +275,8 @@
                 "AMZNLINUXHVM": "ami-87dab1eb"
             },
             "us-east-1": {
-                "AMZNLINUXHVM": "ami-a4c7edb2"
+                "AMZNLINUXHVM": "ami-a4c7edb2",
+                "RHEL74HVM": "ami-c998b6b2"
             },
             "us-east-2": {
                 "AMZNLINUXHVM": "ami-8a7859ef"
@@ -316,19 +287,20 @@
             "us-west-2": {
                 "AMZNLINUXHVM": "ami-6df1e514"
             }
+        },
+
+    },
+    "Conditions": {
+        "GovCloudCondition": {
+            "Fn::Equals": [
+                {
+                    "Ref": "AWS::Region"
+                },
+                "us-gov-west-1"
+            ]
         }
     },
-  "Conditions": {
-    "GovCloudCondition": {
-      "Fn::Equals": [
-        {
-          "Ref": "AWS::Region"
-        },
-        "us-gov-west-1"
-      ]
-    }
-  },
-  "Resources": {
+    "Resources": {
         "NotificationTopic": {
             "Type": "AWS::SNS::Topic",
             "Properties": {
@@ -449,7 +421,7 @@
                         "PolicyName": "aws-quick-start-s3-policy"
                     },
                     {
-                        "PolicyName": "WorkloadSetup",
+                        "PolicyName": "ViyaServicesNodeSetup",
                         "PolicyDocument": {
                             "Statement": [
                                 {
@@ -510,10 +482,10 @@
                 ]
             }
         },
-        "WorkloadSecurityGroup": {
+        "ViyaServicesNodeSecurityGroup": {
             "Type": "AWS::EC2::SecurityGroup",
             "Properties": {
-                "GroupDescription": "Allow access to the Workload instances",
+                "GroupDescription": "Allow access to the Viya Services instance",
                 "VpcId": {
                     "Ref": "VPCID"
                 },
@@ -534,37 +506,37 @@
                             "Ref": "ELBSecurityGroup"
                         }
                     },
-                  {
-                    "IpProtocol": "tcp",
-                    "FromPort": "22",
-                    "ToPort": "22",
-                    "SourceSecurityGroupId": {
-                        "Fn::GetAtt": [
-                          "BastionStack",
-                          "Outputs.BastionSecurityGroupID"
-                        ]
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "22",
+                        "ToPort": "22",
+                        "SourceSecurityGroupId": {
+                            "Fn::GetAtt": [
+                                "BastionStack",
+                                "Outputs.BastionSecurityGroupID"
+                            ]
+                        }
                     }
-                  }
                 ]
             }
         },
-        "WorkloadASLaunchConfig": {
+        "ViyaServicesNodeASLaunchConfig": {
             "Type": "AWS::AutoScaling::LaunchConfiguration",
             "Metadata": {
-              "AWS::CloudFormation::Authentication": {
-                "S3AccessCreds": {
-                  "type": "S3",
-                  "roleName": {
-                    "Ref": "SetupRole"
-                  },
-                  "buckets": [
-                    {
-                      "Ref": "QSS3BucketName"
+                "AWS::CloudFormation::Authentication": {
+                    "S3AccessCreds": {
+                        "type": "S3",
+                        "roleName": {
+                            "Ref": "SetupRole"
+                        },
+                        "buckets": [
+                            {
+                                "Ref": "QSS3BucketName"
+                            }
+                        ]
                     }
-                  ]
-                }
-              },
-              "AWS::CloudFormation::Init": {
+                },
+                "AWS::CloudFormation::Init": {
                     "configSets": {
                         "quickstart": [
                             "install",
@@ -587,7 +559,7 @@
                         {
                             "Ref": "AWS::Region"
                         },
-                        "AMZNLINUXHVM"
+                        "RHEL74HVM"
                     ]
                 },
                 "InstanceMonitoring": "true",
@@ -595,11 +567,11 @@
                     "Ref": "SetupRoleProfile"
                 },
                 "InstanceType": {
-                    "Ref": "WorkloadInstanceType"
+                    "Ref": "ViyaServicesNodeInstanceType"
                 },
                 "SecurityGroups": [
                     {
-                        "Ref": "WorkloadSecurityGroup"
+                        "Ref": "ViyaServicesNodeSecurityGroup"
                     }
                 ],
                 "UserData": {
@@ -625,7 +597,7 @@
                                 {
                                     "Ref": "AWS::StackName"
                                 },
-                                " --resource WorkloadASLaunchConfig --configsets quickstart --region ",
+                                " --resource ViyaServicesNodeASLaunchConfig --configsets quickstart --region ",
                                 {
                                     "Ref": "AWS::Region"
                                 },
@@ -635,7 +607,7 @@
                                 {
                                     "Ref": "AWS::StackName"
                                 },
-                                " --resource WorkloadAutoScalingGroup --region ",
+                                " --resource ViyaServicesNodeScalingGroup --region ",
                                 {
                                     "Ref": "AWS::Region"
                                 },
@@ -646,23 +618,23 @@
                 }
             }
         },
-        "WorkloadScaleUpPolicy": {
+        "ViyaServicesNodeScaleUpPolicy": {
             "Type": "AWS::AutoScaling::ScalingPolicy",
             "Properties": {
                 "AdjustmentType": "ChangeInCapacity",
                 "AutoScalingGroupName": {
-                    "Ref": "WorkloadAutoScalingGroup"
+                    "Ref": "ViyaServicesNodeAutoScalingGroup"
                 },
                 "Cooldown": "300",
                 "ScalingAdjustment": "1"
             }
         },
-        "WorkloadScaleDownPolicy": {
+        "ViyaServicesNodeScaleDownPolicy": {
             "Type": "AWS::AutoScaling::ScalingPolicy",
             "Properties": {
                 "AdjustmentType": "ChangeInCapacity",
                 "AutoScalingGroupName": {
-                    "Ref": "WorkloadAutoScalingGroup"
+                    "Ref": "ViyaServicesNodeAutoScalingGroup"
                 },
                 "Cooldown": "300",
                 "ScalingAdjustment": "-1"
@@ -680,14 +652,14 @@
                 "Threshold": "60",
                 "AlarmActions": [
                     {
-                        "Ref": "WorkloadScaleUpPolicy"
+                        "Ref": "ViyaServicesNodeScaleUpPolicy"
                     }
                 ],
                 "Dimensions": [
                     {
                         "Name": "AutoScalingGroupName",
                         "Value": {
-                            "Ref": "WorkloadAutoScalingGroup"
+                            "Ref": "ViyaServicesNodeAutoScalingGroup"
                         }
                     }
                 ],
@@ -706,21 +678,21 @@
                 "Threshold": "40",
                 "AlarmActions": [
                     {
-                        "Ref": "WorkloadScaleDownPolicy"
+                        "Ref": "ViyaServicesNodeScaleDownPolicy"
                     }
                 ],
                 "Dimensions": [
                     {
                         "Name": "AutoScalingGroupName",
                         "Value": {
-                            "Ref": "WorkloadAutoScalingGroup"
+                            "Ref": "ViyaServicesNodeAutoScalingGroup"
                         }
                     }
                 ],
                 "ComparisonOperator": "LessThanThreshold"
             }
         },
-        "WorkloadAutoScalingGroup": {
+        "ViyaServicesNodeAutoScalingGroup": {
             "Type": "AWS::AutoScaling::AutoScalingGroup",
             "Properties": {
                 "VPCZoneIdentifier": [
@@ -733,12 +705,12 @@
                 ],
                 "Cooldown": "600",
                 "DesiredCapacity": {
-                    "Ref": "WorkloadNodesDesiredCapacity"
+                    "Ref": "ViyaServicesNodeDesiredCapacity"
                 },
                 "HealthCheckGracePeriod": "600",
                 "HealthCheckType": "EC2",
                 "LaunchConfigurationName": {
-                    "Ref": "WorkloadASLaunchConfig"
+                    "Ref": "ViyaServicesNodeASLaunchConfig"
                 },
                 "LoadBalancerNames": [
                     {
@@ -746,10 +718,10 @@
                     }
                 ],
                 "MaxSize": {
-                    "Ref": "WorkloadNodesMaxSize"
+                    "Ref": "ViyaServicesNodeMaxSize"
                 },
                 "MinSize": {
-                    "Ref": "WorkloadNodesMinSize"
+                    "Ref": "ViyaServicesNodeMinSize"
                 },
                 "NotificationConfiguration": {
                     "TopicARN": {
@@ -766,7 +738,7 @@
                 "Tags": [
                     {
                         "Key": "Name",
-                        "Value": "Workload Server cluster node",
+                        "Value": "Viya Services node",
                         "PropagateAtLaunch": "true"
                     }
                 ]
@@ -774,7 +746,7 @@
             "CreationPolicy": {
                 "ResourceSignal": {
                     "Count": {
-                        "Ref": "WorkloadNodesDesiredCapacity"
+                        "Ref": "ViyaServicesNodeDesiredCapacity"
                     },
                     "Timeout": "PT2H"
                 }
@@ -790,16 +762,16 @@
             }
         },
         "BastionStack": {
-            "Type": "AWS::CloudFormation::Stack",
+             "Type": "AWS::CloudFormation::Stack",
             "Properties": {
                 "TemplateURL": {
-                    "Fn::Sub":  "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}submodules/quickstart-linux-bastion/templates/linux-bastion.template"
+                    "Fn::Sub": "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}submodules/quickstart-linux-bastion/templates/linux-bastion.template"
                 },
                 "Parameters": {
                     "KeyPairName": {
                         "Ref": "KeyPairName"
                     },
-                    "PublicSubnet1ID": {
+                     "PublicSubnet1ID": {
                         "Ref": "PublicSubnet1ID"
                     },
                     "PublicSubnet2ID": {
@@ -812,7 +784,7 @@
                         "Ref": "QSS3KeyPrefix"
                     },
                     "QSS3KeyPrefix": {
-                      "Fn::Sub": "${QSS3KeyPrefix}submodules/quickstart-linux-bastion/"
+                        "Fn::Sub": "${QSS3KeyPrefix}submodules/quickstart-linux-bastion/"
                     },
                     "RemoteAccessCIDR": {
                         "Ref": "RemoteAccessCIDR"
@@ -825,24 +797,32 @@
         }
     },
     "Outputs": {
-      "ELBDNSName": {
-        "Description": "ELB DNS Name",
-        "Value": {
-          "Fn::GetAtt": [
-            "ElasticLoadBalancer",
-            "DNSName"
-          ]
+        "ELBDNSName": {
+            "Description": "ELB DNS Name",
+            "Value": {
+                "Fn::GetAtt": [
+                    "ElasticLoadBalancer",
+                    "DNSName"
+                ]
+            }
+        },
+        "BastionIPV4": {
+            "Description": "Bastion IP address",
+            "Value": {
+                "Fn::GetAtt": [
+                    "BastionStack",
+                    "Outputs.EIP1"
+                ]
+            }
+        },
+        "ViyaServicesIPV4": {
+            "Description": "Viya Services IP address",
+            "Value": {
+                "Fn::GetAtt": [
+                    "BastionStack",
+                    "Outputs.EIP1"
+                ]
+            }
         }
-      },
-      "BastionIPV4": {
-        "Description": "Bastion IP address",
-        "Value": {
-          "Fn::GetAtt": [
-            "BastionStack",
-            "Outputs.EIP1"
-          ]
-      }
     }
-    }
-
 }

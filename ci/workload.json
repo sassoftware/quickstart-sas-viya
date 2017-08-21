@@ -1,20 +1,16 @@
 [
     {
-      "ParameterKey": "VPCID",
-      "ParameterValue": "vpc-19500560"
+        "ParameterKey": "VPCID",
+        "ParameterValue": "vpc-19500560"
     },
 
     {
-      "ParameterKey": "RemoteAccessCIDR",
-      "ParameterValue": "149.173.0.0/16"
+        "ParameterKey": "RemoteAccessCIDR",
+        "ParameterValue": "149.173.0.0/16"
     },
     {
         "ParameterKey": "KeyPairName",
         "ParameterValue": "a3scas"
-    },
-    {
-        "ParameterKey": "OperatorEmail",
-        "ParameterValue": "operator@example.com"
     },
     {
         "ParameterKey": "PrivateSubnet1ID",
@@ -37,29 +33,8 @@
         "ParameterValue": "mae-teststack"
     },
     {
-        "ParameterKey": "WorkloadInstanceType",
-        "ParameterValue": "m4.xlarge"
-    },
-  {
-    "ParameterKey": "BastionInstanceType",
-    "ParameterValue": "m4.4xlarge"
-  },
-  {
-        "ParameterKey": "WorkloadNodesDesiredCapacity",
-        "ParameterValue": "0"
-    },
-    {
-        "ParameterKey": "WorkloadNodesMaxSize",
-        "ParameterValue": "1"
-    },
-    {
-        "ParameterKey": "WorkloadNodesMinSize",
-        "ParameterValue": "0"
-    },
-    {
         "ParameterKey": "QSS3BucketName",
         "ParameterValue": "ace-qs"
-
     },
     {
         "ParameterKey": "QSS3KeyPrefix",
