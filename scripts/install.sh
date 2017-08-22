@@ -13,6 +13,13 @@ pushd sas_viya_playbook
 mv /tmp/update.inventory.yml .
 ansible-playbook update.inventory.yml
 
+mv /tmp/localusersandgroups*yml .
+ansible-playbook localusersandgroups.yml
+
+mv /tmp/pre-deployment.yml .
+ansible-playbook pre-deployment.yml
+
+
 
 popd
 

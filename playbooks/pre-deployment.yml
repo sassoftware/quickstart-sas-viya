@@ -37,7 +37,7 @@
 # to see how far from the desired state you are
 #        ansible-playbook gel.pre-deployment.yml --check
 # to let the playbook make all the required changes and bring you to the desired state:
-#        ansible-playbook gel.pre-deployment.yml
+#        ansible-playbook pre-deployment.yml
 ####################################################################
 
 
@@ -70,12 +70,6 @@
 
     
     #admin_email: me@somewhere.com
-    sas_yum_sites:
-      - ses.sas.download
-      - bwp1.ses.sas.download
-      - bwp2.ses.sas.download
-      - sesbw.sas.download
-      - noneexist.me.bad
     ports_required:
       - { componentname: Erlang Port Mapper Daemon, port: 4369}
       - { componentname: CAS Server Starting , port: 5570}
