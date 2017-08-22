@@ -29,6 +29,14 @@
                 },
                 {
                     "Label": {
+                        "default": "SAS Viya License and Install Package"
+                    },
+                    "Parameters": [
+                        "PlaybookLocation"
+                    ]
+                },
+                {
+                    "Label": {
                         "default": "Workload Storage Configuration"
                     },
                     "Parameters": [
@@ -69,6 +77,9 @@
                 },
                 "QSS3KeyPrefix": {
                     "default": "Quick Start S3 Key Prefix"
+                },
+                "PlaybookLocation": {
+                    "default": "S3 location of SAS Viya SOE tgz file."
                 },
                 "S3BucketName": {
                     "default": "S3 Bucket Name"
@@ -134,6 +145,11 @@
             "AllowedPattern": "^[a-z0-9][a-z0-9-.]*$",
             "Default": "type-unique-value-here-in-lowercase",
             "Description": "Name of the S3 bucket that will be created for your workload to store data. Enter a unique name that does not include uppercase characters.",
+            "Type": "String"
+        },
+        "PlaybookLocation": {
+            "AllowedPattern": "^https?:\/\/(www\\.)?[-a-zA-Z0-9@:%._\\+~#=]{2,256}\\.[a-z]{2,6}\\b([-a-zA-Z0-9@:%_\\+.~#?&//=]*)$",
+            "Description": "S3 location of SAS Viya deployment archive file. Example: https://s3.amazonaws.com/mysasbucket/playbooks/SAS_Viya_playbook.tgz",
             "Type": "String"
         },
         "VPCID": {
@@ -411,7 +427,7 @@
                 }
             }
         },
-        "SetupRole": {
+        "ViyaNodeRole": {
             "Type": "AWS::IAM::Role",
             "Properties": {
                 "AssumeRolePolicyDocument": {
@@ -499,13 +515,13 @@
                 ]
             }
         },
-        "SetupRoleProfile": {
+        "ViyaNodeProfile": {
             "Type": "AWS::IAM::InstanceProfile",
             "Properties": {
                 "Path": "/",
                 "Roles": [
                     {
-                        "Ref": "SetupRole"
+                        "Ref": "ViyaNodeRole"
                     }
                 ]
             }
@@ -552,7 +568,7 @@
                     "S3AccessCreds": {
                         "type": "S3",
                         "roleName": {
-                            "Ref": "SetupRole"
+                            "Ref": "ViyaNodeRole"
                         },
                         "buckets": [
                             {
@@ -619,7 +635,7 @@
                     "Ref": "PrivateSubnet1ID"
                 },
                 "IamInstanceProfile": {
-                    "Ref": "SetupRoleProfile"
+                    "Ref": "ViyaNodeProfile"
                 },
                 "InstanceType": {
                     "Ref": "ViyaServicesNodeInstanceType"
@@ -794,7 +810,7 @@
                 "Domain": "vpc"
             }
         },
-        "BastionNode": {
+        "BastionHost": {
             "Type": "AWS::EC2::Instance",
             "Metadata": {
                 "AWS::CloudFormation::Authentication": {
@@ -820,6 +836,26 @@
                     },
                     "config": {
                         "files": {
+                            "/tmp/installation_prereqs.sh": {
+                                "source": {
+                                    "Fn::Sub": [
+                                        "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/installation_prereqs.sh",
+                                        {
+                                            "QSS3Region": {
+                                                "Fn::If": [
+                                                    "GovCloudCondition",
+                                                    "s3-us-gov-west-1",
+                                                    "s3"
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                },
+                                "mode": "000550",
+                                "owner": "root",
+                                "group": "root",
+                                "authentication": "S3AccessCreds"
+                            },
                             "/tmp/bastion_bootstrap.sh": {
                                 "source": {
                                     "Fn::Sub": [
@@ -844,15 +880,18 @@
                         "commands": {
                             "b-bootstrap": {
                                 "command": "/tmp/bastion_bootstrap.sh --enable false"
+                            },
+                            "prereqs": {
+                                "command": "/tmp/installation_prereqs.sh"
                             }
                         }
                     },
                     "sasprep": {
                         "files": {
-                            "/tmp/installation_prereqs.sh": {
+                            "/tmp/install.sh": {
                                 "source": {
                                     "Fn::Sub": [
-                                        "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/installation_prereqs.sh",
+                                        "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/install.sh",
                                         {
                                             "QSS3Region": {
                                                 "Fn::If": [
@@ -865,8 +904,17 @@
                                     ]
                                 },
                                 "mode": "000550",
-                                "owner": "root",
-                                "group": "root",
+                                "owner": "ec2-user",
+                                "group": "ec2-user",
+                                "authentication": "S3AccessCreds"
+                            },
+                            "/tmp/SAS_Viya_playbook.tgz": {
+                                "source": {
+                                    "Fn::Sub": "${PlaybookLocation}"
+                                },
+                                "mode": "000550",
+                                "owner": "ec2-user",
+                                "group": "ec2-user",
                                 "authentication": "S3AccessCreds"
                             },
                             "/tmp/qs.key": {
@@ -925,20 +973,32 @@
                                     ]
                                 },
                                 "mode": "000550",
-                                "owner": "root",
-                                "group": "root",
+                                "owner": "ec2-user",
+                                "group": "ec2-user",
                                 "authentication": "S3AccessCreds"
                             }
                         },
                         "commands": {
-                            "sasprep": {
-                                "command": "/tmp/installation_prereqs.sh"
-                            },
                             "getprivatekey": {
                                 "command": "mv /tmp/qs.key /home/ec2-user/.ssh/id_rsa"
                             },
                             "setqskey": {
-                                "command":  "cat /tmp/qs.pub >> /home/ec2-user/.ssh/authorized_keys; rm /tmp/qs.pub;"
+                                "command": "cat /tmp/qs.pub >> /home/ec2-user/.ssh/authorized_keys; rm /tmp/qs.pub;"
+                            },
+                            "install": {
+                                "command":  {
+                                    "Fn::Sub": [
+                                        "sudo su -l ec2-user -c \"VIYA_SERVICES_NODE_IP=${VSNI} /tmp/install.sh\"",
+                                        {
+                                            "VSNI": {
+                                                "Fn::GetAtt": [
+                                                    "ViyaServicesNode",
+                                                    "PrivateIp"
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                }
                             }
                         }
                     }
@@ -1010,7 +1070,7 @@
                                 {
                                     "Ref": "AWS::StackName"
                                 },
-                                " --resource BastionNode --configsets quickstart --region ",
+                                " --resource BastionHost --configsets quickstart --region ",
                                 {
                                     "Ref": "AWS::Region"
                                 },
@@ -1019,7 +1079,7 @@
                                 {
                                     "Ref": "AWS::StackName"
                                 },
-                                " --resource BastionNode --region ",
+                                " --resource BastionHost --region ",
                                 {
                                     "Ref": "AWS::Region"
                                 },
@@ -1038,7 +1098,7 @@
                 },
                 "AccessControl": "BucketOwnerFullControl"
             }
-        },
+        }
     },
     "Outputs": {
         "ELBDNSName": {

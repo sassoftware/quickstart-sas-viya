@@ -33,6 +33,10 @@
         "ParameterValue": "mae-teststack"
     },
     {
+        "ParameterKey": "PlaybookLocation",
+        "ParameterValue": "https://s3.amazonaws.com/ace-qs/playbooks/SAS_Viya_playbook.tgz"
+    },
+    {
         "ParameterKey": "QSS3BucketName",
         "ParameterValue": "ace-qs"
     },

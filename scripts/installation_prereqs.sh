@@ -1,13 +1,12 @@
 #!/bin/bash -e
 
-echo VIYA_SERVICES_NODE_IP=$VIYA_SERVICES_NODE_IP
+# make sure we have at least java8 and ansible 2.2.1.0
 
 install_java () {
    echo Install java 1.8
    sudo yum -y install java-1.8.0
 }
 
-check_java () {
 if type -p java; then
     echo found java executable in PATH
     _java=java
@@ -29,20 +28,12 @@ if [[ "$_java" ]]; then
         echo version 1.8 or greater
     fi
 fi
-}
 
-install_ansible () {
-  if ! [ type -p ansible ]; then
-     # install Ansible
-     /usr/local/bin/pip install 'ansible==2.2.1.0'
-  fi
-}
 
-prepare_hosts_file () {
-   echo deployTarget ansible_ssh_host=$VIYA_SERVICES_NODE_IP > /tmp/stackinv.ini
-}
+if ! [ type -p ansible ]; then
+   # install Ansible
+   /usr/local/bin/pip install 'ansible==2.2.1.0'
+fi
 
-check_java
-install_ansible
-prepare_hosts_file
+
 
