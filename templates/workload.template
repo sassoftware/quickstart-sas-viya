@@ -149,6 +149,17 @@
             "Description": "Type of EC2 instance for the Viya Services instances",
             "Type": "String"
         },
+        "BastionAMIOS": {
+            "AllowedValues": [
+                "Amazon-Linux-HVM",
+                "CentOS-7-HVM",
+                "Ubuntu-Server-14.04-LTS-HVM",
+                "Ubuntu-Server-16.04-LTS-HVM"
+            ],
+            "Default": "Amazon-Linux-HVM",
+            "Description": "The Linux distribution for the AMI to be used for the bastion instances",
+            "Type": "String"
+        },
         "BastionInstanceType": {
             "AllowedValues": [
                 "t2.micro",
@@ -265,7 +276,20 @@
                 "AMZNLINUXHVM": "ami-6df1e514"
             }
         },
-
+        "LinuxAMINameMap": {
+            "Amazon-Linux-HVM": {
+                "Code": "AMZNLINUXHVM"
+            },
+            "CentOS-7-HVM": {
+                "Code": "CENTOS7HVM"
+            },
+            "Ubuntu-Server-14.04-LTS-HVM": {
+                "Code": "US1404HVM"
+            },
+            "Ubuntu-Server-16.04-LTS-HVM": {
+                "Code": "US1604HVM"
+            }
+        }
     },
     "Conditions": {
         "GovCloudCondition": {
@@ -655,6 +679,357 @@
                 }
             }
         },
+        "BastionHostRole": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "Policies": [
+                    {
+                        "PolicyDocument": {
+                            "Version": "2012-10-17",
+                            "Statement": [
+                                {
+                                    "Action": [
+                                        "s3:GetObject"
+                                    ],
+                                    "Resource": {
+                                        "Fn::Sub": [
+                                            "arn:${Partition}:s3:::${QSS3BucketName}/*",
+                                            {
+                                                "Partition": {
+                                                    "Fn::If": [
+                                                        "GovCloudCondition",
+                                                        "aws-us-gov",
+                                                        "aws"
+                                                    ]
+                                                }
+                                            }
+                                        ]
+                                    },
+                                    "Effect": "Allow"
+                                }
+                            ]
+                        },
+                        "PolicyName": "aws-quick-start-s3-policy"
+                    },
+                    {
+                        "PolicyDocument": {
+                            "Version": "2012-10-17",
+                            "Statement": [
+                                {
+                                    "Action": [
+                                        "s3:GetObject"
+                                    ],
+                                    "Resource": {
+                                        "Fn::Sub": [
+                                            "arn:${Partition}:s3:::quickstart-reference/linux/bastion/*",
+                                            {
+                                                "Partition": {
+                                                    "Fn::If": [
+                                                        "GovCloudCondition",
+                                                        "aws-us-gov",
+                                                        "aws"
+                                                    ]
+                                                }
+                                            }
+                                        ]
+                                    },
+                                    "Effect": "Allow"
+                                }
+                            ]
+                        },
+                        "PolicyName": "linux-bastion-s3-policy"
+                    },
+                    {
+                        "PolicyDocument": {
+                            "Version": "2012-10-17",
+                            "Statement": [
+                                {
+                                    "Action": [
+                                        "ec2:AssociateAddress",
+                                        "ec2:DescribeAddresses"
+                                    ],
+                                    "Resource": [
+                                        "*"
+                                    ],
+                                    "Effect": "Allow"
+                                }
+                            ]
+                        },
+                        "PolicyName": "bastion-eip-policy"
+                    }
+                ],
+                "Path": "/",
+                "AssumeRolePolicyDocument": {
+                    "Statement": [
+                        {
+                            "Action": [
+                                "sts:AssumeRole"
+                            ],
+                            "Principal": {
+                                "Service": [
+                                    "ec2.amazonaws.com"
+                                ]
+                            },
+                            "Effect": "Allow"
+                        }
+                    ],
+                    "Version": "2012-10-17"
+                }
+            }
+        },
+        "BastionHostProfile": {
+            "Type": "AWS::IAM::InstanceProfile",
+            "Properties": {
+                "Roles": [
+                    {
+                        "Ref": "BastionHostRole"
+                    }
+                ],
+                "Path": "/"
+            }
+        },
+        "EIP1": {
+            "Type": "AWS::EC2::EIP",
+            "Properties": {
+                "Domain": "vpc"
+            }
+        },
+        "BastionNode": {
+            "Type": "AWS::EC2::Instance",
+            "Metadata": {
+                "AWS::CloudFormation::Authentication": {
+                    "S3AccessCreds": {
+                        "type": "S3",
+                        "roleName": {
+                            "Ref": "BastionHostRole"
+                        },
+                        "buckets": [
+                            {
+                                "Ref": "QSS3BucketName"
+                            },
+                            "quickstart-reference/linux/bastion"
+                        ]
+                    }
+                },
+                "AWS::CloudFormation::Init": {
+                    "configSets": {
+                        "quickstart": [
+                            "config",
+                            "sasprep"
+                        ]
+                    },
+                    "config": {
+                        "files": {
+                            "/tmp/bastion_bootstrap.sh": {
+                                "source": {
+                                    "Fn::Sub": [
+                                        "https://s3.amazonaws.com/quickstart-reference/linux/bastion/latest/scripts/bastion_bootstrap.sh",
+                                        {
+                                            "QSS3Region": {
+                                                "Fn::If": [
+                                                    "GovCloudCondition",
+                                                    "s3-us-gov-west-1",
+                                                    "s3"
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                },
+                                "mode": "000550",
+                                "owner": "root",
+                                "group": "root",
+                                "authentication": "S3AccessCreds"
+                            }
+                        },
+                        "commands": {
+                            "b-bootstrap": {
+                                "command": "/tmp/bastion_bootstrap.sh --enable false"
+                            }
+                        }
+                    },
+                    "sasprep": {
+                        "files": {
+                            "/tmp/installation_prereqs.sh": {
+                                "source": {
+                                    "Fn::Sub": [
+                                        "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/installation_prereqs.sh",
+                                        {
+                                            "QSS3Region": {
+                                                "Fn::If": [
+                                                    "GovCloudCondition",
+                                                    "s3-us-gov-west-1",
+                                                    "s3"
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                },
+                                "mode": "000550",
+                                "owner": "root",
+                                "group": "root",
+                                "authentication": "S3AccessCreds"
+                            },
+                            "/tmp/qs.key": {
+                                "source": {
+                                    "Fn::Sub": [
+                                        "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}keys/qs.key",
+                                        {
+                                            "QSS3Region": {
+                                                "Fn::If": [
+                                                    "GovCloudCondition",
+                                                    "s3-us-gov-west-1",
+                                                    "s3"
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                },
+                                "mode": "000600",
+                                "owner": "ec2-user",
+                                "group": "ec2-user",
+                                "authentication": "S3AccessCreds"
+                            },
+                            "/tmp/qs.pub": {
+                                "source": {
+                                    "Fn::Sub": [
+                                        "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}keys/qs.pub",
+                                        {
+                                            "QSS3Region": {
+                                                "Fn::If": [
+                                                    "GovCloudCondition",
+                                                    "s3-us-gov-west-1",
+                                                    "s3"
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                },
+                                "mode": "000600",
+                                "owner": "ec2-user",
+                                "group": "ec2-user",
+                                "authentication": "S3AccessCreds"
+                            },
+                            "/tmp/update.inventory.yml": {
+                                "source": {
+                                    "Fn::Sub": [
+                                        "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/update.inventory.yml",
+                                        {
+                                            "QSS3Region": {
+                                                "Fn::If": [
+                                                    "GovCloudCondition",
+                                                    "s3-us-gov-west-1",
+                                                    "s3"
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                },
+                                "mode": "000550",
+                                "owner": "root",
+                                "group": "root",
+                                "authentication": "S3AccessCreds"
+                            }
+                        },
+                        "commands": {
+                            "sasprep": {
+                                "command": "/tmp/installation_prereqs.sh"
+                            },
+                            "getprivatekey": {
+                                "command": "mv /tmp/qs.key /home/ec2-user/.ssh/id_rsa"
+                            },
+                            "setqskey": {
+                                "command":  "cat /tmp/qs.pub >> /home/ec2-user/.ssh/authorized_keys; rm /tmp/qs.pub;"
+                            }
+                        }
+                    }
+                }
+            },
+            "Properties": {
+                "KeyName": {
+                    "Ref": "KeyPairName"
+                },
+                "SubnetId": {
+                    "Ref": "PublicSubnet1ID"
+                },
+                "IamInstanceProfile": {
+                    "Ref": "BastionHostProfile"
+                },
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSAMIRegionMap",
+                        {
+                            "Ref": "AWS::Region"
+                        },
+                        {
+                            "Fn::FindInMap": [
+                                "LinuxAMINameMap",
+                                {
+                                    "Ref": "BastionAMIOS"
+                                },
+                                "Code"
+                            ]
+                        }
+                    ]
+                },
+                "SecurityGroupIds": [
+                    {
+                        "Ref": "BastionSecurityGroup"
+                    }
+                ],
+                "InstanceType": {
+                    "Ref": "BastionInstanceType"
+                },
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "Bastion node"
+                    }
+                ],
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "",
+                            [
+                                "#!/bin/bash\n",
+                                "export PATH=$PATH:/usr/local/bin\n",
+                                "which pip &> /dev/null\n",
+                                "if [ $? -ne 0 ] ; then\n",
+                                "    echo \"PIP NOT INSTALLED\"\n",
+                                "    [ `which yum` ] && $(yum install -y epel-release; yum install -y python-pip) && echo \"PIP INSTALLED\"\n",
+                                "    [ `which apt-get` ] && apt-get -y update && apt-get -y install python-pip && echo \"PIP INSTALLED\"\n",
+                                "fi\n",
+                                "pip install --upgrade pip &> /dev/null\n",
+                                "pip install awscli --ignore-installed six &> /dev/null\n",
+                                "easy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz\n",
+                                "EIP_LIST=\"",
+                                {
+                                    "Ref": "EIP1"
+                                },
+                                "\"\n",
+                                "cfn-init -v --stack ",
+                                {
+                                    "Ref": "AWS::StackName"
+                                },
+                                " --resource BastionNode --configsets quickstart --region ",
+                                {
+                                    "Ref": "AWS::Region"
+                                },
+                                "\n",
+                                "cfn-signal -e $? --stack ",
+                                {
+                                    "Ref": "AWS::StackName"
+                                },
+                                " --resource BastionNode --region ",
+                                {
+                                    "Ref": "AWS::Region"
+                                },
+                                "\n"
+                            ]
+                        ]
+                    }
+                }
+            }
+        },
         "S3Bucket": {
             "Type": "AWS::S3::Bucket",
             "Properties": {
@@ -664,43 +1039,6 @@
                 "AccessControl": "BucketOwnerFullControl"
             }
         },
-        "BastionStack": {
-             "Type": "AWS::CloudFormation::Stack",
-            "Properties": {
-                "TemplateURL": {
-                    "Fn::Sub": "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}submodules/quickstart-linux-bastion/templates/linux-bastion.template"
-                },
-                "Parameters": {
-                    "KeyPairName": {
-                        "Ref": "KeyPairName"
-                    },
-                     "PublicSubnet1ID": {
-                        "Ref": "PublicSubnet1ID"
-                    },
-                    "PublicSubnet2ID": {
-                        "Ref": "PublicSubnet2ID"
-                    },
-                    "QSS3BucketName": {
-                        "Ref": "QSS3BucketName"
-                    },
-                    "QSS3KeyPrefix": {
-                        "Fn::Sub": "${QSS3KeyPrefix}submodules/quickstart-linux-bastion/"
-                    },
-                    "BastionSecurityGroup": {
-                        "Ref": "BastionSecurityGroup"
-                    },
-                    "VPCID": {
-                        "Ref": "VPCID"
-                    },
-                    "ViyaServicesNodeIp": {
-                        "Fn::GetAtt": [
-                            "ViyaServicesNode",
-                            "PrivateIp"
-                        ]
-                    }
-                }
-            }
-        }
     },
     "Outputs": {
         "ELBDNSName": {
@@ -715,12 +1053,8 @@
         "BastionIPV4": {
             "Description": "Bastion IP address",
             "Value": {
-                "Fn::GetAtt": [
-                    "BastionStack",
-                    "Outputs.EIP1"
-                ]
-            }
-        },
+                "Ref": "EIP1"
+      }     },
         "ViyaServicesIPV4": {
             "Description": "Viya Services IP address",
             "Value": {

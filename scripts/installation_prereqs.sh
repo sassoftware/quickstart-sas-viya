@@ -1,5 +1,6 @@
 #!/bin/bash -e
 
+echo VIYA_SERVICES_NODE_IP=$VIYA_SERVICES_NODE_IP
 
 install_java () {
    echo Install java 1.8
@@ -30,4 +31,18 @@ if [[ "$_java" ]]; then
 fi
 }
 
+install_ansible () {
+  if ! [ type -p ansible ]; then
+     # install Ansible
+     /usr/local/bin/pip install 'ansible==2.2.1.0'
+  fi
+}
+
+prepare_hosts_file () {
+   echo deployTarget ansible_ssh_host=$VIYA_SERVICES_NODE_IP > /tmp/stackinv.ini
+}
+
 check_java
+install_ansible
+prepare_hosts_file
+

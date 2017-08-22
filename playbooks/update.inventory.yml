@@ -1,0 +1,81 @@
+--- 
+- hosts: localhost
+    
+  tasks:
+
+  - name: create new inventory
+    shell: tail -n +2 hosts > tmp.ini ; cat /tmp/stackinv.ini tmp.ini > inventory.ini
+
+  
+#  - name: replace deployTarget new inventory
+#    replace:
+#      dest=newinv.ini
+#      regexp='deployTarget'
+#      replace='auto_supp'
+#      backup=yes
+      
+  - name: replace inventory in ansible.cfg
+    lineinfile: 
+      dest=ansible.cfg
+      regexp='^inventory' 
+      line='inventory = inventory.ini'
+      backup=yes
+      state=present
+      
+#  - name: Update CAS controller
+#    blockinfile:
+#      dest: newinv.ini
+#      marker: "# {mark} controller -->"
+#      insertafter: '\[sas-casserver-primary\]'
+#      content: |
+#        auto_main
+#    tags:
+#      - updateinventory
+    
+#  - name: Do a replace to get rid of the nickname in the CAS controller
+#    replace:
+#      dest=inventory.ini
+#      regexp='\[sas-casserver-primary\]\nauto_supp'
+#      replace='[sas-casserver-primary]'
+#      backup=yes
+
+      
+#  - name: Update CAS Controller group
+#    blockinfile:
+#      dest: newinv.ini
+#      marker: "# {mark} controller -->"
+#      insertafter: '\[sas-casserver-primary\]'
+#      content: |
+#        auto_cc
+#    tags:
+#      - updateinventory
+#
+#  - name: Update CAS worker group
+#    blockinfile:
+#      dest: newinv.ini
+#      marker: "# {mark} workers -->"
+#      insertafter: '\[sas-casserver-worker\]'
+#      content: |
+#        auto_cw01
+#        auto_cw02
+#        auto_cw03
+#    tags:
+#      - updateinventory
+#
+#
+#  - name: add stuff for mirror
+#    blockinfile:
+#      dest: newinv.ini
+#      marker: "# {mark} mirror -->"
+#      insertafter: EOF
+#      content: |
+#        [mirrorhost]
+#        auto_supp
+#
+#        [repohost]
+#        auto_supp
+#    tags:
+#      - updateinventory
+#
+#
+      
