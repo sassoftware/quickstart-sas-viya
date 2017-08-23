@@ -450,7 +450,10 @@
                     "UnhealthyThreshold": "3",
                     "Interval": "30",
                     "Timeout": "3"
-                }
+                },
+                "Instances": [
+                    { "Ref": "ViyaServicesNode" }
+                ]
             }
         },
         "ViyaNodeRole": {
@@ -1053,6 +1056,46 @@
                                 "owner": "ec2-user",
                                 "group": "ec2-user",
                                 "authentication": "S3AccessCreds"
+                            },
+                            "/tmp/ansible.post.dep.yml": {
+                                "source": {
+                                    "Fn::Sub": [
+                                        "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/post.dep.yml",
+                                        {
+                                            "QSS3Region": {
+                                                "Fn::If": [
+                                                    "GovCloudCondition",
+                                                    "s3-us-gov-west-1",
+                                                    "s3"
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                },
+                                "mode": "000444",
+                                "owner": "ec2-user",
+                                "group": "ec2-user",
+                                "authentication": "S3AccessCreds"
+                            },
+                            "/tmp/ansible.resetsasboot.sh": {
+                                "source": {
+                                    "Fn::Sub": [
+                                        "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/resetsasboot.sh",
+                                        {
+                                            "QSS3Region": {
+                                                "Fn::If": [
+                                                    "GovCloudCondition",
+                                                    "s3-us-gov-west-1",
+                                                    "s3"
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                },
+                                "mode": "000555",
+                                "owner": "ec2-user",
+                                "group": "ec2-user",
+                                "authentication": "S3AccessCreds"
                             }
                         },
                         "commands": {
@@ -1178,12 +1221,22 @@
         }
     },
     "Outputs": {
-        "ELBDNSName": {
+        "SASHome": {
             "Description": "ELB DNS Name",
             "Value": {
-                "Fn::GetAtt": [
-                    "ElasticLoadBalancer",
-                    "DNSName"
+                "Fn::Join":
+                [
+                    "",
+                    [
+                        "http://",
+                        {
+                            "Fn::GetAtt": [
+                                "ElasticLoadBalancer",
+                                "DNSName"
+                            ]
+                        },
+                        "/SASHome"
+                    ]
                 ]
             }
         },

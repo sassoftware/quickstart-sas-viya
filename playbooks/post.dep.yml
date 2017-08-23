@@ -1,0 +1,61 @@
+---
+- hosts: sas-all
+  become: yes
+
+  tasks:
+
+  - name: display the status of each machine
+    shell: "/etc/init.d/sas-viya-all-services status"
+    register: status_check
+    tags:
+      - postdep
+      - status_check
+
+  - name: Display the status
+    debug: var=status_check.stdout_lines
+    tags:
+      - postdep
+      - status_check
+
+
+  - name: capture memory consumption by microservice
+    shell: "ps -e -orss=,args= | grep java | grep -v grep | sort -b -k1,1n | awk '{print $1/1024 \",\"  $NF}'"
+    register: mem_cons
+    tags:
+      - postdep
+      - mem
+
+  - name: Display the result
+    debug: var=mem_cons.stdout_lines
+    tags:
+      - postdep
+      - mem
+
+
+- hosts: CoreServices
+  become: yes
+  become_user: sas
+
+
+  tasks:
+
+
+## show the saslogon url to reset the sasboot password
+  - name: copy the resetsasboot to the right machine
+    copy:
+      src: ./resetsasboot.sh
+      dest: /tmp/resetsasboot.sh
+      owner: sas
+      group: sas
+      mode: 0700
+    tags:
+      - postdep
+      - sasboot
+
+  - name: Reset the sasboot password
+    shell: /tmp/resetsasboot.sh
+    tags:
+      - postdep
+      - sasboot
+
+

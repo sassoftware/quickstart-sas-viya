@@ -11,14 +11,15 @@ tar xvf /tmp/SAS_Viya_playbook.tgz
 pushd sas_viya_playbook
 
   # copy additional playbooks
-  mv /tmp/ansible*.yml .
-
+  mv /tmp/ansible.* .
 
   ansible-playbook ansible.update.inventory.yml
 
   ansible-playbook ansible.pre.deployment.yml
 
   ansible-playbook site.yml
+
+  ansible-playbook ansible.post.dep.yml
 
 popd
 
