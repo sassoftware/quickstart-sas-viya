@@ -9,6 +9,10 @@
         "ParameterValue": "149.173.0.0/16"
     },
     {
+        "ParameterKey": "WebRemoteAccessCIDR",
+        "ParameterValue": "104.129.194.0/23"
+    },
+    {
         "ParameterKey": "KeyPairName",
         "ParameterValue": "a3scas"
     },
@@ -27,10 +31,6 @@
     {
         "ParameterKey": "PublicSubnet2ID",
         "ParameterValue": "subnet-8313ebe7"
-    },
-    {
-        "ParameterKey": "S3BucketName",
-        "ParameterValue": "mae-teststack"
     },
     {
         "ParameterKey": "PlaybookLocation",

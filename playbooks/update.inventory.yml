@@ -21,7 +21,15 @@
       line='inventory = inventory.ini'
       backup=yes
       state=present
-      
+
+  - name: disable host key checking in ansible.cfg
+    lineinfile:
+       dest=ansible.cfg
+       regexp='^host_key_checking'
+       line='host_key_checking = false'
+       backup=yes
+       state=present
+
 #  - name: Update CAS controller
 #    blockinfile:
 #      dest: newinv.ini

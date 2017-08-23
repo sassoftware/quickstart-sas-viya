@@ -36,4 +36,12 @@ if ! [ type -p ansible ]; then
 fi
 
 
+# make log accessible as web page
+yum -y install httpd
+service httpd start
+sudo mkdir -p /var/www/html/status
+ln -s /var/log/cfn-init-cmd.log /var/www/html/status/status.txt
+
+
+
 

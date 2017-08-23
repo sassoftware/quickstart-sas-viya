@@ -1,8 +1,0 @@
-umask_value: "0002"
-
-custom_group_list:
-  - { group: sas,       gid: 1001 , present: yes }
-
-custom_user_list:
-  - { name: sas   , uid: 1001 ,  group: "sas",  groups: "sas",  present: yes, create_ssh_keys: no }
-  - { name: cas   , uid: 1002 ,  group: "sas",  groups: "sas",  present: yes, create_ssh_keys: yes }
