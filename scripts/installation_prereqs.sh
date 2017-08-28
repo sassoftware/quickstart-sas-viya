@@ -40,7 +40,8 @@ fi
 yum -y install httpd
 service httpd start
 sudo mkdir -p /var/www/html/status
-ln -s /var/log/cfn-init-cmd.log /var/www/html/status/status.txt
+ln /var/log/cfn-init-cmd.log /var/www/html/status/cfn-init-cmd.log
+ln /var/log/cfn-init.log /var/www/html/status/cfn-init.log
 
 
 

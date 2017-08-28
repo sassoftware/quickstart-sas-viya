@@ -26,6 +26,7 @@
                     "Parameters": [
                         "KeyPairName",
                         "ViyaServicesNodeInstanceType",
+                        "CASControllerNodeInstanceType",
                         "BastionInstanceType"
                     ]
                 },
@@ -91,6 +92,9 @@
                 },
                 "ViyaServicesNodeInstanceType": {
                     "default": "Viya Services Node Instance Type"
+                },
+                "CASControllerNodeInstanceType": {
+                    "default": "CAS Controller Node Instance Type"
                 },
                 "BastionInstanceType": {
                     "default": "Bastion Instance Type"
@@ -168,6 +172,20 @@
             "ConstraintDescription": "Must contain valid instance type",
             "Default": "i3.2xlarge",
             "Description": "Type of EC2 instance for the Viya Services instances",
+            "Type": "String"
+        },
+        "CASControllerNodeInstanceType": {
+            "AllowedValues": [
+                "i3.large",
+                "i3.xlarge",
+                "i3.2xlarge",
+                "i3.4xlarge",
+                "i3.8xlarge",
+                "i3.16xlarge"
+            ],
+            "ConstraintDescription": "Must contain valid instance type",
+            "Default": "i3.2xlarge",
+            "Description": "Type of EC2 instance for the CAS Controller instances",
             "Type": "String"
         },
         "BastionAMIOS": {
@@ -411,6 +429,104 @@
                 ]
             }
         },
+        "CASControllerNodeSecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "GroupDescription": "Allow access to the CAS Controller instance",
+                "VpcId": {
+                    "Ref": "VPCID"
+                },
+                "SecurityGroupIngress": [
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "8777",
+                        "ToPort": "8777",
+                        "SourceSecurityGroupId": {
+                            "Ref": "ELBSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "8777",
+                        "ToPort": "8777",
+                        "SourceSecurityGroupId": {
+                            "Ref": "ViyaServicesNodeSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "5570",
+                        "ToPort": "5570",
+                        "SourceSecurityGroupId": {
+                            "Ref": "ViyaServicesNodeSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "5570",
+                        "ToPort": "5570",
+                        "SourceSecurityGroupId": {
+                            "Ref": "ELBSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "22",
+                        "ToPort": "22",
+                        "SourceSecurityGroupId": {
+                            "Ref" : "BastionSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "0",
+                        "ToPort": "65535",
+                        "CidrIp": "10.20.0.0/19"
+                    }
+                ]
+            }
+        },
+        "ViyaServicesNodeSecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "GroupDescription": "Allow access to the Viya Services instance",
+                "VpcId": {
+                    "Ref": "VPCID"
+                },
+                "SecurityGroupIngress": [
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "80",
+                        "ToPort": "80",
+                        "SourceSecurityGroupId": {
+                            "Ref": "ELBSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "443",
+                        "ToPort": "443",
+                        "SourceSecurityGroupId": {
+                            "Ref": "ELBSecurityGroup"
+                        }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "22",
+                        "ToPort": "22",
+                        "SourceSecurityGroupId": {
+                            "Ref" : "BastionSecurityGroup"
+                        }
+                    },
+                    {
+                         "IpProtocol": "tcp",
+                        "FromPort": "0",
+                        "ToPort": "65535",
+                        "CidrIp": "10.20.0.0/19"
+                    }
+                ]
+            }
+        },
         "ElasticLoadBalancer": {
             "Type": "AWS::ElasticLoadBalancing::LoadBalancer",
             "Properties": {
@@ -555,41 +671,6 @@
                 ]
             }
         },
-        "ViyaServicesNodeSecurityGroup": {
-            "Type": "AWS::EC2::SecurityGroup",
-            "Properties": {
-                "GroupDescription": "Allow access to the Viya Services instance",
-                "VpcId": {
-                    "Ref": "VPCID"
-                },
-                "SecurityGroupIngress": [
-                    {
-                        "IpProtocol": "tcp",
-                        "FromPort": "80",
-                        "ToPort": "80",
-                        "SourceSecurityGroupId": {
-                            "Ref": "ELBSecurityGroup"
-                        }
-                    },
-                    {
-                        "IpProtocol": "tcp",
-                        "FromPort": "443",
-                        "ToPort": "443",
-                        "SourceSecurityGroupId": {
-                            "Ref": "ELBSecurityGroup"
-                        }
-                    },
-                    {
-                        "IpProtocol": "tcp",
-                        "FromPort": "22",
-                        "ToPort": "22",
-                        "SourceSecurityGroupId": {
-                            "Ref" : "BastionSecurityGroup"
-                        }
-                    }
-                ]
-            }
-        },
         "ViyaServicesNode": {
             "Type": "AWS::EC2::Instance",
             "Metadata": {
@@ -698,7 +779,11 @@
                            "VolumeSize": "50",
                            "VolumeType": "gp2"
                        }
-                    }
+                    },
+                    { "DeviceName": "/dev/sdb", "VirtualName": "ephemeral0" },
+                    { "DeviceName": "/dev/sdc", "VirtualName": "ephemeral1" },
+                    { "DeviceName": "/dev/sdd", "VirtualName": "ephemeral2" },
+                    { "DeviceName": "/dev/sde", "VirtualName": "ephemeral3" }
                 ],
                 "SecurityGroupIds": [
                     {
@@ -745,6 +830,176 @@
                                     "Ref": "AWS::StackName"
                                 },
                                 " --resource ViyaServicesNode --region ",
+                                {
+                                    "Ref": "AWS::Region"
+                                },
+                                "\n"
+                            ]
+                        ]
+                    }
+                }
+            }
+        },
+
+        "CASControllerNode": {
+            "Type": "AWS::EC2::Instance",
+            "Metadata": {
+                "AWS::CloudFormation::Authentication": {
+                    "S3AccessCreds": {
+                        "type": "S3",
+                        "roleName": {
+                            "Ref": "ViyaNodeRole"
+                        },
+                        "buckets": [
+                            {
+                                "Ref": "QSS3BucketName"
+                            }
+                        ]
+                    }
+                },
+                "AWS::CloudFormation::Init": {
+                    "configSets": {
+                        "quickstart": [
+                            "install",
+                            "configure",
+                            "cleanup"
+                        ]
+                    },
+                    "install": {
+                        "files": {
+                            "/tmp/qs.pub": {
+                                "source": {
+                                    "Fn::Sub": [
+                                        "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}keys/qs.pub",
+                                        {
+                                            "QSS3Region": {
+                                                "Fn::If": [
+                                                    "GovCloudCondition",
+                                                    "s3-us-gov-west-1",
+                                                    "s3"
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                },
+                                "mode": "000550",
+                                "owner": "root",
+                                "group": "root",
+                                "authentication": "S3AccessCreds"
+                            },
+                            "/tmp/diskprep.sh": {
+                                "source": {
+                                    "Fn::Sub": [
+                                        "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/diskprep.sh",
+                                        {
+                                            "QSS3Region": {
+                                                "Fn::If": [
+                                                    "GovCloudCondition",
+                                                    "s3-us-gov-west-1",
+                                                    "s3"
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                },
+                                "mode": "000550",
+                                "owner": "root",
+                                "group": "root",
+                                "authentication": "S3AccessCreds"
+                            }
+                        },
+                        "commands": {
+                            "setqskey": {
+                                "command":  "cat /tmp/qs.pub >> /home/ec2-user/.ssh/authorized_keys; rm /tmp/qs.pub;"
+                            },
+                            "diskprep": {
+                                "command":  "/tmp/diskprep.sh"
+                            }
+                        }
+                    },
+                    "configure": {},
+                    "cleanup": {}
+                }
+            },
+            "Properties": {
+                "KeyName": {
+                    "Ref": "KeyPairName"
+                },
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSAMIRegionMap",
+                        {
+                            "Ref": "AWS::Region"
+                        },
+                        "RHEL74HVM"
+                    ]
+                },
+                "SubnetId": {
+                    "Ref": "PrivateSubnet1ID"
+                },
+                "IamInstanceProfile": {
+                    "Ref": "ViyaNodeProfile"
+                },
+                "InstanceType": {
+                    "Ref": "CASControllerNodeInstanceType"
+                },
+                "SecurityGroupIds": [
+                    {
+                        "Ref": "CASControllerNodeSecurityGroup"
+                    }
+                ],
+                "BlockDeviceMappings": [
+                    { "DeviceName": "/dev/sdg",
+                        "Ebs": {
+                            "VolumeSize": "50",
+                            "VolumeType": "gp2"
+                        }
+                    },
+                    { "DeviceName": "/dev/sdb", "VirtualName": "ephemeral0" },
+                    { "DeviceName": "/dev/sdc", "VirtualName": "ephemeral1" },
+                    { "DeviceName": "/dev/sdd", "VirtualName": "ephemeral2" },
+                    { "DeviceName": "/dev/sde", "VirtualName": "ephemeral3" }
+                ],
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "CAS Controller node"
+                    }
+                ],
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "",
+                            [
+                                "#!/bin/bash\n",
+                                "export PATH=$PATH:/usr/local/bin\n",
+                                "which pip &> /dev/null\n",
+                                "if [ $? -ne 0 ] ; then\n",
+                                "    echo \"PIP NOT INSTALLED\"\n",
+                                "    [ `which yum` ] && $(yum install -y epel-release; yum install -y python-pip) && echo \"PIP INSTALLED\"\n",
+                                "    [ `which apt-get` ] && apt-get -y update && apt-get -y install python-pip && echo \"PIP INSTALLED\"\n",
+                                "fi\n",
+                                "pip install --upgrade pip &> /dev/null\n",
+                                "pip install awscli --ignore-installed six &> /dev/null\n",
+                                "easy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz\n",
+                                "[ `which yum` ] && $(yum install -y httpd) && echo \"HTTPD INSTALLED\"\n",
+                                "[ `which apt-get` ] && apt-get -y httpd && echo \"HTTPD INSTALLED\"\n",
+                                "service httpd start\n",
+                                "cfn-init --stack ",
+                                {
+                                    "Ref": "AWS::StackName"
+                                },
+                                " --resource CASControllerNode --configsets quickstart --region ",
+                                {
+                                    "Ref": "AWS::Region"
+                                },
+                                "\n",
+                                "# Signal the status from cfn-init\n",
+                                "cfn-signal -e $? --stack ",
+                                {
+                                    "Ref": "AWS::StackName"
+                                },
+                                " --resource CASControllerNode --region ",
                                 {
                                     "Ref": "AWS::Region"
                                 },
@@ -871,6 +1126,10 @@
             }
         },
         "BastionHost": {
+            "DependsOn": [
+                "ViyaServicesNode",
+                "CASControllerNode"
+                ],
             "Type": "AWS::EC2::Instance",
             "Metadata": {
                 "AWS::CloudFormation::Authentication": {
@@ -1017,6 +1276,26 @@
                                 "group": "ec2-user",
                                 "authentication": "S3AccessCreds"
                             },
+                            "/tmp/a3scas.key": {
+                                 "source": {
+                                    "Fn::Sub": [
+                                        "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}keys/a3scas.key",
+                                        {
+                                            "QSS3Region": {
+                                                "Fn::If": [
+                                                    "GovCloudCondition",
+                                                    "s3-us-gov-west-1",
+                                                    "s3"
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                },
+                                "mode": "000600",
+                                "owner": "ec2-user",
+                                "group": "ec2-user",
+                                "authentication": "S3AccessCreds"
+                            },
                             "/tmp/ansible.update.inventory.yml": {
                                 "source": {
                                     "Fn::Sub": [
@@ -1057,10 +1336,30 @@
                                 "group": "ec2-user",
                                 "authentication": "S3AccessCreds"
                             },
-                            "/tmp/ansible.post.dep.yml": {
+                            "/tmp/ansible.post.deployment.yml": {
                                 "source": {
                                     "Fn::Sub": [
-                                        "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/post.dep.yml",
+                                        "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/post.deployment.yml",
+                                        {
+                                            "QSS3Region": {
+                                                "Fn::If": [
+                                                    "GovCloudCondition",
+                                                    "s3-us-gov-west-1",
+                                                    "s3"
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                },
+                                "mode": "000444",
+                                "owner": "ec2-user",
+                                "group": "ec2-user",
+                                "authentication": "S3AccessCreds"
+                            },
+                            "/tmp/ansible.update.vars.file.yml": {
+                                "source": {
+                                    "Fn::Sub": [
+                                        "https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/update.vars.file.yml",
                                         {
                                             "QSS3Region": {
                                                 "Fn::If": [
@@ -1092,7 +1391,7 @@
                                         }
                                     ]
                                 },
-                                "mode": "000555",
+                                "mode": "000777",
                                 "owner": "ec2-user",
                                 "group": "ec2-user",
                                 "authentication": "S3AccessCreds"
@@ -1102,17 +1401,26 @@
                             "getprivatekey": {
                                 "command": "mv /tmp/qs.key /home/ec2-user/.ssh/id_rsa"
                             },
+                            "copykey": {
+                                 "command": "mv /tmp/a3scas.key /home/ec2-user/.ssh/a3scas.key"
+                            },
                             "setqskey": {
                                 "command": "cat /tmp/qs.pub >> /home/ec2-user/.ssh/authorized_keys; rm /tmp/qs.pub;"
                             },
                             "install": {
                                 "command":  {
                                     "Fn::Sub": [
-                                        "sudo su -l ec2-user -c \"VIYA_SERVICES_NODE_IP=${VSNI} /tmp/install.sh\"",
+                                        "sudo su -l ec2-user -c \"VIYA_SERVICES_NODE_IP=${VSNI} \"CAS_CONTROLLER_NODE_IP=${CCNI}\" /tmp/install.sh\"",
                                         {
                                             "VSNI": {
                                                 "Fn::GetAtt": [
                                                     "ViyaServicesNode",
+                                                    "PrivateIp"
+                                                ]
+                                            },
+                                            "CCNI": {
+                                                "Fn::GetAtt": [
+                                                    "CASControllerNode",
                                                     "PrivateIp"
                                                 ]
                                             }
@@ -1247,7 +1555,7 @@
             }
         },
         "InstallationLog": {
-            "Description": "Installation Log",
+            "Description": "Installation Logs",
             "Value": {
                 "Fn::Join":
                 [
@@ -1257,7 +1565,7 @@
                         {
                             "Ref": "EIP1"
                         },
-                        "/status/status.txt"
+                        "/status/"
                     ]
                 ]
             }
@@ -1267,6 +1575,15 @@
             "Value": {
                 "Fn::GetAtt": [
                     "ViyaServicesNode",
+                    "PrivateIp"
+                ]
+            }
+        },
+        "CASControllerIPV4": {
+            "Description": "CAS Controller IP address",
+            "Value": {
+                "Fn::GetAtt": [
+                    "CASControllerNode",
                     "PrivateIp"
                 ]
             }

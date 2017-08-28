@@ -6,14 +6,8 @@
   - name: create new inventory
     shell: tail -n +2 hosts > tmp.ini ; cat /tmp/stackinv.ini tmp.ini > inventory.ini
 
-  
-#  - name: replace deployTarget new inventory
-#    replace:
-#      dest=newinv.ini
-#      regexp='deployTarget'
-#      replace='auto_supp'
-#      backup=yes
-      
+
+
   - name: replace inventory in ansible.cfg
     lineinfile: 
       dest=ansible.cfg
@@ -30,22 +24,27 @@
        backup=yes
        state=present
 
-#  - name: Update CAS controller
-#    blockinfile:
-#      dest: newinv.ini
-#      marker: "# {mark} controller -->"
-#      insertafter: '\[sas-casserver-primary\]'
-#      content: |
-#        auto_main
-#    tags:
-#      - updateinventory
-    
-#  - name: Do a replace to get rid of the nickname in the CAS controller
-#    replace:
-#      dest=inventory.ini
-#      regexp='\[sas-casserver-primary\]\nauto_supp'
-#      replace='[sas-casserver-primary]'
-#      backup=yes
+  - name: add ssh_connection label
+    lineinfile:
+      dest=ansible.cfg
+      line='[ssh_connection]'
+      state=present
+
+  - name: add ssh retries - in cas the initialization of the other hosts is slow
+    lineinfile:
+      dest=ansible.cfg
+      insertafter='^[ssh_connection]$'
+      regexp="retries="
+      line="retries=3"
+      state=present
+
+
+  - name: Set CAS controller target
+    replace:
+      dest=inventory.ini
+      regexp='\[sas-casserver-primary\]\ndeployTarget'
+      replace='[sas-casserver-primary]\ncontroller'
+      backup=yes
 
       
 #  - name: Update CAS Controller group

@@ -43,7 +43,7 @@
 ## show the saslogon url to reset the sasboot password
   - name: copy the resetsasboot to the right machine
     copy:
-      src: ./resetsasboot.sh
+      src: ./ansible.resetsasboot.sh
       dest: /tmp/resetsasboot.sh
       owner: sas
       group: sas

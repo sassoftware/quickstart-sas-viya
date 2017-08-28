@@ -1,0 +1,32 @@
+#############
+## this will update the vars.yml
+
+---
+- hosts: localhost
+  
+  vars:
+
+    
+  tasks:
+
+      
+  - name: change cas cache location
+    lineinfile: 
+      dest: vars.yml
+      regexp: "CAS_DISK_CACHE:" 
+      line: "     CAS_DISK_CACHE: /sastmp/cascache"
+      backup: yes
+
+
+  - name: change saswork location
+    blockinfile:
+      dest: vars.yml
+      insertafter: EOF
+      block: |
+        SASV9_CONFIGURATION:
+          1: '/* this will send the SASWORK to the /sastmp location */'
+          2: 'WORK /sastmp/saswork'
+      backup: yes
+ 
+  
+  
