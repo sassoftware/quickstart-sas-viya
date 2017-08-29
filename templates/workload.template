@@ -476,12 +476,6 @@
                         "SourceSecurityGroupId": {
                             "Ref" : "BastionSecurityGroup"
                         }
-                    },
-                    {
-                        "IpProtocol": "tcp",
-                        "FromPort": "0",
-                        "ToPort": "65535",
-                        "CidrIp": "10.20.0.0/19"
                     }
                 ]
             }
@@ -517,14 +511,36 @@
                         "SourceSecurityGroupId": {
                             "Ref" : "BastionSecurityGroup"
                         }
-                    },
-                    {
-                         "IpProtocol": "tcp",
-                        "FromPort": "0",
-                        "ToPort": "65535",
-                        "CidrIp": "10.20.0.0/19"
                     }
                 ]
+            }
+        },
+        "ViyaSGIngress": {
+            "Type": "AWS::EC2::SecurityGroupIngress",
+            "Properties": {
+                "GroupId": {
+                    "Ref": "ViyaServicesNodeSecurityGroup"
+                },
+                "IpProtocol": "tcp",
+                "FromPort": "0",
+                "ToPort": "65535",
+                "SourceSecurityGroupId": {
+                    "Ref": "CASControllerNodeSecurityGroup"
+                }
+            }
+        },
+        "CASSGIngress": {
+            "Type": "AWS::EC2::SecurityGroupIngress",
+            "Properties": {
+                "GroupId": {
+                    "Ref": "CASControllerNodeSecurityGroup"
+                },
+                "IpProtocol": "tcp",
+                "FromPort": "0",
+                "ToPort": "65535",
+                "SourceSecurityGroupId": {
+                    "Ref": "ViyaServicesNodeSecurityGroup"
+                }
             }
         },
         "ElasticLoadBalancer": {
