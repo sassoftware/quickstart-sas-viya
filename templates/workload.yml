@@ -162,15 +162,6 @@ Parameters:
     Default: i3.2xlarge
     Description: Type of EC2 instance for the CAS Controller VM
     Type: String
-  BastionAMIOS:
-    AllowedValues:
-      - Amazon-Linux-HVM
-      - CentOS-7-HVM
-      - Ubuntu-Server-14.04-LTS-HVM
-      - Ubuntu-Server-16.04-LTS-HVM
-    Default: Amazon-Linux-HVM
-    Description: The Linux distribution for the AMI to be used for the bastion VM
-    Type: String
   BastionInstanceType:
     AllowedValues:
       - t2.micro
@@ -220,44 +211,54 @@ Mappings:
   AWSAMIRegionMap:
     AMI:
       AMZNLINUXHVM: amzn-ami-hvm-2017.03.1.20170623-x86_64-gp2
+      RHEL74HVM: RHEL-7.4_HVM_GA-20170724-x86_64-1-Hourly2-GP2
     ap-northeast-1:
       AMZNLINUXHVM: ami-3bd3c45c
+      RHEL74HVM: ami-30ef0556
     ap-northeast-2:
       AMZNLINUXHVM: ami-e21cc38c
+      RHEL74HVM: ami-0f5a8361
     ap-south-1:
       AMZNLINUXHVM: ami-47205e28
+      RHEL74HVM: ami-e41b618b
     ap-southeast-1:
       AMZNLINUXHVM: ami-77af2014
+      RHEL74HVM: ami-10bb2373
     ap-southeast-2:
       AMZNLINUXHVM: ami-10918173
+      RHEL74HVM: ami-ccecf5af
     ca-central-1:
       AMZNLINUXHVM: ami-a7aa15c3
+      RHEL74HVM: ami-dad866be
     eu-central-1:
       AMZNLINUXHVM: ami-82be18ed
+      RHEL74HVM: ami-d74be5b8
     eu-west-1:
       AMZNLINUXHVM: ami-d7b9a2b1
+      RHEL74HVM: ami-bb9a6bc2
     eu-west-2:
       AMZNLINUXHVM: ami-ed100689
+      RHEL74HVM: ami-a1f5e4c5
     sa-east-1:
       AMZNLINUXHVM: ami-87dab1eb
+      RHEL74HVM: ami-a789ffcb
     us-east-1:
       AMZNLINUXHVM: ami-a4c7edb2
       RHEL74HVM: ami-c998b6b2
     us-east-2:
       AMZNLINUXHVM: ami-8a7859ef
+      RHEL74HVM: ami-cfdafaaa
     us-west-1:
       AMZNLINUXHVM: ami-327f5352
+      RHEL74HVM: ami-66eec506
     us-west-2:
       AMZNLINUXHVM: ami-6df1e514
+      RHEL74HVM: ami-9fa343e7
   LinuxAMINameMap:
+    RHEL-7.4-HVM:
+      Code: RHEL74HVM
     Amazon-Linux-HVM:
       Code: AMZNLINUXHVM
-    CentOS-7-HVM:
-      Code: CENTOS7HVM
-    Ubuntu-Server-14.04-LTS-HVM:
-      Code: US1404HVM
-    Ubuntu-Server-16.04-LTS-HVM:
-      Code: US1604HVM
 Conditions:
   GovCloudCondition: !Equals 
     - !Ref 'AWS::Region'
@@ -942,13 +943,10 @@ Resources:
       KeyName: !Ref KeyPairName
       SubnetId: !Ref PublicSubnet1ID
       IamInstanceProfile: !Ref BastionHostProfile
-      ImageId: !FindInMap 
+      ImageId: !FindInMap
         - AWSAMIRegionMap
         - !Ref 'AWS::Region'
-        - !FindInMap 
-          - LinuxAMINameMap
-          - !Ref BastionAMIOS
-          - Code
+        - AMZNLINUXHVM
       SecurityGroupIds:
         - !Ref BastionSecurityGroup
       InstanceType: !Ref BastionInstanceType
@@ -1004,7 +1002,7 @@ Resources:
       AccessControl: BucketOwnerFullControl
 Outputs:
   SASHome:
-    Description: ELB DNS Name
+    Description: SAS Viya
     Value: !Join 
       - ''
       - - 'http://'
@@ -1012,6 +1010,15 @@ Outputs:
           - ElasticLoadBalancer
           - DNSName
         - /SASHome
+  SASHome:
+    Description: SAS Studio
+    Value: !Join
+      - ''
+      - - 'http://'
+        - !GetAtt
+          - ElasticLoadBalancer
+          - DNSName
+        - /SASStudio
   BastionIPV4:
     Description: Bastion IP address
     Value: !Ref EIP1
