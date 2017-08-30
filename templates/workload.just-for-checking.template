@@ -1036,7 +1036,8 @@
                             "Statement": [
                                 {
                                     "Action": [
-                                        "s3:GetObject"
+                                        "s3:GetObject",
+                                        "s3:ListObjects"
                                     ],
                                     "Resource": {
                                         "Fn::Sub": [

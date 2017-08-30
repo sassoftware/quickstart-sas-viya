@@ -1,0 +1,45 @@
+---
+
+- name: ensure folder exists
+  file:
+    path: "{{LDIFLOC}}"
+    state: directory
+    mode: 0700
+
+- name: create base.ldif
+  template:
+    src: base.ldif.j2
+    dest: "{{LDIFLOC}}/base.ldif"
+    mode: 0600   
+
+- name: execute base.ldif
+  shell: "ldapadd -x -D {{OLCROOTDN}} -w {{OLCROOTPW}} -f {{LDIFLOC}}/base.ldif"
+  register: base
+- debug: var=base
+
+
+- name: create sasldap.ldif
+  template:
+    src: sasldap.ldif.j2
+    dest: "{{LDIFLOC}}/sasldap.ldif"
+    mode: 0600   
+
+
+- name: execute sasldap.ldif
+  shell: "ldapadd -x -D {{OLCROOTDN}} -w {{OLCROOTPW}} -f {{LDIFLOC}}/sasldap.ldif"
+  register: sasldap
+- debug: var=sasldap
+
+
+- name: create install_users.ldif
+  template:
+    src: install_users.ldif.j2
+    dest: "{{LDIFLOC}}/install_users.ldif"
+    mode: 0600   
+
+- name: execute install_users.ldif
+  #shell: "cat {{LDIFLOC}}/install_users.ldif"
+  shell: "ldapadd -x -D {{OLCROOTDN}} -w {{OLCROOTPW}} -f {{LDIFLOC}}/install_users.ldif"
+  register: install_users
+- debug: var=install_users
+

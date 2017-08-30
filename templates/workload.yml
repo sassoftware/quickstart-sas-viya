@@ -1,0 +1,1035 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  This workload template deploys a SAS Viya stack into a private subnet behind
+  an ELB load balancer.
+  **WARNING** This template creates EC2 instances and related resources. You
+  will be billed for the AWS resources used if you create a stack from this
+  template.
+Metadata:
+  'AWS::CloudFormation::Interface':
+    ParameterGroups:
+      - Label:
+          default: Network Configuration
+        Parameters:
+          - VPCID
+          - PrivateSubnet1ID
+          - PrivateSubnet2ID
+          - PublicSubnet1ID
+          - PublicSubnet2ID
+          - WebRemoteAccessCIDR
+          - RemoteAccessCIDR
+      - Label:
+          default: Amazon EC2 Configuration
+        Parameters:
+          - KeyPairName
+          - ViyaServicesNodeInstanceType
+          - CASControllerNodeInstanceType
+          - BastionInstanceType
+      - Label:
+          default: SAS Viya License and Install Package
+        Parameters:
+          - PlaybookLocation
+      - Label:
+          default: Workload Storage Configuration
+        Parameters:
+          - S3BucketName
+      - Label:
+          default: AWS Quick Start Configuration
+        Parameters:
+          - QSS3BucketName
+          - QSS3KeyPrefix
+    ParameterLabels:
+      KeyPairName:
+        default: SSH Key Name
+      OperatorEmail:
+        default: Operator Email
+      PrivateSubnet1ID:
+        default: Private Subnet 1 ID
+      PrivateSubnet2ID:
+        default: Private Subnet 2 ID
+      PublicSubnet1ID:
+        default: Public Subnet 1 ID
+      PublicSubnet2ID:
+        default: Public Subnet 2 ID
+      QSS3BucketName:
+        default: Quick Start S3 Bucket Name
+      QSS3KeyPrefix:
+        default: Quick Start S3 Key Prefix
+      PlaybookLocation:
+        default: S3 location of SAS Viya SOE tgz file.
+      S3BucketName:
+        default: S3 Bucket Name
+      VPCID:
+        default: VPC ID
+      ViyaServicesNodeInstanceType:
+        default: Viya Services Node Instance Type
+      CASControllerNodeInstanceType:
+        default: CAS Controller Node Instance Type
+      BastionInstanceType:
+        default: Bastion Instance Type
+      RemoteAccessCIDR:
+        default: Allowed External Access CIDR for bastion ssh
+      WebRemoteAccessCIDR:
+        default: Allowed External Access CIDR for web access
+Parameters:
+  KeyPairName:
+    Description: >-
+      Name of an existing EC2 key pair. All instances will launch with this key
+      pair.
+    Type: 'AWS::EC2::KeyPair::KeyName'
+  OperatorEmail:
+    AllowedPattern: >-
+      ([a-zA-Z0-9_\-\.]+)@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.)|(([a-zA-Z0-9\-]+\.)+))([a-zA-Z]{2,4}|[0-9]{1,3})(\]?)
+    ConstraintDescription: Must be a valid email address.
+    Default: operator@email.com
+    Description: Email address that notifications of any scaling operations will be sent to
+    Type: String
+  PrivateSubnet1ID:
+    Description: >-
+      ID of private subnet 1 in Availability Zone 1 for the Workload (e.g.,
+      subnet-a0246dcd)
+    Type: 'AWS::EC2::Subnet::Id'
+  PrivateSubnet2ID:
+    Description: >-
+      ID of private subnet 2 in Availability Zone 2 for the Workload (e.g.,
+      subnet-b1f432cd)
+    Type: 'AWS::EC2::Subnet::Id'
+  PublicSubnet1ID:
+    Description: >-
+      ID of public subnet 1 in Availability Zone 1 for the ELB load balancer
+      (e.g., subnet-9bc642ac)
+    Type: 'AWS::EC2::Subnet::Id'
+  PublicSubnet2ID:
+    Description: >-
+      ID of public subnet 2 in Availability Zone 2 for the ELB load balancer
+      (e.g., subnet-e3246d8e)
+    Type: 'AWS::EC2::Subnet::Id'
+  QSS3BucketName:
+    AllowedPattern: '^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$'
+    ConstraintDescription: >-
+      Quick Start bucket name can include numbers, lowercase letters, uppercase
+      letters, and hyphens (-). It cannot start or end with a hyphen (-).
+    Default: quickstart-reference
+    Description: >-
+      S3 bucket name for the Quick Start assets. This string can include
+      numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot
+      start or end with a hyphen (-).
+    Type: String
+  QSS3KeyPrefix:
+    AllowedPattern: '^[0-9a-zA-Z-/]*$'
+    ConstraintDescription: >-
+      Quick Start key prefix can include numbers, lowercase letters, uppercase
+      letters, hyphens (-), and forward slash (/).
+    Default: examples/latest/
+    Description: >-
+      S3 key prefix for the Quick Start assets. Quick Start key prefix can
+      include numbers, lowercase letters, uppercase letters, hyphens (-), and
+      forward slash (/).
+    Type: String
+  S3BucketName:
+    AllowedPattern: '^[a-z0-9][a-z0-9-.]*$'
+    Description: >-
+      Name of the S3 bucket that will be created for your workload to store
+      data. Enter a unique name that does not include uppercase characters.
+    Default: qs-viya-bucket
+    Type: String
+  PlaybookLocation:
+    AllowedPattern: >-
+      ^https?://(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)$
+    Description: >-
+      S3 location of SAS Viya deployment archive file. Example:
+      https://s3.amazonaws.com/mysasbucket/playbooks/SAS_Viya_playbook.tgz
+    Type: String
+  VPCID:
+    Description: ID of your existing VPC for deployment
+    Type: 'AWS::EC2::VPC::Id'
+  ViyaServicesNodeInstanceType:
+    AllowedValues:
+      - i3.2xlarge
+    ConstraintDescription: Must contain valid instance type
+    Default: i3.2xlarge
+    Description: Type of EC2 instance for the Viya Services VM
+    Type: String
+  CASControllerNodeInstanceType:
+    AllowedValues:
+      - i3.large
+      - i3.xlarge
+      - i3.2xlarge
+      - i3.4xlarge
+      - i3.8xlarge
+      - i3.16xlarge
+    ConstraintDescription: Must contain valid instance type
+    Default: i3.2xlarge
+    Description: Type of EC2 instance for the CAS Controller VM
+    Type: String
+  BastionAMIOS:
+    AllowedValues:
+      - Amazon-Linux-HVM
+      - CentOS-7-HVM
+      - Ubuntu-Server-14.04-LTS-HVM
+      - Ubuntu-Server-16.04-LTS-HVM
+    Default: Amazon-Linux-HVM
+    Description: The Linux distribution for the AMI to be used for the bastion VM
+    Type: String
+  BastionInstanceType:
+    AllowedValues:
+      - t2.micro
+      - t2.small
+      - t2.medium
+      - t2.large
+      - m3.large
+      - m3.xlarge
+      - m3.2xlarge
+      - m4.large
+      - m4.xlarge
+      - m4.2xlarge
+      - m4.4xlarge
+    Default: t2.micro
+    Description: Amazon EC2 instance type for the bastion instances
+    Type: String
+  WebRemoteAccessCIDR:
+    AllowedPattern: >-
+      ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/x
+    Description: Allowed CIDR block for external web access to the application
+    Type: String
+  RemoteAccessCIDR:
+    AllowedPattern: >-
+      ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/x
+    Description: Allowed CIDR block for external SSH to the application
+    Type: String
+Rules:
+  KeyPairsNotEmpty:
+    Assertions:
+      - Assert: !Not 
+          - 'Fn::EachMemberEquals':
+              - 'Fn::RefAll': 'AWS::EC2::KeyPair::KeyName'
+              - ''
+        AssertDescription: All key pair parameters must not be empty
+  SubnetsInVPC:
+    Assertions:
+      - Assert:
+          'Fn::EachMemberIn':
+            - 'Fn::ValueOfAll':
+                - 'AWS::EC2::Subnet::Id'
+                - VpcId
+            - 'Fn::RefAll': 'AWS::EC2::VPC::Id'
+        AssertDescription: All subnets must in the VPC
+Mappings:
+  AWSAMIRegionMap:
+    AMI:
+      AMZNLINUXHVM: amzn-ami-hvm-2017.03.1.20170623-x86_64-gp2
+    ap-northeast-1:
+      AMZNLINUXHVM: ami-3bd3c45c
+    ap-northeast-2:
+      AMZNLINUXHVM: ami-e21cc38c
+    ap-south-1:
+      AMZNLINUXHVM: ami-47205e28
+    ap-southeast-1:
+      AMZNLINUXHVM: ami-77af2014
+    ap-southeast-2:
+      AMZNLINUXHVM: ami-10918173
+    ca-central-1:
+      AMZNLINUXHVM: ami-a7aa15c3
+    eu-central-1:
+      AMZNLINUXHVM: ami-82be18ed
+    eu-west-1:
+      AMZNLINUXHVM: ami-d7b9a2b1
+    eu-west-2:
+      AMZNLINUXHVM: ami-ed100689
+    sa-east-1:
+      AMZNLINUXHVM: ami-87dab1eb
+    us-east-1:
+      AMZNLINUXHVM: ami-a4c7edb2
+      RHEL74HVM: ami-c998b6b2
+    us-east-2:
+      AMZNLINUXHVM: ami-8a7859ef
+    us-west-1:
+      AMZNLINUXHVM: ami-327f5352
+    us-west-2:
+      AMZNLINUXHVM: ami-6df1e514
+  LinuxAMINameMap:
+    Amazon-Linux-HVM:
+      Code: AMZNLINUXHVM
+    CentOS-7-HVM:
+      Code: CENTOS7HVM
+    Ubuntu-Server-14.04-LTS-HVM:
+      Code: US1404HVM
+    Ubuntu-Server-16.04-LTS-HVM:
+      Code: US1604HVM
+Conditions:
+  GovCloudCondition: !Equals 
+    - !Ref 'AWS::Region'
+    - us-gov-west-1
+Resources:
+  NotificationTopic:
+    Type: 'AWS::SNS::Topic'
+    Properties:
+      Subscription:
+        - Endpoint: !Ref OperatorEmail
+          Protocol: email
+  ELBSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Allow access to the ELB
+      VpcId: !Ref VPCID
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+          CidrIp: !Ref WebRemoteAccessCIDR
+        - IpProtocol: tcp
+          FromPort: '443'
+          ToPort: '443'
+          CidrIp: !Ref WebRemoteAccessCIDR
+  BastionSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Enables SSH Access to Bastion Hosts
+      VpcId: !Ref VPCID
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: !Ref RemoteAccessCIDR
+        - IpProtocol: icmp
+          FromPort: '-1'
+          ToPort: '-1'
+          CidrIp: !Ref RemoteAccessCIDR
+        - IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+          CidrIp: !Ref WebRemoteAccessCIDR
+        - IpProtocol: tcp
+          FromPort: '443'
+          ToPort: '443'
+          CidrIp: !Ref WebRemoteAccessCIDR
+  CASControllerNodeSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Allow access to the CAS Controller instance
+      VpcId: !Ref VPCID
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '8777'
+          ToPort: '8777'
+          SourceSecurityGroupId: !Ref ELBSecurityGroup
+        - IpProtocol: tcp
+          FromPort: '8777'
+          ToPort: '8777'
+          SourceSecurityGroupId: !Ref ViyaServicesNodeSecurityGroup
+        - IpProtocol: tcp
+          FromPort: '5570'
+          ToPort: '5570'
+          SourceSecurityGroupId: !Ref ViyaServicesNodeSecurityGroup
+        - IpProtocol: tcp
+          FromPort: '5570'
+          ToPort: '5570'
+          SourceSecurityGroupId: !Ref ELBSecurityGroup
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          SourceSecurityGroupId: !Ref BastionSecurityGroup
+  ViyaServicesNodeSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Allow access to the Viya Services instance
+      VpcId: !Ref VPCID
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+          SourceSecurityGroupId: !Ref ELBSecurityGroup
+        - IpProtocol: tcp
+          FromPort: '443'
+          ToPort: '443'
+          SourceSecurityGroupId: !Ref ELBSecurityGroup
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          SourceSecurityGroupId: !Ref BastionSecurityGroup
+  ViyaSGIngress:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId: !Ref ViyaServicesNodeSecurityGroup
+      IpProtocol: tcp
+      FromPort: '0'
+      ToPort: '65535'
+      SourceSecurityGroupId: !Ref CASControllerNodeSecurityGroup
+  CASSGIngress:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId: !Ref CASControllerNodeSecurityGroup
+      IpProtocol: tcp
+      FromPort: '0'
+      ToPort: '65535'
+      SourceSecurityGroupId: !Ref ViyaServicesNodeSecurityGroup
+  ElasticLoadBalancer:
+    Type: 'AWS::ElasticLoadBalancing::LoadBalancer'
+    Properties:
+      Subnets:
+        - !Ref PublicSubnet1ID
+        - !Ref PublicSubnet2ID
+      SecurityGroups:
+        - !Ref ELBSecurityGroup
+      AppCookieStickinessPolicy:
+        - CookieName: dummy
+          PolicyName: WorkloadCookieStickinessPolicy
+      Listeners:
+        - LoadBalancerPort: '80'
+          InstancePort: '80'
+          Protocol: HTTP
+          PolicyNames:
+            - WorkloadCookieStickinessPolicy
+      CrossZone: 'true'
+      HealthCheck:
+        Target: 'TCP:80'
+        HealthyThreshold: '2'
+        UnhealthyThreshold: '3'
+        Interval: '30'
+        Timeout: '3'
+      Instances:
+        - !Ref ViyaServicesNode
+  ViyaNodeRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Action:
+                  - 's3:GetObject'
+                Resource: !Sub 'arn:aws:s3:::${QSS3BucketName}/${QSS3KeyPrefix}*'
+                Effect: Allow
+          PolicyName: aws-quick-start-s3-policy
+        - PolicyName: ViyaServicesNodeSetup
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'cloudwatch:PutMetricData'
+                  - 'cloudwatch:EnableAlarmActions'
+                  - 'cloudwatch:PutMetricAlarm'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 's3:*'
+                Resource:
+                  - !Join 
+                    - ''
+                    - - 'arn:aws:s3:::'
+                      - !Ref S3Bucket
+                      - ''
+                  - !Join 
+                    - ''
+                    - - 'arn:aws:s3:::'
+                      - !Ref S3Bucket
+                      - /*
+  ViyaNodeProfile:
+    Type: 'AWS::IAM::InstanceProfile'
+    Properties:
+      Path: /
+      Roles:
+        - !Ref ViyaNodeRole
+  ViyaServicesNode:
+    Type: 'AWS::EC2::Instance'
+    Metadata:
+      'AWS::CloudFormation::Authentication':
+        S3AccessCreds:
+          type: S3
+          roleName: !Ref ViyaNodeRole
+          buckets:
+            - !Ref QSS3BucketName
+      'AWS::CloudFormation::Init':
+        configSets:
+          quickstart:
+            - install
+            - configure
+            - cleanup
+        install:
+          files:
+            /tmp/qs.pub:
+              source: !Sub 
+                - >-
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}keys/qs.pub
+                - QSS3Region: !If 
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000550'
+              owner: root
+              group: root
+              authentication: S3AccessCreds
+            /tmp/diskprep.sh:
+              source: !Sub 
+                - >-
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/diskprep.sh
+                - QSS3Region: !If 
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000550'
+              owner: root
+              group: root
+              authentication: S3AccessCreds
+          commands:
+            setqskey:
+              command: >-
+                cat /tmp/qs.pub >> /home/ec2-user/.ssh/authorized_keys; rm
+                /tmp/qs.pub;
+            diskprep:
+              command: /tmp/diskprep.sh
+        configure: {}
+        cleanup: {}
+    Properties:
+      KeyName: !Ref KeyPairName
+      ImageId: !FindInMap 
+        - AWSAMIRegionMap
+        - !Ref 'AWS::Region'
+        - RHEL74HVM
+      SubnetId: !Ref PrivateSubnet1ID
+      IamInstanceProfile: !Ref ViyaNodeProfile
+      InstanceType: !Ref ViyaServicesNodeInstanceType
+      BlockDeviceMappings:
+        - DeviceName: /dev/sdg
+          Ebs:
+            VolumeSize: '50'
+            VolumeType: gp2
+        - DeviceName: /dev/sdb
+          VirtualName: ephemeral0
+        - DeviceName: /dev/sdc
+          VirtualName: ephemeral1
+        - DeviceName: /dev/sdd
+          VirtualName: ephemeral2
+        - DeviceName: /dev/sde
+          VirtualName: ephemeral3
+      SecurityGroupIds:
+        - !Ref ViyaServicesNodeSecurityGroup
+      Tags:
+        - Key: Name
+          Value: Viya Services node
+      UserData: !Base64 
+        'Fn::Join':
+          - ''
+          - - |
+              #!/bin/bash
+            - |
+              export PATH=$PATH:/usr/local/bin
+            - |
+              which pip &> /dev/null
+            - |
+              if [ $? -ne 0 ] ; then
+            - |2
+                  echo "PIP NOT INSTALLED"
+            - |2
+                  [ `which yum` ] && $(yum install -y epel-release; yum install -y python-pip) && echo "PIP INSTALLED"
+            - |2
+                  [ `which apt-get` ] && apt-get -y update && apt-get -y install python-pip && echo "PIP INSTALLED"
+            - |
+              fi
+            - |
+              pip install --upgrade pip &> /dev/null
+            - |
+              pip install awscli --ignore-installed six &> /dev/null
+            - >
+              easy_install
+              https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
+            - >
+              [ `which yum` ] && $(yum install -y httpd) && echo "HTTPD
+              INSTALLED"
+            - |
+              [ `which apt-get` ] && apt-get -y httpd && echo "HTTPD INSTALLED"
+            - |
+              service httpd start
+            - 'cfn-init --stack '
+            - !Ref 'AWS::StackName'
+            - ' --resource ViyaServicesNode --configsets quickstart --region '
+            - !Ref 'AWS::Region'
+            - |+
+
+            - |
+              # Signal the status from cfn-init
+            - 'cfn-signal -e $? --stack '
+            - !Ref 'AWS::StackName'
+            - ' --resource ViyaServicesNode --region '
+            - !Ref 'AWS::Region'
+            - |+
+
+  CASControllerNode:
+    Type: 'AWS::EC2::Instance'
+    Metadata:
+      'AWS::CloudFormation::Authentication':
+        S3AccessCreds:
+          type: S3
+          roleName: !Ref ViyaNodeRole
+          buckets:
+            - !Ref QSS3BucketName
+      'AWS::CloudFormation::Init':
+        configSets:
+          quickstart:
+            - install
+            - configure
+            - cleanup
+        install:
+          files:
+            /tmp/qs.pub:
+              source: !Sub 
+                - >-
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}keys/qs.pub
+                - QSS3Region: !If 
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000550'
+              owner: root
+              group: root
+              authentication: S3AccessCreds
+            /tmp/diskprep.sh:
+              source: !Sub 
+                - >-
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/diskprep.sh
+                - QSS3Region: !If 
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000550'
+              owner: root
+              group: root
+              authentication: S3AccessCreds
+          commands:
+            setqskey:
+              command: >-
+                cat /tmp/qs.pub >> /home/ec2-user/.ssh/authorized_keys; rm
+                /tmp/qs.pub;
+            diskprep:
+              command: /tmp/diskprep.sh
+        configure: {}
+        cleanup: {}
+    Properties:
+      KeyName: !Ref KeyPairName
+      ImageId: !FindInMap 
+        - AWSAMIRegionMap
+        - !Ref 'AWS::Region'
+        - RHEL74HVM
+      SubnetId: !Ref PrivateSubnet1ID
+      IamInstanceProfile: !Ref ViyaNodeProfile
+      InstanceType: !Ref CASControllerNodeInstanceType
+      SecurityGroupIds:
+        - !Ref CASControllerNodeSecurityGroup
+      BlockDeviceMappings:
+        - DeviceName: /dev/sdg
+          Ebs:
+            VolumeSize: '50'
+            VolumeType: gp2
+        - DeviceName: /dev/sdb
+          VirtualName: ephemeral0
+        - DeviceName: /dev/sdc
+          VirtualName: ephemeral1
+        - DeviceName: /dev/sdd
+          VirtualName: ephemeral2
+        - DeviceName: /dev/sde
+          VirtualName: ephemeral3
+      Tags:
+        - Key: Name
+          Value: CAS Controller node
+      UserData: !Base64 
+        'Fn::Join':
+          - ''
+          - - |
+              #!/bin/bash
+            - |
+              export PATH=$PATH:/usr/local/bin
+            - |
+              which pip &> /dev/null
+            - |
+              if [ $? -ne 0 ] ; then
+            - |2
+                  echo "PIP NOT INSTALLED"
+            - |2
+                  [ `which yum` ] && $(yum install -y epel-release; yum install -y python-pip) && echo "PIP INSTALLED"
+            - |2
+                  [ `which apt-get` ] && apt-get -y update && apt-get -y install python-pip && echo "PIP INSTALLED"
+            - |
+              fi
+            - |
+              pip install --upgrade pip &> /dev/null
+            - |
+              pip install awscli --ignore-installed six &> /dev/null
+            - >
+              easy_install
+              https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
+            - >
+              [ `which yum` ] && $(yum install -y httpd) && echo "HTTPD
+              INSTALLED"
+            - |
+              [ `which apt-get` ] && apt-get -y httpd && echo "HTTPD INSTALLED"
+            - |
+              service httpd start
+            - 'cfn-init --stack '
+            - !Ref 'AWS::StackName'
+            - ' --resource CASControllerNode --configsets quickstart --region '
+            - !Ref 'AWS::Region'
+            - |+
+
+            - |
+              # Signal the status from cfn-init
+            - 'cfn-signal -e $? --stack '
+            - !Ref 'AWS::StackName'
+            - ' --resource CASControllerNode --region '
+            - !Ref 'AWS::Region'
+            - |+
+
+  BastionHostRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      Policies:
+        - PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Action:
+                  - 's3:ListBucket'
+                  - 's3:ListObjects'
+                Resource:
+                  - !Sub 'arn:aws:s3:::${QSS3BucketName}*'
+                Effect: Allow
+              - Action:
+                  - 's3:GetObject'
+                Resource:
+                  - !Sub 'arn:aws:s3:::${QSS3BucketName}/*'
+                Effect: Allow
+          PolicyName: aws-quick-start-s3-policy
+        - PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Action:
+                  - 's3:GetObject'
+                Resource: !Sub 
+                  - 'arn:${Partition}:s3:::quickstart-reference/linux/bastion/*'
+                  - Partition: !If 
+                      - GovCloudCondition
+                      - aws-us-gov
+                      - aws
+                Effect: Allow
+          PolicyName: linux-bastion-s3-policy
+        - PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Action:
+                  - 'ec2:AssociateAddress'
+                  - 'ec2:DescribeAddresses'
+                Resource:
+                  - '*'
+                Effect: Allow
+          PolicyName: bastion-eip-policy
+      Path: /
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+              - 'sts:AssumeRole'
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Effect: Allow
+        Version: 2012-10-17
+  BastionHostProfile:
+    Type: 'AWS::IAM::InstanceProfile'
+    Properties:
+      Roles:
+        - !Ref BastionHostRole
+      Path: /
+  EIP1:
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      Domain: vpc
+  BastionHost:
+    DependsOn:
+      - ViyaServicesNode
+      - CASControllerNode
+    Type: 'AWS::EC2::Instance'
+    Metadata:
+      'AWS::CloudFormation::Authentication':
+        S3AccessCreds:
+          type: S3
+          roleName: !Ref BastionHostRole
+          buckets:
+            - !Ref QSS3BucketName
+            - quickstart-reference/linux/bastion
+      'AWS::CloudFormation::Init':
+        configSets:
+          quickstart:
+            - config
+            - sasprep
+        config:
+          files:
+            /tmp/installation_prereqs.sh:
+              source: !Sub 
+                - >-
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/installation_prereqs.sh
+                - QSS3Region: !If 
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000550'
+              owner: root
+              group: root
+              authentication: S3AccessCreds
+            /tmp/bastion_bootstrap.sh:
+              source: !Sub 
+                - >-
+                  https://s3.amazonaws.com/quickstart-reference/linux/bastion/latest/scripts/bastion_bootstrap.sh
+                - QSS3Region: !If 
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000550'
+              owner: root
+              group: root
+              authentication: S3AccessCreds
+          commands:
+            b-bootstrap:
+              command: /tmp/bastion_bootstrap.sh --enable false
+            prereqs:
+              command: /tmp/installation_prereqs.sh
+        sasprep:
+          files:
+            /tmp/install.sh:
+              source: !Sub 
+                - >-
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/install.sh
+                - QSS3Region: !If 
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000550'
+              owner: ec2-user
+              group: ec2-user
+              authentication: S3AccessCreds
+            /tmp/SAS_Viya_playbook.tgz:
+              source: !Sub '${PlaybookLocation}'
+              mode: '000550'
+              owner: ec2-user
+              group: ec2-user
+              authentication: S3AccessCreds
+            /tmp/qs.key:
+              source: !Sub 
+                - >-
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}keys/qs.key
+                - QSS3Region: !If 
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000600'
+              owner: ec2-user
+              group: ec2-user
+              authentication: S3AccessCreds
+            /tmp/qs.pub:
+              source: !Sub 
+                - >-
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}keys/qs.pub
+                - QSS3Region: !If 
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000600'
+              owner: ec2-user
+              group: ec2-user
+              authentication: S3AccessCreds
+            /tmp/a3scas.key:
+              source: !Sub 
+                - >-
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}keys/a3scas.key
+                - QSS3Region: !If 
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000600'
+              owner: ec2-user
+              group: ec2-user
+              authentication: S3AccessCreds
+            /tmp/ansible.update.inventory.yml:
+              source: !Sub 
+                - >-
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/update.inventory.yml
+                - QSS3Region: !If 
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000444'
+              owner: ec2-user
+              group: ec2-user
+              authentication: S3AccessCreds
+            /tmp/ansible.pre.deployment.yml:
+              source: !Sub 
+                - >-
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/pre.deployment.yml
+                - QSS3Region: !If 
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000444'
+              owner: ec2-user
+              group: ec2-user
+              authentication: S3AccessCreds
+            /tmp/ansible.post.deployment.yml:
+              source: !Sub 
+                - >-
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/post.deployment.yml
+                - QSS3Region: !If 
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000444'
+              owner: ec2-user
+              group: ec2-user
+              authentication: S3AccessCreds
+            /tmp/ansible.update.vars.file.yml:
+              source: !Sub 
+                - >-
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/update.vars.file.yml
+                - QSS3Region: !If 
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000444'
+              owner: ec2-user
+              group: ec2-user
+              authentication: S3AccessCreds
+            /tmp/ansible.resetsasboot.sh:
+              source: !Sub 
+                - >-
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/resetsasboot.sh
+                - QSS3Region: !If 
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000777'
+              owner: ec2-user
+              group: ec2-user
+              authentication: S3AccessCreds
+          commands:
+            getprivatekey:
+              command: mv /tmp/qs.key /home/ec2-user/.ssh/id_rsa
+            copykey:
+              command: mv /tmp/a3scas.key /home/ec2-user/.ssh/a3scas.key
+            setqskey:
+              command: >-
+                cat /tmp/qs.pub >> /home/ec2-user/.ssh/authorized_keys; rm
+                /tmp/qs.pub;
+            getopenldap:
+              command: !Sub sudo su -l ec2-user -c "mkdir openldap; aws s3 cp --recursive s3://${QSS3BucketName}/openldap openldap"
+            install:
+              command: !Sub 
+                - >-
+                  sudo su -l ec2-user -c "VIYA_SERVICES_NODE_IP=${VSNI}
+                  "CAS_CONTROLLER_NODE_IP=${CCNI}" /tmp/install.sh"
+                - VSNI: !GetAtt 
+                    - ViyaServicesNode
+                    - PrivateIp
+                  CCNI: !GetAtt 
+                    - CASControllerNode
+                    - PrivateIp
+    Properties:
+      KeyName: !Ref KeyPairName
+      SubnetId: !Ref PublicSubnet1ID
+      IamInstanceProfile: !Ref BastionHostProfile
+      ImageId: !FindInMap 
+        - AWSAMIRegionMap
+        - !Ref 'AWS::Region'
+        - !FindInMap 
+          - LinuxAMINameMap
+          - !Ref BastionAMIOS
+          - Code
+      SecurityGroupIds:
+        - !Ref BastionSecurityGroup
+      InstanceType: !Ref BastionInstanceType
+      Tags:
+        - Key: Name
+          Value: Bastion node
+      UserData: !Base64 
+        'Fn::Join':
+          - ''
+          - - |
+              #!/bin/bash
+            - |
+              export PATH=$PATH:/usr/local/bin
+            - |
+              which pip &> /dev/null
+            - |
+              if [ $? -ne 0 ] ; then
+            - |2
+                  echo "PIP NOT INSTALLED"
+            - |2
+                  [ `which yum` ] && $(yum install -y epel-release; yum install -y python-pip) && echo "PIP INSTALLED"
+            - |2
+                  [ `which apt-get` ] && apt-get -y update && apt-get -y install python-pip && echo "PIP INSTALLED"
+            - |
+              fi
+            - |
+              pip install --upgrade pip &> /dev/null
+            - |
+              pip install awscli --ignore-installed six &> /dev/null
+            - >
+              easy_install
+              https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
+            - EIP_LIST="
+            - !Ref EIP1
+            - |
+              "
+            - 'cfn-init -v --stack '
+            - !Ref 'AWS::StackName'
+            - ' --resource BastionHost --configsets quickstart --region '
+            - !Ref 'AWS::Region'
+            - |+
+
+            - 'cfn-signal -e $? --stack '
+            - !Ref 'AWS::StackName'
+            - ' --resource BastionHost --region '
+            - !Ref 'AWS::Region'
+            - |+
+
+  S3Bucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Ref S3BucketName
+      AccessControl: BucketOwnerFullControl
+Outputs:
+  SASHome:
+    Description: ELB DNS Name
+    Value: !Join 
+      - ''
+      - - 'http://'
+        - !GetAtt 
+          - ElasticLoadBalancer
+          - DNSName
+        - /SASHome
+  BastionIPV4:
+    Description: Bastion IP address
+    Value: !Ref EIP1
+  InstallationLog:
+    Description: Installation Logs
+    Value: !Join 
+      - ''
+      - - 'http://'
+        - !Ref EIP1
+        - /status/
+  ViyaServicesIPV4:
+    Description: Viya Services IP address
+    Value: !GetAtt 
+      - ViyaServicesNode
+      - PrivateIp
+  CASControllerIPV4:
+    Description: CAS Controller IP address
+    Value: !GetAtt 
+      - CASControllerNode
+      - PrivateIp
+

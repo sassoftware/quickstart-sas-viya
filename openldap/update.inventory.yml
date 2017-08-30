@@ -1,0 +1,31 @@
+--- 
+- hosts: localhost
+    
+  tasks:
+
+  - name: create new inventory
+    shell: cat /tmp/inventory.head inventory.body > inventory.ini
+
+
+  - name: Set OpenLdapServer
+    blockinfile:
+      dest: inventory.ini
+      marker: "# {mark} server -->"
+      insertafter: '\[openldapserver\]'
+      content: |
+        deployTarget
+    tags:
+      - updateinventory
+
+  - name: Set OpenLdapClient
+    blockinfile:
+      dest: inventory.ini
+      marker: "# {mark} clients -->"
+      insertafter: '\[openldapclients\]'
+      content: |
+        deployTarget
+        controller
+    tags:
+      - updateinventory
+
+

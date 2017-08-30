@@ -4,7 +4,7 @@
   tasks:
 
   - name: create new inventory
-    shell: tail -n +2 hosts > tmp.ini ; cat /tmp/stackinv.ini tmp.ini > inventory.ini
+    shell: tail -n +2 hosts > tmp.ini ; cat /tmp/inventory.head tmp.ini > inventory.ini
 
 
 
