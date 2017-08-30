@@ -506,14 +506,22 @@ Resources:
           Ebs:
             VolumeSize: '50'
             VolumeType: gp2
-        - DeviceName: /dev/sdb
+        - DeviceName: /dev/sdh
           VirtualName: ephemeral0
-        - DeviceName: /dev/sdc
+        - DeviceName: /dev/sdi
           VirtualName: ephemeral1
-        - DeviceName: /dev/sdd
+        - DeviceName: /dev/sdj
           VirtualName: ephemeral2
-        - DeviceName: /dev/sde
+        - DeviceName: /dev/sdk
           VirtualName: ephemeral3
+        - DeviceName: /dev/sdl
+          VirtualName: ephemeral4
+        - DeviceName: /dev/sdm
+          VirtualName: ephemeral5
+        - DeviceName: /dev/sdn
+          VirtualName: ephemeral6
+        - DeviceName: /dev/sdo
+          VirtualName: ephemeral7
       SecurityGroupIds:
         - !Ref ViyaServicesNodeSecurityGroup
       Tags:
@@ -632,14 +640,22 @@ Resources:
           Ebs:
             VolumeSize: '50'
             VolumeType: gp2
-        - DeviceName: /dev/sdb
+        - DeviceName: /dev/sdh
           VirtualName: ephemeral0
-        - DeviceName: /dev/sdc
+        - DeviceName: /dev/sdi
           VirtualName: ephemeral1
-        - DeviceName: /dev/sdd
+        - DeviceName: /dev/sdj
           VirtualName: ephemeral2
-        - DeviceName: /dev/sde
+        - DeviceName: /dev/sdk
           VirtualName: ephemeral3
+        - DeviceName: /dev/sdl
+          VirtualName: ephemeral4
+        - DeviceName: /dev/sdm
+          VirtualName: ephemeral5
+        - DeviceName: /dev/sdn
+          VirtualName: ephemeral6
+        - DeviceName: /dev/sdo
+          VirtualName: ephemeral7
       Tags:
         - Key: Name
           Value: CAS Controller node
@@ -1010,7 +1026,7 @@ Outputs:
           - ElasticLoadBalancer
           - DNSName
         - /SASHome
-  SASHome:
+  SASStudio:
     Description: SAS Studio
     Value: !Join
       - ''
