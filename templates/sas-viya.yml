@@ -1,3 +1,4 @@
+---
 AWSTemplateFormatVersion: 2010-09-09
 Description: >-
   This workload template deploys a SAS Viya stack into a private subnet behind
@@ -12,12 +13,10 @@ Metadata:
           default: Network Configuration
         Parameters:
           - VPCID
-          - PrivateSubnet1ID
-          - PrivateSubnet2ID
-          - PublicSubnet1ID
-          - PublicSubnet2ID
-          - WebRemoteAccessCIDR
-          - RemoteAccessCIDR
+          - PrivateSubnetID
+          - PublicSubnetID
+          - WebIngressLocation
+          - AdminIngressLocation
       - Label:
           default: Amazon EC2 Configuration
         Parameters:
@@ -30,10 +29,6 @@ Metadata:
         Parameters:
           - PlaybookLocation
       - Label:
-          default: Workload Storage Configuration
-        Parameters:
-          - S3BucketName
-      - Label:
           default: AWS Quick Start Configuration
         Parameters:
           - QSS3BucketName
@@ -41,24 +36,16 @@ Metadata:
     ParameterLabels:
       KeyPairName:
         default: SSH Key Name
-      OperatorEmail:
-        default: Operator Email
-      PrivateSubnet1ID:
-        default: Private Subnet 1 ID
-      PrivateSubnet2ID:
-        default: Private Subnet 2 ID
-      PublicSubnet1ID:
-        default: Public Subnet 1 ID
-      PublicSubnet2ID:
-        default: Public Subnet 2 ID
+      PrivateSubnetID:
+        default: Private Subnet ID
+      PublicSubnetID:
+        default: Public Subnet ID
       QSS3BucketName:
         default: Quick Start S3 Bucket Name
       QSS3KeyPrefix:
         default: Quick Start S3 Key Prefix
       PlaybookLocation:
         default: S3 location of SAS Viya SOE tgz file.
-      S3BucketName:
-        default: S3 Bucket Name
       VPCID:
         default: VPC ID
       ViyaServicesNodeInstanceType:
@@ -67,42 +54,27 @@ Metadata:
         default: CAS Controller Node Instance Type
       BastionInstanceType:
         default: Bastion Instance Type
-      RemoteAccessCIDR:
+      AdminIngressLocation:
         default: Allowed External Access CIDR for bastion ssh
-      WebRemoteAccessCIDR:
+      WebIngressLocation:
         default: Allowed External Access CIDR for web access
+
 Parameters:
   KeyPairName:
     Description: >-
       Name of an existing EC2 key pair. All instances will launch with this key
       pair.
     Type: 'AWS::EC2::KeyPair::KeyName'
-  OperatorEmail:
-    AllowedPattern: >-
-      ([a-zA-Z0-9_\-\.]+)@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.)|(([a-zA-Z0-9\-]+\.)+))([a-zA-Z]{2,4}|[0-9]{1,3})(\]?)
-    ConstraintDescription: Must be a valid email address.
-    Default: operator@email.com
-    Description: Email address that notifications of any scaling operations will be sent to
-    Type: String
-  PrivateSubnet1ID:
+  PrivateSubnetID:
     Description: >-
-      ID of private subnet 1 in Availability Zone 1 for the Workload (e.g.,
-      subnet-a0246dcd)
+      ID of private subnet for the Workload (e.g. subnet-a0246dcd)
+      (needs to be the same AZ as PublicSubnetID)
     Type: 'AWS::EC2::Subnet::Id'
-  PrivateSubnet2ID:
+  PublicSubnetID:
     Description: >-
-      ID of private subnet 2 in Availability Zone 2 for the Workload (e.g.,
-      subnet-b1f432cd)
-    Type: 'AWS::EC2::Subnet::Id'
-  PublicSubnet1ID:
-    Description: >-
-      ID of public subnet 1 in Availability Zone 1 for the ELB load balancer
-      (e.g., subnet-9bc642ac)
-    Type: 'AWS::EC2::Subnet::Id'
-  PublicSubnet2ID:
-    Description: >-
-      ID of public subnet 2 in Availability Zone 2 for the ELB load balancer
-      (e.g., subnet-e3246d8e)
+      ID of public subnet ailability Zone 1 for the ELB load balancer
+      and bastion host (e.g. subnet-9bc642ac)
+      (needs to be the same AZ as PrivateSubnetID)
     Type: 'AWS::EC2::Subnet::Id'
   QSS3BucketName:
     AllowedPattern: '^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$'
@@ -126,19 +98,12 @@ Parameters:
       include numbers, lowercase letters, uppercase letters, hyphens (-), and
       forward slash (/).
     Type: String
-  S3BucketName:
-    AllowedPattern: '^[a-z0-9][a-z0-9-.]*$'
-    Description: >-
-      Name of the S3 bucket that will be created for your workload to store
-      data. Enter a unique name that does not include uppercase characters.
-    Default: qs-viya-bucket
-    Type: String
   PlaybookLocation:
     AllowedPattern: >-
       ^https?://(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)$
     Description: >-
-      S3 location of SAS Viya deployment archive file. Example:
-      https://s3.amazonaws.com/mysasbucket/playbooks/SAS_Viya_playbook.tgz
+      S3 location of SAS Viya deployment archive file.
+      Example: https: //s3.amazonaws.com/mysasbucket/playbooks/SAS_Viya_playbook.tgz
     Type: String
   VPCID:
     Description: ID of your existing VPC for deployment
@@ -178,22 +143,30 @@ Parameters:
     Default: t2.micro
     Description: Amazon EC2 instance type for the bastion instances
     Type: String
-  WebRemoteAccessCIDR:
-    AllowedPattern: >-
-      ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
-    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/x
-    Description: Allowed CIDR block for external web access to the application
+  AdminIngressLocation:
+    Description: >-
+      CIDR block (IP address range) to allow SSH access to the
+      bastion host. Use 0.0.0.0/0
+      to allow access from all locations.
     Type: String
-  RemoteAccessCIDR:
-    AllowedPattern: >-
-      ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
-    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/x
-    Description: Allowed CIDR block for external SSH to the application
+    MinLength: '9'
+    MaxLength: '18'
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+  WebIngressLocation:
+    Description: >-
+      CIDR block (IP address range) to allow HTTPS access to the
+      SAS Viya Environment. Use 0.0.0.0/0 to allow access from all locations.
     Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+
 Rules:
   KeyPairsNotEmpty:
     Assertions:
-      - Assert: !Not 
+      - Assert: !Not
           - 'Fn::EachMemberEquals':
               - 'Fn::RefAll': 'AWS::EC2::KeyPair::KeyName'
               - ''
@@ -207,6 +180,7 @@ Rules:
                 - VpcId
             - 'Fn::RefAll': 'AWS::EC2::VPC::Id'
         AssertDescription: All subnets must in the VPC
+
 Mappings:
   AWSAMIRegionMap:
     AMI:
@@ -259,17 +233,14 @@ Mappings:
       Code: RHEL74HVM
     Amazon-Linux-HVM:
       Code: AMZNLINUXHVM
+
 Conditions:
-  GovCloudCondition: !Equals 
+  GovCloudCondition: !Equals
     - !Ref 'AWS::Region'
     - us-gov-west-1
+
 Resources:
-  NotificationTopic:
-    Type: 'AWS::SNS::Topic'
-    Properties:
-      Subscription:
-        - Endpoint: !Ref OperatorEmail
-          Protocol: email
+
   ELBSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
@@ -279,11 +250,11 @@ Resources:
         - IpProtocol: tcp
           FromPort: '80'
           ToPort: '80'
-          CidrIp: !Ref WebRemoteAccessCIDR
+          CidrIp: !Ref WebIngressLocation
         - IpProtocol: tcp
           FromPort: '443'
           ToPort: '443'
-          CidrIp: !Ref WebRemoteAccessCIDR
+          CidrIp: !Ref WebIngressLocation
   BastionSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
@@ -293,19 +264,19 @@ Resources:
         - IpProtocol: tcp
           FromPort: '22'
           ToPort: '22'
-          CidrIp: !Ref RemoteAccessCIDR
+          CidrIp: !Ref AdminIngressLocation
         - IpProtocol: icmp
           FromPort: '-1'
           ToPort: '-1'
-          CidrIp: !Ref RemoteAccessCIDR
+          CidrIp: !Ref AdminIngressLocation
         - IpProtocol: tcp
           FromPort: '80'
           ToPort: '80'
-          CidrIp: !Ref WebRemoteAccessCIDR
+          CidrIp: !Ref WebIngressLocation
         - IpProtocol: tcp
           FromPort: '443'
           ToPort: '443'
-          CidrIp: !Ref WebRemoteAccessCIDR
+          CidrIp: !Ref WebIngressLocation
   CASControllerNodeSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
@@ -370,8 +341,7 @@ Resources:
     Type: 'AWS::ElasticLoadBalancing::LoadBalancer'
     Properties:
       Subnets:
-        - !Ref PublicSubnet1ID
-        - !Ref PublicSubnet2ID
+        - !Ref PublicSubnetID
       SecurityGroups:
         - !Ref ELBSecurityGroup
       AppCookieStickinessPolicy:
@@ -422,20 +392,6 @@ Resources:
                   - 'cloudwatch:EnableAlarmActions'
                   - 'cloudwatch:PutMetricAlarm'
                 Resource: '*'
-              - Effect: Allow
-                Action:
-                  - 's3:*'
-                Resource:
-                  - !Join 
-                    - ''
-                    - - 'arn:aws:s3:::'
-                      - !Ref S3Bucket
-                      - ''
-                  - !Join 
-                    - ''
-                    - - 'arn:aws:s3:::'
-                      - !Ref S3Bucket
-                      - /*
   ViyaNodeProfile:
     Type: 'AWS::IAM::InstanceProfile'
     Properties:
@@ -460,10 +416,10 @@ Resources:
         install:
           files:
             /tmp/qs.pub:
-              source: !Sub 
+              source: !Sub
                 - >-
                   https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}keys/qs.pub
-                - QSS3Region: !If 
+                - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
                     - s3
@@ -472,10 +428,10 @@ Resources:
               group: root
               authentication: S3AccessCreds
             /tmp/diskprep.sh:
-              source: !Sub 
+              source: !Sub
                 - >-
                   https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/diskprep.sh
-                - QSS3Region: !If 
+                - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
                     - s3
@@ -506,11 +462,11 @@ Resources:
         cleanup: {}
     Properties:
       KeyName: !Ref KeyPairName
-      ImageId: !FindInMap 
+      ImageId: !FindInMap
         - AWSAMIRegionMap
         - !Ref 'AWS::Region'
         - RHEL74HVM
-      SubnetId: !Ref PrivateSubnet1ID
+      SubnetId: !Ref PrivateSubnetID
       IamInstanceProfile: !Ref ViyaNodeProfile
       InstanceType: !Ref ViyaServicesNodeInstanceType
       BlockDeviceMappings:
@@ -539,7 +495,7 @@ Resources:
       Tags:
         - Key: Name
           Value: Viya Services node
-      UserData: !Base64 
+      UserData: !Base64
         'Fn::Join':
           - ''
           - - |
@@ -604,10 +560,10 @@ Resources:
         install:
           files:
             /tmp/qs.pub:
-              source: !Sub 
+              source: !Sub
                 - >-
                   https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}keys/qs.pub
-                - QSS3Region: !If 
+                - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
                     - s3
@@ -616,10 +572,10 @@ Resources:
               group: root
               authentication: S3AccessCreds
             /tmp/diskprep.sh:
-              source: !Sub 
+              source: !Sub
                 - >-
                   https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/diskprep.sh
-                - QSS3Region: !If 
+                - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
                     - s3
@@ -650,11 +606,11 @@ Resources:
         cleanup: {}
     Properties:
       KeyName: !Ref KeyPairName
-      ImageId: !FindInMap 
+      ImageId: !FindInMap
         - AWSAMIRegionMap
         - !Ref 'AWS::Region'
         - RHEL74HVM
-      SubnetId: !Ref PrivateSubnet1ID
+      SubnetId: !Ref PrivateSubnetID
       IamInstanceProfile: !Ref ViyaNodeProfile
       InstanceType: !Ref CASControllerNodeInstanceType
       SecurityGroupIds:
@@ -683,7 +639,7 @@ Resources:
       Tags:
         - Key: Name
           Value: CAS Controller node
-      UserData: !Base64 
+      UserData: !Base64
         'Fn::Join':
           - ''
           - - |
@@ -754,9 +710,9 @@ Resources:
             Statement:
               - Action:
                   - 's3:GetObject'
-                Resource: !Sub 
+                Resource: !Sub
                   - 'arn:${Partition}:s3:::quickstart-reference/linux/bastion/*'
-                  - Partition: !If 
+                  - Partition: !If
                       - GovCloudCondition
                       - aws-us-gov
                       - aws
@@ -813,10 +769,10 @@ Resources:
         config:
           files:
             /tmp/installation_prereqs.sh:
-              source: !Sub 
+              source: !Sub
                 - >-
                   https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/installation_prereqs.sh
-                - QSS3Region: !If 
+                - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
                     - s3
@@ -825,10 +781,10 @@ Resources:
               group: root
               authentication: S3AccessCreds
             /tmp/bastion_bootstrap.sh:
-              source: !Sub 
+              source: !Sub
                 - >-
                   https://s3.amazonaws.com/quickstart-reference/linux/bastion/latest/scripts/bastion_bootstrap.sh
-                - QSS3Region: !If 
+                - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
                     - s3
@@ -844,10 +800,10 @@ Resources:
         sasprep:
           files:
             /tmp/install.sh:
-              source: !Sub 
+              source: !Sub
                 - >-
                   https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/install.sh
-                - QSS3Region: !If 
+                - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
                     - s3
@@ -862,10 +818,10 @@ Resources:
               group: ec2-user
               authentication: S3AccessCreds
             /tmp/qs.key:
-              source: !Sub 
+              source: !Sub
                 - >-
                   https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}keys/qs.key
-                - QSS3Region: !If 
+                - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
                     - s3
@@ -874,10 +830,10 @@ Resources:
               group: ec2-user
               authentication: S3AccessCreds
             /tmp/qs.pub:
-              source: !Sub 
+              source: !Sub
                 - >-
                   https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}keys/qs.pub
-                - QSS3Region: !If 
+                - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
                     - s3
@@ -886,10 +842,10 @@ Resources:
               group: ec2-user
               authentication: S3AccessCreds
             /tmp/a3scas.key:
-              source: !Sub 
+              source: !Sub
                 - >-
                   https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}keys/a3scas.key
-                - QSS3Region: !If 
+                - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
                     - s3
@@ -898,10 +854,10 @@ Resources:
               group: ec2-user
               authentication: S3AccessCreds
             /tmp/ansible.update.inventory.yml:
-              source: !Sub 
+              source: !Sub
                 - >-
                   https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/update.inventory.yml
-                - QSS3Region: !If 
+                - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
                     - s3
@@ -910,10 +866,10 @@ Resources:
               group: ec2-user
               authentication: S3AccessCreds
             /tmp/ansible.pre.deployment.yml:
-              source: !Sub 
+              source: !Sub
                 - >-
                   https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/pre.deployment.yml
-                - QSS3Region: !If 
+                - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
                     - s3
@@ -922,10 +878,10 @@ Resources:
               group: ec2-user
               authentication: S3AccessCreds
             /tmp/ansible.post.deployment.yml:
-              source: !Sub 
+              source: !Sub
                 - >-
                   https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/post.deployment.yml
-                - QSS3Region: !If 
+                - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
                     - s3
@@ -934,10 +890,10 @@ Resources:
               group: ec2-user
               authentication: S3AccessCreds
             /tmp/ansible.update.vars.file.yml:
-              source: !Sub 
+              source: !Sub
                 - >-
                   https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/update.vars.file.yml
-                - QSS3Region: !If 
+                - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
                     - s3
@@ -946,10 +902,10 @@ Resources:
               group: ec2-user
               authentication: S3AccessCreds
             /tmp/ansible.resetsasboot.sh:
-              source: !Sub 
+              source: !Sub
                 - >-
                   https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/resetsasboot.sh
-                - QSS3Region: !If 
+                - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
                     - s3
@@ -969,19 +925,19 @@ Resources:
             getopenldap:
               command: !Sub sudo su -l ec2-user -c "mkdir openldap; aws s3 cp --recursive s3://${QSS3BucketName}/openldap openldap"
             install:
-              command: !Sub 
+              command: !Sub
                 - >-
                   sudo su -l ec2-user -c "VIYA_SERVICES_NODE_IP=${VSNI}
                   "CAS_CONTROLLER_NODE_IP=${CCNI}" /tmp/install.sh"
-                - VSNI: !GetAtt 
+                - VSNI: !GetAtt
                     - ViyaServicesNode
                     - PrivateIp
-                  CCNI: !GetAtt 
+                  CCNI: !GetAtt
                     - CASControllerNode
                     - PrivateIp
     Properties:
       KeyName: !Ref KeyPairName
-      SubnetId: !Ref PublicSubnet1ID
+      SubnetId: !Ref PublicSubnetID
       IamInstanceProfile: !Ref BastionHostProfile
       ImageId: !FindInMap
         - AWSAMIRegionMap
@@ -993,7 +949,7 @@ Resources:
       Tags:
         - Key: Name
           Value: Bastion node
-      UserData: !Base64 
+      UserData: !Base64
         'Fn::Join':
           - ''
           - - |
@@ -1035,18 +991,13 @@ Resources:
             - !Ref 'AWS::Region'
             - |+
 
-  S3Bucket:
-    Type: 'AWS::S3::Bucket'
-    Properties:
-      BucketName: !Ref S3BucketName
-      AccessControl: BucketOwnerFullControl
 Outputs:
   SASHome:
     Description: SAS Viya
-    Value: !Join 
+    Value: !Join
       - ''
       - - 'http://'
-        - !GetAtt 
+        - !GetAtt
           - ElasticLoadBalancer
           - DNSName
         - /SASHome
@@ -1064,19 +1015,19 @@ Outputs:
     Value: !Ref EIP1
   InstallationLog:
     Description: Installation Logs
-    Value: !Join 
+    Value: !Join
       - ''
       - - 'http://'
         - !Ref EIP1
         - /status/
   ViyaServicesIPV4:
     Description: Viya Services IP address
-    Value: !GetAtt 
+    Value: !GetAtt
       - ViyaServicesNode
       - PrivateIp
   CASControllerIPV4:
     Description: CAS Controller IP address
-    Value: !GetAtt 
+    Value: !GetAtt
       - CASControllerNode
       - PrivateIp
 

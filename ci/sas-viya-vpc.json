@@ -1,0 +1,31 @@
+[
+    {
+        "ParameterKey": "AvailabilityZone",
+        "ParameterValue": "us-east-1a"
+    },
+
+    {
+        "ParameterKey": "AdminIngressLocation",
+        "ParameterValue": "149.173.0.0/16"
+    },
+    {
+        "ParameterKey": "WebIngressLocation",
+        "ParameterValue": "104.129.194.0/23"
+    },
+    {
+        "ParameterKey": "KeyPairName",
+        "ParameterValue": "a3scas"
+    },
+    {
+        "ParameterKey": "PlaybookLocation",
+        "ParameterValue": "https://s3.amazonaws.com/ace-qs/playbooks/SAS_Viya_playbook.tgz"
+    },
+    {
+        "ParameterKey": "QSS3BucketName",
+        "ParameterValue": "ace-qs"
+    },
+    {
+        "ParameterKey": "QSS3KeyPrefix",
+        "ParameterValue": ""
+    }
+]

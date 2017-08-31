@@ -3,13 +3,12 @@
         "ParameterKey": "VPCID",
         "ParameterValue": "vpc-19500560"
     },
-
     {
-        "ParameterKey": "RemoteAccessCIDR",
+        "ParameterKey": "AdminIngressLocation",
         "ParameterValue": "149.173.0.0/16"
     },
     {
-        "ParameterKey": "WebRemoteAccessCIDR",
+        "ParameterKey": "WebIngressLocation",
         "ParameterValue": "104.129.194.0/23"
     },
     {
@@ -17,20 +16,12 @@
         "ParameterValue": "a3scas"
     },
     {
-        "ParameterKey": "PrivateSubnet1ID",
+        "ParameterKey": "PrivateSubnetID",
         "ParameterValue": "subnet-5a007000"
     },
     {
-        "ParameterKey": "PrivateSubnet2ID",
-        "ParameterValue": "subnet-7f10e81b"
-    },
-    {
-        "ParameterKey": "PublicSubnet1ID",
+        "ParameterKey": "PublicSubnetID",
         "ParameterValue": "subnet-301e6e6a"
-    },
-    {
-        "ParameterKey": "PublicSubnet2ID",
-        "ParameterValue": "subnet-8313ebe7"
     },
     {
         "ParameterKey": "PlaybookLocation",
