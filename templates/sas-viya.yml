@@ -1,8 +1,7 @@
 ---
 AWSTemplateFormatVersion: 2010-09-09
 Description: >-
-  This workload template deploys a SAS Viya stack into a private subnet behind
-  an ELB load balancer.
+  This workload template deploys a SAS Viya stack.
   **WARNING** This template creates EC2 instances and related resources. You
   will be billed for the AWS resources used if you create a stack from this
   template.
@@ -249,6 +248,9 @@ Conditions:
     - us-gov-west-1
 
 Resources:
+
+  BastionMainLogGroup:
+    Type: 'AWS::Logs::LogGroup'
 
   ELBSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
@@ -503,7 +505,10 @@ Resources:
         - !Ref ViyaServicesNodeSecurityGroup
       Tags:
         - Key: Name
-          Value: Viya Services node
+          Value: !Join
+            - ' '
+            - - !Ref 'AWS::StackName'
+              - Viya Services node
       UserData: !Base64
         'Fn::Join':
           - ''
@@ -647,7 +652,10 @@ Resources:
           VirtualName: ephemeral7
       Tags:
         - Key: Name
-          Value: CAS Controller node
+          Value: !Join
+            - ' '
+            - - !Ref 'AWS::StackName'
+              - CAS Controller node
       UserData: !Base64
         'Fn::Join':
           - ''
@@ -737,6 +745,27 @@ Resources:
                   - '*'
                 Effect: Allow
           PolicyName: bastion-eip-policy
+        - PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Action:
+                  - 'logs:CreateLogStream'
+                  - 'logs:GetLogEvents'
+                  - 'logs:PutLogEvents'
+                  - 'logs:DescribeLogGroups'
+                  - 'logs:DescribeLogStreams'
+                  - 'logs:PutRetentionPolicy'
+                  - 'logs:PutMetricFilter'
+                  - 'logs:CreateLogGroup'
+                Resource: !Sub
+                  - >-
+                    arn:${Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${BastionMainLogGroup}:*
+                  - Partition: !If
+                      - GovCloudCondition
+                      - aws-us-gov
+                      - aws
+                Effect: Allow
+          PolicyName: bastion-cloudwatch-logs-policy
       Path: /
       AssumeRolePolicyDocument:
         Statement:
@@ -820,6 +849,11 @@ Resources:
               owner: ec2-user
               group: ec2-user
               authentication: S3AccessCreds
+              context:
+                ViyaServicesNodeIP: !GetAtt ViyaServicesNode.PrivateIp
+                CASControllerNodeIP: !GetAtt CASControllerNode.PrivateIp
+                SASViyaAdminPassword: !Ref SASViyaAdminPassword
+                LogGroup: !Ref BastionMainLogGroup
             /tmp/SAS_Viya_playbook.tgz:
               source: !Sub '${PlaybookLocation}'
               mode: '000550'
@@ -946,22 +980,7 @@ Resources:
             04-getopenldap:
               command: !Sub sudo su -l ec2-user -c "mkdir openldap; aws s3 cp --recursive s3://${QSS3BucketName}/openldap openldap"
             05-install:
-              command: !Sub
-                - >-
-                  sudo su -l ec2-user -c "
-                  VIYA_SERVICES_NODE_IP=${VSNI}
-                  CAS_CONTROLLER_NODE_IP=${CCNI}
-                  SASBOOT_PW=${SASViyaAdminPassword}
-                  /tmp/install.sh"
-                - VSNI: !GetAtt
-                    - ViyaServicesNode
-                    - PrivateIp
-                  CCNI: !GetAtt
-                    - CASControllerNode
-                    - PrivateIp
-                  CCNI: !GetAtt
-                    - CASControllerNode
-                    - PrivateIp
+              command: sudo su -l ec2-user -c "/tmp/install.sh"
     Properties:
       KeyName: !Ref KeyPairName
       SubnetId: !Ref PublicSubnetID
@@ -1006,6 +1025,10 @@ Resources:
             - !Ref EIP1
             - |
               "
+            - CLOUDWATCHGROUP=
+            - !Ref BastionMainLogGroup
+            - |+
+
             - 'cfn-init -v --stack '
             - !Ref 'AWS::StackName'
             - ' --resource BastionHost --configsets quickstart --region '
@@ -1047,6 +1070,16 @@ Outputs:
       - - 'http://'
         - !Ref EIP1
         - /status/
+  CloudWatchLogs:
+    Description: CloudWatch Logs.
+    # e.g.     https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#logStream:group=qs-viya-BastionMainLogGroup-1KIGMD9DKO4RH
+    Value: !Join
+      - ''
+      - - 'https://console.aws.amazon.com/cloudwatch/home?region='
+        - !Ref 'AWS::Region'
+        - "#logStream:group="
+        - !Ref BastionMainLogGroup
+
   ViyaServicesIPV4:
     Description: Viya Services IP address
     Value: !GetAtt
