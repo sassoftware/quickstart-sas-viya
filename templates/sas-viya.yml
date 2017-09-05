@@ -162,6 +162,15 @@ Parameters:
     MaxLength: '18'
     AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
     ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+  SASViyaAdminPassword:
+    Description: >-
+      Password of the initial SAS Viya Admin User (sasboot)
+    Type: String
+    Default: SASViyaAdmin
+    NoEcho: true
+    MinLength: '6'
+    MaxLength: '255'
+    ConstraintDescription: Password must have a minimum of 6 and a maximum of 255 characters.
 
 Rules:
   KeyPairsNotEmpty:
@@ -452,11 +461,11 @@ Resources:
               group: root
               authentication: S3AccessCreds
           commands:
-            setqskey:
+            01-setqskey:
               command: >-
                 cat /tmp/qs.pub >> /home/ec2-user/.ssh/authorized_keys; rm
                 /tmp/qs.pub;
-            diskprep:
+            02-diskprep:
               command: /tmp/diskprep.sh
         configure: {}
         cleanup: {}
@@ -596,11 +605,11 @@ Resources:
               group: root
               authentication: S3AccessCreds
           commands:
-            setqskey:
+            01-setqskey:
               command: >-
                 cat /tmp/qs.pub >> /home/ec2-user/.ssh/authorized_keys; rm
                 /tmp/qs.pub;
-            diskprep:
+            02-diskprep:
               command: /tmp/diskprep.sh
         configure: {}
         cleanup: {}
@@ -793,9 +802,9 @@ Resources:
               group: root
               authentication: S3AccessCreds
           commands:
-            b-bootstrap:
+            01-bootstrap:
               command: /tmp/bastion_bootstrap.sh --enable false
-            prereqs:
+            02-prereqs:
               command: /tmp/installation_prereqs.sh
         sasprep:
           files:
@@ -913,24 +922,42 @@ Resources:
               owner: ec2-user
               group: ec2-user
               authentication: S3AccessCreds
+            /tmp/ansible.cfg:
+              source: !Sub
+                - >-
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/ansible.cfg
+                - QSS3Region: !If
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000444'
+              owner: ec2-user
+              group: ec2-user
+              authentication: S3AccessCreds
           commands:
-            getprivatekey:
+            01-getprivatekey:
               command: mv /tmp/qs.key /home/ec2-user/.ssh/id_rsa
-            copykey:
+            02-copykey:
               command: mv /tmp/a3scas.key /home/ec2-user/.ssh/a3scas.key
-            setqskey:
+            03-setqskey:
               command: >-
                 cat /tmp/qs.pub >> /home/ec2-user/.ssh/authorized_keys; rm
                 /tmp/qs.pub;
-            getopenldap:
+            04-getopenldap:
               command: !Sub sudo su -l ec2-user -c "mkdir openldap; aws s3 cp --recursive s3://${QSS3BucketName}/openldap openldap"
-            install:
+            05-install:
               command: !Sub
                 - >-
-                  sudo su -l ec2-user -c "VIYA_SERVICES_NODE_IP=${VSNI}
-                  "CAS_CONTROLLER_NODE_IP=${CCNI}" /tmp/install.sh"
+                  sudo su -l ec2-user -c "
+                  VIYA_SERVICES_NODE_IP=${VSNI}
+                  CAS_CONTROLLER_NODE_IP=${CCNI}
+                  SASBOOT_PW=${SASViyaAdminPassword}
+                  /tmp/install.sh"
                 - VSNI: !GetAtt
                     - ViyaServicesNode
+                    - PrivateIp
+                  CCNI: !GetAtt
+                    - CASControllerNode
                     - PrivateIp
                   CCNI: !GetAtt
                     - CASControllerNode

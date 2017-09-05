@@ -1,7 +1,25 @@
-#!/bin/bash -e
+#!/bin/bash
+
+set -o pipefail
+set -o errexit
+set -o nounset
 
 echo VIYA_SERVICES_NODE_IP=$VIYA_SERVICES_NODE_IP
 echo CAS_CONTROLLER_NODE_IP=$CAS_CONTROLLER_NODE_IP
+
+# sometimes there are download failures during the install
+try () {
+  # allow up to N attempts of a command
+  # syntax: try N [command]
+
+  max_count=$1
+  shift
+  count=1
+  until  $@  || [ $count -gt $max_count  ]
+  do
+    let count=count+1
+  done
+}
 
 
 # prepare inventory.ini header
@@ -37,15 +55,15 @@ pushd sas_viya_playbook
 
   ansible-playbook ansible.update.inventory.yml
 
-  ansible-playbook ansible.pre.deployment.yml
+  try 3 ansible-playbook ansible.pre.deployment.yml
 
   ansible-playbook ansible.update.vars.file.yml
 
   cp ../openldap/sitedefault.yml roles/consul/files/
 
-  ansible-playbook site.yml
+  try 3 ansible-playbook site.yml
 
-  ansible-playbook ansible.post.deployment.yml
+  ansible-playbook ansible.post.deployment.yml -e "sasboot_pw=$SASBOOT_PW"
 
 popd
 

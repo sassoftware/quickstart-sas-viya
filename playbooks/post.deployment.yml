@@ -2,6 +2,11 @@
 - hosts: sas-all
   become: yes
 
+  vars:
+
+    ## sasboot password ##
+    sasboot_pw: lnxsas
+
   tasks:
 
   - name: display the status of each machine
@@ -53,7 +58,7 @@
       - sasboot
 
   - name: Reset the sasboot password
-    shell: /tmp/resetsasboot.sh
+    shell: /tmp/resetsasboot.sh {{sasboot_pw}}
     tags:
       - postdep
       - sasboot

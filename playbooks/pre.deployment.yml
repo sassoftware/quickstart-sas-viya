@@ -224,7 +224,7 @@
     - name: Show free memory info
       debug: msg="Free  Memory is {{ ansible_memory_mb.real.free }} MB"
 
-    - name: Asset that there is enough ({{(min_mem_mb|int)/1000}} GB) memory on the server
+    - name: Assert that there is enough ({{(min_mem_mb|int)/1000}} GB) memory on the server
       assert:
         that:
           - ( ansible_memory_mb.real.total | int ) >= ( min_mem_mb | int )
@@ -279,7 +279,7 @@
       debug: var=cpuinfo.stdout
 
 
-    - name: Asset that there are enough ({{min_cores_num}}) cores on the server
+    - name: Assert that there are enough ({{min_cores_num}}) cores on the server
       assert:
         that:
           - (cpuinfo.stdout | int) >= (min_cores_num | int)
@@ -1201,7 +1201,7 @@
         - nics
 
 
-    - name: Asset that there only ({{max_num_nics|int}}) NICs or less on the server
+    - name: r that there only ({{max_num_nics|int}}) NICs or less on the server
       assert:
         that:
           - (numnics.stdout | int) <= (max_num_nics | int)
@@ -1362,7 +1362,7 @@
       - service_command
 
 
-  - name: Asset that {{sas_user}} can use service
+  - name: Assert that {{sas_user}} can use service
     assert:
       that:
         - service_command.rc != 1

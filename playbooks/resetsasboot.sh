@@ -2,7 +2,7 @@
 #right now this has to be run on the same machine as the log with the reset link - but if http proxy is on another machine this will need to be updated
 
 export host=localhost
-export password=lnxsas
+export password=${1:-lnxsas}
 
 export code=$(ls -tr /var/log/sas/viya/saslogon/default/sas-saslogon_* | tail -n1 | grep '.log$' | xargs grep 'sasboot' | cut -d'=' -f2)
 # make the first request, this expends the link
