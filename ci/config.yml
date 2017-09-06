@@ -20,5 +20,5 @@ global:
   reporting: true
 tests:
   workload-master:
-    parameter_input: workload-master.json
-    template_file: workload-master.template
+    parameter_input: sas-viya-vpc.json
+    template_file: sas-viya-with-new-vpc.yml

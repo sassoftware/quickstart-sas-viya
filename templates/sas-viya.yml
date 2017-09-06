@@ -249,8 +249,10 @@ Conditions:
 
 Resources:
 
-  BastionMainLogGroup:
+  CloudWatchLogGroup:
     Type: 'AWS::Logs::LogGroup'
+    Properties:
+      RetentionInDays: 7
 
   ELBSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
@@ -394,15 +396,27 @@ Resources:
                 Resource: !Sub 'arn:aws:s3:::${QSS3BucketName}/${QSS3KeyPrefix}*'
                 Effect: Allow
           PolicyName: aws-quick-start-s3-policy
-        - PolicyName: ViyaServicesNodeSetup
-          PolicyDocument:
+        - PolicyDocument:
+            Version: 2012-10-17
             Statement:
-              - Effect: Allow
-                Action:
-                  - 'cloudwatch:PutMetricData'
-                  - 'cloudwatch:EnableAlarmActions'
-                  - 'cloudwatch:PutMetricAlarm'
-                Resource: '*'
+              - Action:
+                  - 'logs:CreateLogStream'
+                  - 'logs:GetLogEvents'
+                  - 'logs:PutLogEvents'
+                  - 'logs:DescribeLogGroups'
+                  - 'logs:DescribeLogStreams'
+                  - 'logs:PutRetentionPolicy'
+                  - 'logs:PutMetricFilter'
+                  - 'logs:CreateLogGroup'
+                Resource: !Sub
+                  - >-
+                    arn:${Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${CloudWatchLogGroup}:*
+                  - Partition: !If
+                      - GovCloudCondition
+                      - aws-us-gov
+                      - aws
+                Effect: Allow
+          PolicyName: viya-node-cloudwatch-logs-policy
   ViyaNodeProfile:
     Type: 'AWS::IAM::InstanceProfile'
     Properties:
@@ -462,6 +476,34 @@ Resources:
               owner: root
               group: root
               authentication: S3AccessCreds
+            /tmp/log_setup.sh:
+              source: !Sub
+                - >-
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/log_setup.sh
+                - QSS3Region: !If
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000550'
+              owner: root
+              group: root
+              authentication: S3AccessCreds
+              context:
+                AWSRegion: !Ref 'AWS::Region'
+            /tmp/cloudwatch.conf:
+              source: !Sub
+                - >-
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.services.conf
+                - QSS3Region: !If
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000440'
+              owner: root
+              group: root
+              authentication: S3AccessCreds
+              context:
+                LogGroup: !Ref CloudWatchLogGroup
           commands:
             01-setqskey:
               command: >-
@@ -469,6 +511,8 @@ Resources:
                 /tmp/qs.pub;
             02-diskprep:
               command: /tmp/diskprep.sh
+            03-cloudwatch:
+              command: /tmp/log_setup.sh
         configure: {}
         cleanup: {}
     Properties:
@@ -609,6 +653,34 @@ Resources:
               owner: root
               group: root
               authentication: S3AccessCreds
+            /tmp/log_setup.sh:
+              source: !Sub
+                - >-
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/log_setup.sh
+                - QSS3Region: !If
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000550'
+              owner: root
+              group: root
+              authentication: S3AccessCreds
+              context:
+                AWSRegion: !Ref 'AWS::Region'
+            /tmp/cloudwatch.conf:
+              source: !Sub
+                - >-
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.controller.conf
+                - QSS3Region: !If
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000440'
+              owner: root
+              group: root
+              authentication: S3AccessCreds
+              context:
+                LogGroup: !Ref CloudWatchLogGroup
           commands:
             01-setqskey:
               command: >-
@@ -616,6 +688,8 @@ Resources:
                 /tmp/qs.pub;
             02-diskprep:
               command: /tmp/diskprep.sh
+            03-cloudwatch:
+              command: /tmp/log_setup.sh
         configure: {}
         cleanup: {}
     Properties:
@@ -759,7 +833,7 @@ Resources:
                   - 'logs:CreateLogGroup'
                 Resource: !Sub
                   - >-
-                    arn:${Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${BastionMainLogGroup}:*
+                    arn:${Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${CloudWatchLogGroup}:*
                   - Partition: !If
                       - GovCloudCondition
                       - aws-us-gov
@@ -806,10 +880,10 @@ Resources:
             - sasprep
         config:
           files:
-            /tmp/installation_prereqs.sh:
+            /tmp/bastion_prereqs.sh:
               source: !Sub
                 - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/installation_prereqs.sh
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/bastion_prereqs.sh
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -834,7 +908,7 @@ Resources:
             01-bootstrap:
               command: /tmp/bastion_bootstrap.sh --enable false
             02-prereqs:
-              command: /tmp/installation_prereqs.sh
+              command: /tmp/bastion_prereqs.sh
         sasprep:
           files:
             /tmp/install.sh:
@@ -853,7 +927,7 @@ Resources:
                 ViyaServicesNodeIP: !GetAtt ViyaServicesNode.PrivateIp
                 CASControllerNodeIP: !GetAtt CASControllerNode.PrivateIp
                 SASViyaAdminPassword: !Ref SASViyaAdminPassword
-                LogGroup: !Ref BastionMainLogGroup
+                LogGroup: !Ref CloudWatchLogGroup
             /tmp/SAS_Viya_playbook.tgz:
               source: !Sub '${PlaybookLocation}'
               mode: '000550'
@@ -974,9 +1048,7 @@ Resources:
             02-copykey:
               command: mv /tmp/a3scas.key /home/ec2-user/.ssh/a3scas.key
             03-setqskey:
-              command: >-
-                cat /tmp/qs.pub >> /home/ec2-user/.ssh/authorized_keys; rm
-                /tmp/qs.pub;
+              command: cat /tmp/qs.pub >> /home/ec2-user/.ssh/authorized_keys; rm /tmp/qs.pub
             04-getopenldap:
               command: !Sub sudo su -l ec2-user -c "mkdir openldap; aws s3 cp --recursive s3://${QSS3BucketName}/openldap openldap"
             05-install:
@@ -994,7 +1066,10 @@ Resources:
       InstanceType: !Ref BastionInstanceType
       Tags:
         - Key: Name
-          Value: Bastion node
+          Value: !Join
+            - ' '
+            - - !Ref 'AWS::StackName'
+              - Bastion node
       UserData: !Base64
         'Fn::Join':
           - ''
@@ -1026,7 +1101,7 @@ Resources:
             - |
               "
             - CLOUDWATCHGROUP=
-            - !Ref BastionMainLogGroup
+            - !Ref CloudWatchLogGroup
             - |+
 
             - 'cfn-init -v --stack '
@@ -1072,13 +1147,13 @@ Outputs:
         - /status/
   CloudWatchLogs:
     Description: CloudWatch Logs.
-    # e.g.     https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#logStream:group=qs-viya-BastionMainLogGroup-1KIGMD9DKO4RH
+    # e.g.     https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#logStream:group=qs-viya-CloudWatchLogGroup-1KIGMD9DKO4RH
     Value: !Join
       - ''
       - - 'https://console.aws.amazon.com/cloudwatch/home?region='
         - !Ref 'AWS::Region'
         - "#logStream:group="
-        - !Ref BastionMainLogGroup
+        - !Ref CloudWatchLogGroup
 
   ViyaServicesIPV4:
     Description: Viya Services IP address
