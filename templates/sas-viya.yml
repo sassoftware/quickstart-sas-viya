@@ -1050,7 +1050,7 @@ Resources:
             03-setqskey:
               command: cat /tmp/qs.pub >> /home/ec2-user/.ssh/authorized_keys; rm /tmp/qs.pub
             04-getopenldap:
-              command: !Sub sudo su -l ec2-user -c "mkdir openldap; aws s3 cp --recursive s3://${QSS3BucketName}/openldap openldap"
+              command: !Sub sudo su -l ec2-user -c "mkdir openldap; aws s3 cp --recursive s3://${QSS3BucketName}/${QSS3KeyPrefix}openldap openldap"
             05-install:
               command: sudo su -l ec2-user -c "/tmp/install.sh"
     Properties:

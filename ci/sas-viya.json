@@ -33,6 +33,6 @@
     },
     {
         "ParameterKey": "QSS3KeyPrefix",
-        "ParameterValue": ""
+        "ParameterValue": "fix; "
     }
 ]
