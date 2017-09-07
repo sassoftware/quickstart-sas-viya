@@ -33,6 +33,10 @@
     },
     {
         "ParameterKey": "QSS3KeyPrefix",
-        "ParameterValue": "fix; "
+        "ParameterValue": ""
+    },
+    {
+        "ParameterKey": "SASViyaAdminPassword",
+        "ParameterValue": "SASViyaAdmin"
     }
 ]
