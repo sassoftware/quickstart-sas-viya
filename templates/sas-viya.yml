@@ -62,11 +62,12 @@ Parameters:
 
   PlaybookLocation:
     AllowedPattern: >-
-      ^https?://(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)$
+      ^([-a-zA-Z0-9@:%_\+.~#?&//=]*)$
     Description: >-
       S3 location of the Software Order Confirmation e-mail attachment.
-      Example: https: //s3.amazonaws.com/mysasbucket/playbooks/SAS_Viya_playbook.tgz
+      Example: mysasbucket/playbooks/SAS_Viya_playbook.tgz
     Type: String
+    ConstraintDescription: must be a valid S3 bucket location, e.g. mysasbucket/playbooks/SAS_Viya_playbook.tgz
 
   CASControllerNodeInstanceType:
     AllowedValues:
@@ -779,6 +780,15 @@ Resources:
             Version: 2012-10-17
             Statement:
               - Action:
+                  - 's3:getObject'
+                Resource:
+                  - !Sub 'arn:aws:s3:::${PlaybookLocation}'
+                Effect: Allow
+          PolicyName: viya-playbook-s3-policy
+        - PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Action:
                   - 's3:GetObject'
                 Resource: !Sub
                   - 'arn:${Partition}:s3:::quickstart-reference/linux/bastion/*'
@@ -852,6 +862,7 @@ Resources:
           buckets:
             - !Ref QSS3BucketName
             - quickstart-reference/linux/bastion
+            - !Ref PlaybookLocation
       'AWS::CloudFormation::Init':
         configSets:
           quickstart:
@@ -908,7 +919,13 @@ Resources:
                 SASViyaAdminPassword: !Ref SASViyaAdminPassword
                 LogGroup: !Ref CloudWatchLogGroup
             /tmp/SAS_Viya_playbook.tgz:
-              source: !Sub '${PlaybookLocation}'
+              source: !Sub
+                - >-
+                  https://${QSS3Region}.amazonaws.com/${PlaybookLocation}
+                - QSS3Region: !If
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
               mode: '000550'
               owner: ec2-user
               group: ec2-user

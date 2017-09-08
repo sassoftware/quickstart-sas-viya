@@ -56,12 +56,12 @@ Parameters:
 
   PlaybookLocation:
     AllowedPattern: >-
-      ^https?://(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)$
+      ^([-a-zA-Z0-9@:%_\+.~#?&//=]*)$
     Description: >-
-      S3 location where you uploaded the SAS Viya Software Order Confirmation e-mail attachment. Example:
-      https://s3.amazonaws.com/mysasbucket/playbooks/SAS_Viya_playbook.tgz
+      S3 location of the Software Order Confirmation e-mail attachment.
+      Example: mysasbucket/playbooks/SAS_Viya_playbook.tgz
     Type: String
-    ConstraintDescription: must be a valid S3 URL, with https:// prefix.
+    ConstraintDescription: must be a valid S3 bucket location, e.g. mysasbucket/playbooks/SAS_Viya_playbook.tgz
 
   CASControllerNodeInstanceType:
     AllowedValues:
