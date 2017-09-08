@@ -28,5 +28,18 @@
           2: 'WORK /sastmp/saswork'
       backup: yes
  
-  
+  - name: set SASStudio folder root (remove if it exists)
+    lineinfile:
+      dest: vars.yml
+      regexp: "webdms.showSystemRoot:"
+      state: absent
+      backup: yes
+
+  - name: set SASStudio folder root
+    replace:
+      dest: vars.yml
+      regexp:  'STUDIO_CONFIGURATION:\n  init:'
+      replace: 'STUDIO_CONFIGURATION:\n  init:\n    webdms.showSystemRoot: false'
+      backup: yes
+
   
