@@ -234,6 +234,9 @@ Resources:
     Properties:
       RetentionInDays: 7
 
+  ViyaPlacementGroup:
+    Type: 'AWS::EC2::PlacementGroup'
+
   ELBSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
@@ -504,6 +507,8 @@ Resources:
       SubnetId: !Ref PrivateSubnetID
       IamInstanceProfile: !Ref ViyaNodeProfile
       InstanceType: i3.2xlarge
+      EbsOptimized: true
+      PlacementGroupName: !Ref ViyaPlacementGroup
       BlockDeviceMappings:
         - DeviceName: /dev/sdg
           Ebs:
@@ -681,6 +686,8 @@ Resources:
       SubnetId: !Ref PrivateSubnetID
       IamInstanceProfile: !Ref ViyaNodeProfile
       InstanceType: !Ref CASControllerNodeInstanceType
+      EbsOptimized: true
+      PlacementGroupName: !Ref ViyaPlacementGroup
       SecurityGroupIds:
         - !Ref CASControllerNodeSecurityGroup
       BlockDeviceMappings:
