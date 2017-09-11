@@ -39,4 +39,8 @@
         "ParameterKey": "SASViyaAdminPassword",
         "ParameterValue": "SASViyaAdmin"
     }
-]
+,
+    {
+        "ParameterKey": "OperatorEmail",
+        "ParameterValue": "matthias.ender@sas.com"
+    }]

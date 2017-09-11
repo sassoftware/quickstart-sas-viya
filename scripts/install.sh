@@ -2,6 +2,8 @@
 
 # this script is expect to be run by a user with sudo privileges (typically ec2-user)
 
+trap cleanup EXIT
+
 set -o pipefail
 set -o errexit
 set -o nounset
@@ -13,7 +15,104 @@ test -n "{{ViyaServicesNodeIP}}"
 test -n "{{CASControllerNodeIP}}"
 test -n "{{SASViyaAdminPassword}}"
 test -n "{{LogGroup}}"
+test -n "{{AWSRegion}}"
+test -n "{{KeyPairName}}"
+test -n "{{BastionIPV4}}"
+test -n "{{CloudFormationStack}}"
+test -n "{{CloudWatchLogs}}"
+test -n "{{SASHome}}"
+test -n "{{SASStudio}}"
 
+
+
+create_start_message () {
+
+cat <<EOF > /tmp/sns_start_message.txt
+
+   Starting SAS Viya Deployment for Stack "{{CloudFormationStack}}".
+
+   Follow the deployment logs at {{CloudWatchLogs}}
+
+EOF
+
+}
+
+create_success_message () {
+
+    ## on success, add link to all endpoints, and the bastion ip and keyname
+cat <<EOF > /tmp/sns_success_message.txt
+
+   SAS Viya Deployment for Stack "{{CloudFormationStack}}" completed successfully.
+
+   Log into SAS Viya at {{SASHome}}
+
+   Log into SAS/Studio at {{SASStudio}}
+
+   Log into the Administrator VM with the private key for KeyPair "{{KeyPairName}}":
+
+       ssh -i /path/to/private/key.pem ec2-user@{{BastionIPV4}}
+
+EOF
+
+}
+
+create_failure_message ( ) {
+
+cat <<EOF > /tmp/sns_failure_message.txt
+
+   SAS Viya Deployment for Stack "{{CloudFormationStack}}" failed with RC=$1.
+
+   Check the deployment logs at {{CloudWatchLogs}}.
+
+EOF
+
+}
+
+if [ -n "{{SNSTopic}}" ]; then
+
+  # create and send start email
+
+  create_start_message
+
+  aws --region {{AWSRegion}} sns publish --topic-arn {{SNSTopic}} \
+      --subject "Starting SAS Viya Deployment" \
+      --message file:///tmp/sns_start_message.txt
+
+fi
+
+
+
+cleanup () {
+
+  RC=$?
+
+  if [ -n "{{SNSTopic}}" ]; then
+
+    if [[ $RC == 0 ]]; then
+
+      # create and send success email
+
+      create_success_message
+
+      aws --region {{AWSRegion}} sns publish --topic-arn {{SNSTopic}} \
+          --subject "SAS Viya Deployment {{CloudFormationStack}} completed." \
+          --message file:///tmp/sns_success_message.txt
+
+    else
+
+      # create and send failure email
+
+      create_failure_message $RC
+
+      aws --region {{AWSRegion}} sns publish --topic-arn {{SNSTopic}} \
+          --subject "SAS Viya Deployment {{CloudFormationStack}} failed." \
+          --message file:///tmp/sns_failure_message.txt
+
+    fi
+
+  fi
+
+}
 
 # sometimes there are ssh connection errors (53) during the install
 # this function allows to retry N times
@@ -35,7 +134,7 @@ addLogFileToCloudWatch () {
 # add file to CloudWatch configuration and restart CloudWatch agent
 
 LOGFILE=$1
-cat <<-EOF | sudo tee -a /etc/awslogs/awslogs.conf
+cat <<EOF | sudo tee -a /etc/awslogs/awslogs.conf
 
 [$LOGFILE]
 log_stream_name = $LOGFILE

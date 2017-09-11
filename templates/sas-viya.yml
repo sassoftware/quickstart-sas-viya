@@ -149,7 +149,11 @@ Parameters:
       include numbers, lowercase letters, uppercase letters, hyphens (-), and
       forward slash (/).
     Type: String
-
+  OperatorEmail:
+    AllowedPattern: "([a-zA-Z0-9_\\-\\.]+)@((\\[[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.)|(([a-zA-Z0-9\\-]+\\.)+))([a-zA-Z]{2,4}|[0-9]{1,3})(\\]?)|^$"
+    ConstraintDescription: "must be a valid email address."
+    Description: "Email address to sent a notification about deployment success or failure (optional)."
+    Type: String
 
 Rules:
   KeyPairsNotEmpty:
@@ -226,8 +230,20 @@ Conditions:
   GovCloudCondition: !Equals
     - !Ref 'AWS::Region'
     - us-gov-west-1
+  SNSCondition: !Not
+    - !Equals
+      - !Ref OperatorEmail
+      - ""
 
 Resources:
+
+  SNSTopic:
+    Condition: SNSCondition
+    Type: "AWS::SNS::Topic"
+    Properties:
+      Subscription:
+        - Endpoint: !Ref OperatorEmail
+          Protocol: "email"
 
   CloudWatchLogGroup:
     Type: 'AWS::Logs::LogGroup'
@@ -514,6 +530,7 @@ Resources:
           Ebs:
             VolumeSize: '50'
             VolumeType: gp2
+            DeleteOnTermination: true
         - DeviceName: /dev/sdh
           VirtualName: ephemeral0
         - DeviceName: /dev/sdi
@@ -695,6 +712,7 @@ Resources:
           Ebs:
             VolumeSize: '50'
             VolumeType: gp2
+            DeleteOnTermination: true
         - DeviceName: /dev/sdh
           VirtualName: ephemeral0
         - DeviceName: /dev/sdi
@@ -768,6 +786,14 @@ Resources:
     Type: 'AWS::IAM::Role'
     Properties:
       Policies:
+        - PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Action:
+                  - 'SNS:Publish'
+                Resource: "*"
+                Effect: Allow
+          PolicyName: bastion-sns-policy
         - PolicyDocument:
             Version: 2012-10-17
             Statement:
@@ -925,6 +951,32 @@ Resources:
                 CASControllerNodeIP: !GetAtt CASControllerNode.PrivateIp
                 SASViyaAdminPassword: !Ref SASViyaAdminPassword
                 LogGroup: !Ref CloudWatchLogGroup
+                SNSTopic: !If [SNSCondition, !Ref SNSTopic, ""]
+                AWSRegion: !Ref AWS::Region
+                KeyPairName: !Ref KeyPairName
+                BastionIPV4: !Ref EIP1
+                CloudFormationStack: !Ref AWS::StackName
+                CloudWatchLogs: !Join
+                  - ''
+                  - - 'https://console.aws.amazon.com/cloudwatch/home?region='
+                    - !Ref 'AWS::Region'
+                    - "#logStream:group="
+                    - !Ref CloudWatchLogGroup
+                SASHome: !Join
+                  - ''
+                  - - 'http://'
+                    - !GetAtt
+                      - ElasticLoadBalancer
+                      - DNSName
+                    - /SASHome
+                SASStudio: !Join
+                  - ''
+                  - - 'http://'
+                    - !GetAtt
+                      - ElasticLoadBalancer
+                      - DNSName
+                    - /SASStudio
+
             /tmp/SAS_Viya_playbook.tgz:
               source: !Sub
                 - >-
