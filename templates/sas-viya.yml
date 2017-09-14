@@ -71,14 +71,14 @@ Parameters:
 
   CASControllerNodeInstanceType:
     AllowedValues:
-      - i3.large
-      - i3.xlarge
-      - i3.2xlarge
-      - i3.4xlarge
-      - i3.8xlarge
-      - i3.16xlarge
+      - "i3.large (2 vCPUs)"
+      - "i3.xlarge (4 vCPUs)"
+      - "i3.2xlarge (8 vCPUs)"
+      - "i3.4xlarge (16 vCPUs)"
+      - "i3.8xlarge (32 vCPUs)"
+      - "i3.16xlarge (64 vCPUs)"
     ConstraintDescription: Must contain valid instance type
-    Default: i3.2xlarge
+    Default: "i3.2xlarge (8 vCPUs)"
     Description: Type of EC2 instance for the Viya Compute Node
     Type: String
 
@@ -702,7 +702,7 @@ Resources:
         - RHEL74HVM
       SubnetId: !Ref PrivateSubnetID
       IamInstanceProfile: !Ref ViyaNodeProfile
-      InstanceType: !Ref CASControllerNodeInstanceType
+      InstanceType: !Select [ 0 , !Split [ " ", !Ref CASControllerNodeInstanceType ] ]
       EbsOptimized: true
       PlacementGroupName: !Ref ViyaPlacementGroup
       SecurityGroupIds:
