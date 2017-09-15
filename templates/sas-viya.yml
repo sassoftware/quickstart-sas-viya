@@ -683,6 +683,18 @@ Resources:
               authentication: S3AccessCreds
               context:
                 LogGroup: !Ref CloudWatchLogGroup
+            /tmp/redshift_odbc.sh:
+              source: !Sub
+                - >-
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/redshift_odbc.sh
+                - QSS3Region: !If
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000550'
+              owner: root
+              group: root
+              authentication: S3AccessCreds
           commands:
             01-setqskey:
               command: >-
@@ -692,6 +704,8 @@ Resources:
               command: /tmp/diskprep.sh
             03-cloudwatch:
               command: /tmp/log_setup.sh
+            04-odbc:
+              command: /tmp/redshift_odbc.sh
         configure: {}
         cleanup: {}
     Properties:
