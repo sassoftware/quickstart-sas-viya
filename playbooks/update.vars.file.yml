@@ -54,7 +54,7 @@
     replace:
       dest: vars.yml
       regexp:  '#2: ODBCINI=.*'
-      replace: '2: ODBCINI=/$ODBCHOME/odbc.ini'
+      replace: '2: ODBCINI=$ODBCHOME/Setup/odbc.ini'
 
   - name: set LD_LIBRARY_PATH
     replace:

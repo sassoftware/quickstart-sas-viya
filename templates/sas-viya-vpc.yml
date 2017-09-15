@@ -108,6 +108,7 @@ Parameters:
     Type: String
     MinLength: '6'
     MaxLength: '255'
+    NoEcho: true
     ConstraintDescription: Password must have a at least 6 and no more than 255 characters.
 
   QSS3BucketName:
