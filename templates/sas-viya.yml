@@ -268,6 +268,28 @@ Resources:
           FromPort: '443'
           ToPort: '443'
           CidrIp: !Ref WebIngressLocation
+  CASELBSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Allow access to the CAS ELB
+      VpcId: !Ref VPCID
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '8777'
+          ToPort: '8777'
+          CidrIp: !Ref WebIngressLocation
+        - IpProtocol: tcp
+          FromPort: '8777'
+          ToPort: '8777'
+          CidrIp: !Ref AdminIngressLocation
+        - IpProtocol: tcp
+          FromPort: '5570'
+          ToPort: '5570'
+          CidrIp: !Ref WebIngressLocation
+        - IpProtocol: tcp
+          FromPort: '5570'
+          ToPort: '5570'
+          CidrIp: !Ref AdminIngressLocation
   BastionSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
@@ -299,7 +321,7 @@ Resources:
         - IpProtocol: tcp
           FromPort: '8777'
           ToPort: '8777'
-          SourceSecurityGroupId: !Ref ELBSecurityGroup
+          SourceSecurityGroupId: !Ref CASELBSecurityGroup
         - IpProtocol: tcp
           FromPort: '8777'
           ToPort: '8777'
@@ -311,7 +333,7 @@ Resources:
         - IpProtocol: tcp
           FromPort: '5570'
           ToPort: '5570'
-          SourceSecurityGroupId: !Ref ELBSecurityGroup
+          SourceSecurityGroupId: !Ref CASELBSecurityGroup
         - IpProtocol: tcp
           FromPort: '22'
           ToPort: '22'
@@ -375,6 +397,22 @@ Resources:
         Timeout: '3'
       Instances:
         - !Ref ViyaServicesNode
+  CASElasticLoadBalancer:
+    Type: 'AWS::ElasticLoadBalancing::LoadBalancer'
+    Properties:
+      Subnets:
+        - !Ref PublicSubnetID
+      SecurityGroups:
+        - !Ref CASELBSecurityGroup
+      Listeners:
+        - LoadBalancerPort: '8777'
+          InstancePort: '8777'
+          Protocol: TCP
+        - LoadBalancerPort: '5570'
+          InstancePort: '5570'
+          Protocol: TCP
+      Instances:
+        - !Ref CASControllerNode
   ViyaNodeRole:
     Type: 'AWS::IAM::Role'
     Properties:
@@ -699,8 +737,7 @@ Resources:
           commands:
             01-setqskey:
               command: >-
-                cat /tmp/qs.pub >> /home/ec2-user/.ssh/authorized_keys; rm
-                /tmp/qs.pub;
+                cat /tmp/qs.pub >> /home/ec2-user/.ssh/authorized_keys; rm /tmp/qs.pub;
             02-diskprep:
               command: /tmp/diskprep.sh
             03-cloudwatch:
@@ -1195,7 +1232,7 @@ Outputs:
         - !GetAtt
           - ElasticLoadBalancer
           - DNSName
-        - /SASHome
+        - '/SASHome'
   SASStudio:
     Description: SAS Studio
     Value: !Join
@@ -1204,7 +1241,16 @@ Outputs:
         - !GetAtt
           - ElasticLoadBalancer
           - DNSName
-        - /SASStudio
+        - '/SASStudio'
+  CASMonitor:
+    Description: CAS Monitor
+    Value: !Join
+      - ''
+      - - 'http://'
+        - !GetAtt
+          - CASElasticLoadBalancer
+          - DNSName
+        - ':8777/'
   BastionIPV4:
     Description: Bastion IP address
     Value: !Ref EIP1
@@ -1214,7 +1260,7 @@ Outputs:
       - ''
       - - 'http://'
         - !Ref EIP1
-        - /status/
+        - '/status/'
   CloudWatchLogs:
     Description: CloudWatch Logs.
     # e.g.     https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#logStream:group=qs-viya-CloudWatchLogGroup-1KIGMD9DKO4RH
