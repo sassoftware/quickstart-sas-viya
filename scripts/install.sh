@@ -164,7 +164,7 @@ pushd openldap
   ansible-playbook update.inventory.yml
 
   # openldap and sssd setup
-  ansible-playbook openldapsetup.yml
+  try 3 ansible-playbook openldapsetup.yml
 
 popd
 
