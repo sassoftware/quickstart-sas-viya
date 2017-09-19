@@ -407,7 +407,7 @@ Resources:
       Listeners:
         - LoadBalancerPort: '8777'
           InstancePort: '8777'
-          Protocol: HTTP
+          Protocol: TCP
         - LoadBalancerPort: '5570'
           InstancePort: '5570'
           Protocol: TCP
@@ -722,14 +722,6 @@ Resources:
               authentication: S3AccessCreds
               context:
                 LogGroup: !Ref CloudWatchLogGroup
-            /tmp/redshift_odbc.sh:
-              source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/redshift_odbc.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
               mode: '000550'
               owner: root
               group: root
@@ -737,14 +729,11 @@ Resources:
           commands:
             01-setqskey:
               command: >-
-                cat /tmp/qs.pub >> /home/ec2-user/.ssh/authorized_keys; rm
-                /tmp/qs.pub;
+                cat /tmp/qs.pub >> /home/ec2-user/.ssh/authorized_keys; rm /tmp/qs.pub;
             02-diskprep:
               command: /tmp/diskprep.sh
             03-cloudwatch:
               command: /tmp/log_setup.sh
-            04-odbc:
-              command: /tmp/redshift_odbc.sh
         configure: {}
         cleanup: {}
     Properties:
@@ -1233,7 +1222,7 @@ Outputs:
         - !GetAtt
           - ElasticLoadBalancer
           - DNSName
-        - /SASHome
+        - '/SASHome'
   SASStudio:
     Description: SAS Studio
     Value: !Join
@@ -1242,7 +1231,7 @@ Outputs:
         - !GetAtt
           - ElasticLoadBalancer
           - DNSName
-        - /SASStudio
+        - '/SASStudio'
   CASMonitor:
     Description: CAS Monitor
     Value: !Join
@@ -1251,7 +1240,7 @@ Outputs:
         - !GetAtt
           - CASElasticLoadBalancer
           - DNSName
-        - /
+        - ':8777/'
   BastionIPV4:
     Description: Bastion IP address
     Value: !Ref EIP1
@@ -1261,7 +1250,7 @@ Outputs:
       - ''
       - - 'http://'
         - !Ref EIP1
-        - /status/
+        - '/status/'
   CloudWatchLogs:
     Description: CloudWatch Logs.
     # e.g.     https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#logStream:group=qs-viya-CloudWatchLogGroup-1KIGMD9DKO4RH
