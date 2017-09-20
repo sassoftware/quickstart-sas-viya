@@ -10,7 +10,7 @@ python /tmp/awslogs-agent-setup.py --region {{AWSRegion}} -n -c /tmp/cloudwatch.
 # create crontab to make sure the awslog service restarts after each file rollover
 # (i.e. after midnight, which is the default in the viya log configurations)
 cat <<EOF > /tmp/crontab.txt
-05 00 * * * service awslogs restart
+15 00 * * * service awslogs restart
 EOF
 # start crontab
 crontab /tmp/crontab.txt
