@@ -620,13 +620,7 @@ Resources:
             - >
               easy_install
               https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
-            - >
-              [ `which yum` ] && $(yum install -y httpd) && echo "HTTPD
-              INSTALLED"
             - |
-              [ `which apt-get` ] && apt-get -y httpd && echo "HTTPD INSTALLED"
-            - |
-              service httpd start
             - 'cfn-init --stack '
             - !Ref 'AWS::StackName'
             - ' --resource ViyaServicesNode --configsets quickstart --region '
@@ -813,13 +807,7 @@ Resources:
             - >
               easy_install
               https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
-            - >
-              [ `which yum` ] && $(yum install -y httpd) && echo "HTTPD
-              INSTALLED"
             - |
-              [ `which apt-get` ] && apt-get -y httpd && echo "HTTPD INSTALLED"
-            - |
-              service httpd start
             - 'cfn-init --stack '
             - !Ref 'AWS::StackName'
             - ' --resource CASControllerNode --configsets quickstart --region '
