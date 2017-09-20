@@ -927,6 +927,10 @@ Resources:
       - ViyaServicesNode
       - CASControllerNode
     Type: 'AWS::EC2::Instance'
+    CreationPolicy:
+      ResourceSignal:
+        Count: 1
+        Timeout: 'PT1H30M'
     Metadata:
       'AWS::CloudFormation::Authentication':
         S3AccessCreds:
@@ -1205,11 +1209,11 @@ Resources:
             - !Ref 'AWS::Region'
             - |+
 
-            - 'cfn-signal -e $? --stack '
-            - !Ref 'AWS::StackName'
-            - ' --resource BastionHost --region '
-            - !Ref 'AWS::Region'
-            - |+
+#            - 'cfn-signal -e $? --stack '
+#            - !Ref 'AWS::StackName'
+#            - ' --resource BastionHost --region '
+#            - !Ref 'AWS::Region'
+#            - |+
 
 Outputs:
   SASHome:

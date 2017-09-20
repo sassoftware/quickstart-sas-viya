@@ -29,9 +29,16 @@ create_start_message () {
 
 cat <<EOF > /tmp/sns_start_message.txt
 
-   Starting SAS Viya Deployment for Stack "{{CloudFormationStack}}".
+  Starting SAS Viya Deployment for Stack "{{CloudFormationStack}}".
 
-   Follow the deployment logs at {{CloudWatchLogs}}
+  Follow the deployment logs at {{CloudWatchLogs}}
+
+  Log into the Administrator VM with the private key for KeyPair "{{KeyPairName}}":
+
+       ssh -i /path/to/private/key.pem ec2-user@{{BastionIPV4}}
+
+  Viya Services Node IP:  {{ViyaServicesNodeIP}}
+  CAS Controller Node IP: {{CASControllerNodeIP}}
 
 EOF
 
@@ -111,6 +118,8 @@ cleanup () {
     fi
 
   fi
+
+  cfn-signal -e $RC --stack {{CloudFormationStack}} --resource BastionHost --region {{AWSRegion}}
 
 }
 
