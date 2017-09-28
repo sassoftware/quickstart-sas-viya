@@ -716,10 +716,6 @@ Resources:
               authentication: S3AccessCreds
               context:
                 LogGroup: !Ref CloudWatchLogGroup
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
           commands:
             01-setqskey:
               command: >-
@@ -962,6 +958,8 @@ Resources:
               group: root
               authentication: S3AccessCreds
           commands:
+            00-workaround:
+               command: echo "net.ipv4.tcp_timestamps = 0" >> /etc/sysctl.conf; sysctl -p
             01-bootstrap:
               command: /tmp/bastion_bootstrap.sh --enable false
             02-prereqs:
@@ -1047,18 +1045,6 @@ Resources:
               owner: ec2-user
               group: ec2-user
               authentication: S3AccessCreds
-            /tmp/a3scas.key:
-              source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}keys/a3scas.key
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000600'
-              owner: ec2-user
-              group: ec2-user
-              authentication: S3AccessCreds
             /tmp/ansible.update.inventory.yml:
               source: !Sub
                 - >-
@@ -1134,13 +1120,11 @@ Resources:
           commands:
             01-getprivatekey:
               command: mv /tmp/qs.key /home/ec2-user/.ssh/id_rsa
-            02-copykey:
-              command: mv /tmp/a3scas.key /home/ec2-user/.ssh/a3scas.key
-            03-setqskey:
+            02-setqskey:
               command: cat /tmp/qs.pub >> /home/ec2-user/.ssh/authorized_keys; rm /tmp/qs.pub
-            04-getopenldap:
+            03-getopenldap:
               command: !Sub sudo su -l ec2-user -c "mkdir openldap; aws s3 cp --recursive s3://${QSS3BucketName}/${QSS3KeyPrefix}openldap openldap"
-            05-install:
+            04-install:
               command: sudo su -l ec2-user -c "/tmp/install.sh"
     Properties:
       KeyName: !Ref KeyPairName
