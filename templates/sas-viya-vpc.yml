@@ -281,8 +281,8 @@ Resources:
       RouteTableId: !Ref PublicSubnetRouteTable
 
 
-  # Call the cluster template and supply its parameters
-  # This creates a second stack that creates the actual Kubernetes cluster
+  # Call the viya template and supply its parameters
+  # This creates a second stack that creates the actual application cluster
   # within the new VPC
   SASViyaStack:
     Type: AWS::CloudFormation::Stack
