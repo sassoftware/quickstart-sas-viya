@@ -22,6 +22,7 @@ test -n "{{CloudFormationStack}}"
 test -n "{{CloudWatchLogs}}"
 test -n "{{SASHome}}"
 test -n "{{SASStudio}}"
+test -n "{{CASMonitor}}"
 
 
 
@@ -53,7 +54,9 @@ cat <<EOF > /tmp/sns_success_message.txt
 
    Log into SAS Viya at {{SASHome}}
 
-   Log into SAS/Studio at {{SASStudio}}
+   Log into SAS Studio at {{SASStudio}}
+
+   Log into CAS Monitor at {{CASMonitor}}
 
    Log into the Administrator VM with the private key for KeyPair "{{KeyPairName}}":
 
