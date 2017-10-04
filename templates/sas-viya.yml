@@ -268,28 +268,20 @@ Resources:
           FromPort: '443'
           ToPort: '443'
           CidrIp: !Ref WebIngressLocation
-  CASELBSecurityGroup:
-    Type: 'AWS::EC2::SecurityGroup'
-    Properties:
-      GroupDescription: Allow access to the CAS ELB
-      VpcId: !Ref VPCID
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: '8777'
-          ToPort: '8777'
-          CidrIp: !Ref WebIngressLocation
-        - IpProtocol: tcp
-          FromPort: '8777'
-          ToPort: '8777'
-          CidrIp: !Ref AdminIngressLocation
-        - IpProtocol: tcp
-          FromPort: '5570'
-          ToPort: '5570'
-          CidrIp: !Ref WebIngressLocation
-        - IpProtocol: tcp
-          FromPort: '5570'
-          ToPort: '5570'
-          CidrIp: !Ref AdminIngressLocation
+#  CASELBSecurityGroup:
+#    Type: 'AWS::EC2::SecurityGroup'
+#    Properties:
+#      GroupDescription: Allow access to the CAS ELB
+#      VpcId: !Ref VPCID
+#      SecurityGroupIngress:
+#        - IpProtocol: tcp
+#          FromPort: '5570'
+#          ToPort: '5570'
+#          CidrIp: !Ref WebIngressLocation
+#        - IpProtocol: tcp
+#          FromPort: '5570'
+#          ToPort: '5570'
+#          CidrIp: !Ref AdminIngressLocation
   BastionSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
@@ -321,19 +313,15 @@ Resources:
         - IpProtocol: tcp
           FromPort: '8777'
           ToPort: '8777'
-          SourceSecurityGroupId: !Ref CASELBSecurityGroup
-        - IpProtocol: tcp
-          FromPort: '8777'
-          ToPort: '8777'
           SourceSecurityGroupId: !Ref ViyaServicesNodeSecurityGroup
         - IpProtocol: tcp
           FromPort: '5570'
           ToPort: '5570'
           SourceSecurityGroupId: !Ref ViyaServicesNodeSecurityGroup
-        - IpProtocol: tcp
-          FromPort: '5570'
-          ToPort: '5570'
-          SourceSecurityGroupId: !Ref CASELBSecurityGroup
+#        - IpProtocol: tcp
+#          FromPort: '5570'
+#          ToPort: '5570'
+#          SourceSecurityGroupId: !Ref CASELBSecurityGroup
         - IpProtocol: tcp
           FromPort: '22'
           ToPort: '22'
@@ -384,35 +372,33 @@ Resources:
           PolicyName: WorkloadCookieStickinessPolicy
       Listeners:
         - LoadBalancerPort: '80'
-          InstancePort: '80'
           Protocol: HTTP
+          InstanceProtocol: HTTPS
+          InstancePort: '443'
           PolicyNames:
             - WorkloadCookieStickinessPolicy
       CrossZone: 'true'
       HealthCheck:
-        Target: 'TCP:80'
+        Target: 'TCP:443'
         HealthyThreshold: '2'
         UnhealthyThreshold: '3'
         Interval: '30'
         Timeout: '3'
       Instances:
         - !Ref ViyaServicesNode
-  CASElasticLoadBalancer:
-    Type: 'AWS::ElasticLoadBalancing::LoadBalancer'
-    Properties:
-      Subnets:
-        - !Ref PublicSubnetID
-      SecurityGroups:
-        - !Ref CASELBSecurityGroup
-      Listeners:
-        - LoadBalancerPort: '8777'
-          InstancePort: '8777'
-          Protocol: TCP
-        - LoadBalancerPort: '5570'
-          InstancePort: '5570'
-          Protocol: TCP
-      Instances:
-        - !Ref CASControllerNode
+#  CASElasticLoadBalancer:
+#    Type: 'AWS::ElasticLoadBalancing::LoadBalancer'
+#    Properties:
+#      Subnets:
+#        - !Ref PublicSubnetID
+#      SecurityGroups:
+#        - !Ref CASELBSecurityGroup
+#      Listeners:
+#        - LoadBalancerPort: '5570'
+#          InstancePort: '5570'
+#          Protocol: TCP
+#      Instances:
+#        - !Ref CASControllerNode
   ViyaNodeRole:
     Type: 'AWS::IAM::Role'
     Properties:
@@ -972,6 +958,8 @@ Resources:
               group: root
               authentication: S3AccessCreds
           commands:
+            00-workaround:
+               command: echo "net.ipv4.tcp_timestamps = 0" >> /etc/sysctl.conf; sysctl -p
             01-bootstrap:
               command: /tmp/bastion_bootstrap.sh --enable false
             02-prereqs:
@@ -1020,7 +1008,13 @@ Resources:
                       - ElasticLoadBalancer
                       - DNSName
                     - /SASStudio
-
+                CASMonitor: !Join
+                  - ''
+                  - - 'http://'
+                    - !GetAtt
+                      - ElasticLoadBalancer
+                      - DNSName
+                    - ':/cas-shared-default-http/tkcas.dsp'
             /tmp/SAS_Viya_playbook.tgz:
               source: !Sub
                 - >-
@@ -1049,18 +1043,6 @@ Resources:
               source: !Sub
                 - >-
                   https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}keys/qs.pub
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000600'
-              owner: ec2-user
-              group: ec2-user
-              authentication: S3AccessCreds
-            /tmp/a3scas.key:
-              source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}keys/a3scas.key
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -1144,13 +1126,11 @@ Resources:
           commands:
             01-getprivatekey:
               command: mv /tmp/qs.key /home/ec2-user/.ssh/id_rsa
-            02-copykey:
-              command: mv /tmp/a3scas.key /home/ec2-user/.ssh/a3scas.key
-            03-setqskey:
+            02-setqskey:
               command: cat /tmp/qs.pub >> /home/ec2-user/.ssh/authorized_keys; rm /tmp/qs.pub
-            04-getopenldap:
+            03-getopenldap:
               command: !Sub sudo su -l ec2-user -c "mkdir openldap; aws s3 cp --recursive s3://${QSS3BucketName}/${QSS3KeyPrefix}openldap openldap"
-            05-install:
+            04-install:
               command: sudo su -l ec2-user -c "/tmp/install.sh"
     Properties:
       KeyName: !Ref KeyPairName
@@ -1240,9 +1220,9 @@ Outputs:
       - ''
       - - 'http://'
         - !GetAtt
-          - CASElasticLoadBalancer
+          - ElasticLoadBalancer
           - DNSName
-        - ':8777/'
+        - ':/cas-shared-default-http/tkcas.dsp'
   BastionIPV4:
     Description: Bastion IP address
     Value: !Ref EIP1
