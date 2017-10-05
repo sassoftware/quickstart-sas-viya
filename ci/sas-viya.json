@@ -25,7 +25,7 @@
     },
     {
         "ParameterKey": "PlaybookLocation",
-        "ParameterValue": "ace-qs-tgz/SAS_Viya_playbook.tgz"
+        "ParameterValue": "ace-qs/deployment_data/SAS_Viya_deployment_data.zip"
     },
     {
         "ParameterKey": "QSS3BucketName",

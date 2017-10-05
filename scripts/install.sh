@@ -181,9 +181,28 @@ pushd openldap
 popd
 
 
+## get orchestration cli
+### extract certificates
+#sudo unzip -j /tmp/SAS_Viya_deployment_data.zip "entitlement-certificates/entitlement_certificate.pem" -d "/etc/pki/sas/private/"
+#sudo unzip -j /tmp/SAS_Viya_deployment_data.zip "ca-certificates/SAS_CA_Certificate.pem" -d "/etc/ssl/certs/"
+#
+## Download the RPM file used to establish yum connectivity to the central SAS
+## catalog of repositories
+#curl -OLv --cert /etc/pki/sas/private/entitlement_certificate.pem --cacert /etc/ssl/certs/SAS_CA_Certificate.pem https://ses.sas.download/ses/repos/meta-repo//sas-meta-repo-1-1.noarch.rpm
+#
+## Install the downloaded RPM file
+#sudo yum -y install sas-meta-repo-1-1.noarch.rpm
+#
+## Install the main repository
+#sudo yum -y install sas-va-101_ea160-x64_redhat_linux_6-yum
+#
+## install the orchestration cli
+#sudo yum -y install sas-orchestration-cli
 
+# build playbook
+/tmp/sas-orchestration build --input  /tmp/SAS_Viya_deployment_data.zip
 # untar playbook
-tar xf /tmp/SAS_Viya_playbook.tgz
+tar xf SAS_Viya_playbook.tgz
 
 pushd sas_viya_playbook
 

@@ -1001,7 +1001,7 @@ Resources:
                       - ElasticLoadBalancer
                       - DNSName
                     - ':/cas-shared-default-http/tkcas.dsp'
-            /tmp/SAS_Viya_playbook.tgz:
+            /tmp/SAS_Viya_deployment_data.zip:
               source: !Sub
                 - >-
                   https://${QSS3Region}.amazonaws.com/${PlaybookLocation}
@@ -1010,6 +1010,18 @@ Resources:
                     - s3-us-gov-west-1
                     - s3
               mode: '000550'
+              owner: ec2-user
+              group: ec2-user
+              authentication: S3AccessCreds
+            /tmp/sas-orchestration:
+              source: !Sub
+                - >-
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}deployment_data/sas-orchestration
+                - QSS3Region: !If
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000770'
               owner: ec2-user
               group: ec2-user
               authentication: S3AccessCreds
