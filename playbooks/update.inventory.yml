@@ -3,8 +3,17 @@
     
   tasks:
 
-  - name: create new inventory
-    shell: tail -n +2 hosts > tmp.ini ; cat /tmp/inventory.head tmp.ini > inventory.ini
+  - name: remove default deployTarget
+    replace:
+      dest=inventory.ini
+      regexp='\[host-definitions\]\ndeployTarget.*'
+      replace='[host-definitions]'
+
+  - name: insert host definitions
+    blockinfile:
+      insertafter='\[host-definitions\]'
+      dest=inventory.ini
+      block="{{ lookup('file', '/tmp/inventory.head') }}"
 
   - name: Set CAS controller target
     replace:
@@ -13,43 +22,4 @@
       replace='[sas-casserver-primary]\ncontroller'
       backup=yes
 
-      
-#  - name: Update CAS Controller group
-#    blockinfile:
-#      dest: newinv.ini
-#      marker: "# {mark} controller -->"
-#      insertafter: '\[sas-casserver-primary\]'
-#      content: |
-#        auto_cc
-#    tags:
-#      - updateinventory
-#
-#  - name: Update CAS worker group
-#    blockinfile:
-#      dest: newinv.ini
-#      marker: "# {mark} workers -->"
-#      insertafter: '\[sas-casserver-worker\]'
-#      content: |
-#        auto_cw01
-#        auto_cw02
-#        auto_cw03
-#    tags:
-#      - updateinventory
-#
-#
-#  - name: add stuff for mirror
-#    blockinfile:
-#      dest: newinv.ini
-#      marker: "# {mark} mirror -->"
-#      insertafter: EOF
-#      content: |
-#        [mirrorhost]
-#        auto_supp
-#
-#        [repohost]
-#        auto_supp
-#    tags:
-#      - updateinventory
-#
-#
       

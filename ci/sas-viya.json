@@ -24,8 +24,8 @@
         "ParameterValue": "subnet-301e6e6a"
     },
     {
-        "ParameterKey": "PlaybookLocation",
-        "ParameterValue": "ace-qs/deployment_data/SAS_Viya_deployment_data.zip"
+        "ParameterKey": "DeploymentDataLocation",
+        "ParameterValue": "mercury-deployment-data/viya3.3EA/SAS_Viya_deployment_data.zip"
     },
     {
         "ParameterKey": "QSS3BucketName",

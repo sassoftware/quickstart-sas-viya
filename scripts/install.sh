@@ -161,8 +161,8 @@ sudo service awslogs restart
 
 
 # prepare inventory.ini header
-echo deployTarget ansible_ssh_host={{ViyaServicesNodeIP}} > /tmp/inventory.head
-echo controller ansible_ssh_host={{CASControllerNodeIP}} >> /tmp/inventory.head
+echo deployTarget ansible_host={{ViyaServicesNodeIP}} > /tmp/inventory.head
+echo controller ansible_host={{CASControllerNodeIP}} >> /tmp/inventory.head
 
 # set up OpenLDAP
 pushd openldap
@@ -188,7 +188,7 @@ popd
 #
 ## Download the RPM file used to establish yum connectivity to the central SAS
 ## catalog of repositories
-#curl -OLv --cert /etc/pki/sas/private/entitlement_certificate.pem --cacert /etc/ssl/certs/SAS_CA_Certificate.pem https://ses.sas.download/ses/repos/meta-repo//sas-meta-repo-1-1.noarch.rpm
+#sudo curl -OLv --cert /etc/pki/sas/private/entitlement_certificate.pem --cacert /etc/ssl/certs/SAS_CA_Certificate.pem https://ses.sas.download/ses/repos/meta-repo//sas-meta-repo-1-1.noarch.rpm
 #
 ## Install the downloaded RPM file
 #sudo yum -y install sas-meta-repo-1-1.noarch.rpm
@@ -199,15 +199,18 @@ popd
 ## install the orchestration cli
 #sudo yum -y install sas-orchestration-cli
 
+# location of installed cli: /opt/sas/viya/home/bin/sas-orchestration
+
 # build playbook
 /tmp/sas-orchestration build --input  /tmp/SAS_Viya_deployment_data.zip
+
 # untar playbook
 tar xf SAS_Viya_playbook.tgz
 
 pushd sas_viya_playbook
 
   # copy additional playbooks
-  mv /tmp/ansible.* .
+  cp /tmp/ansible.* .
 
   # get identities configuration from openldap setup
   cp ../openldap/sitedefault.yml roles/consul/files/
