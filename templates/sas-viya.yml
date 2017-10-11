@@ -67,7 +67,7 @@ Parameters:
       S3 location of the Software Order Confirmation e-mail attachment.
       Example: mysasbucket/viya_deployment_data/SAS_Viya_deployment_data.zip
     Type: String
-    ConstraintDescription: must be a valid S3 bucket location, e.g. mysasbucket/playbooks/SAS_Viya_playbook.tgz
+    ConstraintDescription: must be a valid S3 bucket location, e.g. mysasbucket/viya_deployment_data/SAS_Viya_deployment_data.zip
 
   CASControllerNodeInstanceType:
     AllowedValues:
