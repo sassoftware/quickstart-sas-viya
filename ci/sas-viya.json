@@ -29,11 +29,11 @@
     },
     {
         "ParameterKey": "QSS3BucketName",
-        "ParameterValue": "ace-qs"
+        "ParameterValue": "mercury-playpen"
     },
     {
         "ParameterKey": "QSS3KeyPrefix",
-        "ParameterValue": ""
+        "ParameterValue": "dev/"
     },
     {
         "ParameterKey": "SASViyaAdminPassword",
