@@ -24,23 +24,23 @@
         "ParameterValue": "subnet-301e6e6a"
     },
     {
-        "ParameterKey": "PlaybookLocation",
-        "ParameterValue": "ace-qs-tgz/SAS_Viya_playbook.tgz"
+        "ParameterKey": "DeploymentDataLocation",
+        "ParameterValue": "mercury-deployment-data/viya3.3EA/SAS_Viya_deployment_data.zip"
     },
     {
         "ParameterKey": "QSS3BucketName",
-        "ParameterValue": "ace-qs"
+        "ParameterValue": "mercury-playpen"
     },
     {
         "ParameterKey": "QSS3KeyPrefix",
-        "ParameterValue": ""
+        "ParameterValue": "dev/"
     },
     {
         "ParameterKey": "SASViyaAdminPassword",
         "ParameterValue": "SASViyaAdmin"
-    }
-,
+    },
     {
         "ParameterKey": "OperatorEmail",
         "ParameterValue": "matthias.ender@sas.com"
-    }]
+    }
+]

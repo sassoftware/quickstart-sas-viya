@@ -48,13 +48,13 @@
     replace:
       dest: vars.yml
       regexp:  '#1: ODBCHOME=.*'
-      replace: '1: ODBCHOME=/opt/amazon/redshiftodbc'
+      replace: '1: ODBCHOME=/opt/sas/viya/home/lib64/accessclients'
 
   - name: set ODBCINI
     replace:
       dest: vars.yml
       regexp:  '#2: ODBCINI=.*'
-      replace: '2: ODBCINI=$ODBCHOME/Setup/odbc.ini'
+      replace: '2: ODBCINI=$ODBCHOME/odbc.ini'
 
   - name: set LD_LIBRARY_PATH
     replace:

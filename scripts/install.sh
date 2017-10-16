@@ -161,8 +161,8 @@ sudo service awslogs restart
 
 
 # prepare inventory.ini header
-echo deployTarget ansible_ssh_host={{ViyaServicesNodeIP}} > /tmp/inventory.head
-echo controller ansible_ssh_host={{CASControllerNodeIP}} >> /tmp/inventory.head
+echo deployTarget ansible_host={{ViyaServicesNodeIP}} > /tmp/inventory.head
+echo controller ansible_host={{CASControllerNodeIP}} >> /tmp/inventory.head
 
 # set up OpenLDAP
 pushd openldap
@@ -181,14 +181,36 @@ pushd openldap
 popd
 
 
+## get orchestration cli
+### extract certificates
+#sudo unzip -j /tmp/SAS_Viya_deployment_data.zip "entitlement-certificates/entitlement_certificate.pem" -d "/etc/pki/sas/private/"
+#sudo unzip -j /tmp/SAS_Viya_deployment_data.zip "ca-certificates/SAS_CA_Certificate.pem" -d "/etc/ssl/certs/"
+#
+## Download the RPM file used to establish yum connectivity to the central SAS
+## catalog of repositories
+#sudo curl -OLv --cert /etc/pki/sas/private/entitlement_certificate.pem --cacert /etc/ssl/certs/SAS_CA_Certificate.pem https://ses.sas.download/ses/repos/meta-repo//sas-meta-repo-1-1.noarch.rpm
+#
+## Install the downloaded RPM file
+#sudo yum -y install sas-meta-repo-1-1.noarch.rpm
+#
+## Install the main repository
+#sudo yum -y install sas-va-101_ea160-x64_redhat_linux_6-yum
+#
+## install the orchestration cli
+#sudo yum -y install sas-orchestration-cli
+
+# location of installed cli: /opt/sas/viya/home/bin/sas-orchestration
+
+# build playbook
+/tmp/sas-orchestration build --input  /tmp/SAS_Viya_deployment_data.zip
 
 # untar playbook
-tar xf /tmp/SAS_Viya_playbook.tgz
+tar xf SAS_Viya_playbook.tgz
 
 pushd sas_viya_playbook
 
   # copy additional playbooks
-  mv /tmp/ansible.* .
+  cp /tmp/ansible.* .
 
   # get identities configuration from openldap setup
   cp ../openldap/sitedefault.yml roles/consul/files/
@@ -212,7 +234,10 @@ pushd sas_viya_playbook
   # main deployment
   ansible-playbook ansible.update.vars.file.yml
   try 3 ansible-playbook site.yml
-  ansible-playbook ansible.post.deployment.yml -e "sasboot_pw={{SASViyaAdminPassword}}"
+  ansible-playbook ansible.post.deployment.yml -e "sasboot_pw={{SASViyaAdminPassword}}" --tags "postdep"
+
+  # Only for EA: copy the redshift resources
+  ansible-playbook ansible.post.deployment.yml --tags "EA"
 
 popd
 

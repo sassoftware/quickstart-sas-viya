@@ -63,4 +63,21 @@
       - postdep
       - sasboot
 
+# only for EA - these files should already be there in production
+- hosts:
+  - sas-casserver-primary
+  - sas-casserver-worker
+  become: yes
+  become_user: root
 
+  tasks:
+
+  - name: copy odbc resources
+    shell: |
+      systemctl stop sas-viya-cascontroller-default.service;
+      tar xvf /tmp/accessclients.tar -C /opt/sas/viya/home/lib64;
+      cp /tmp/tkeredsh.so /opt/sas/viya/home/SASFoundation/sasexe;
+      chown sas:sas /opt/sas/viya/home/SASFoundation/sasexe/tkeredsh.so;
+      systemctl start sas-viya-cascontroller-default.service
+    tags:
+      - EA

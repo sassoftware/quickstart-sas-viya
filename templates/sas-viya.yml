@@ -11,7 +11,7 @@ Metadata:
       - Label:
           default: SAS Viya License and Install Package
         Parameters:
-          - PlaybookLocation
+          - DeploymentDataLocation
       - Label:
           default: SAS Viya Compute Node Size
         Parameters:
@@ -45,7 +45,7 @@ Metadata:
         default: Quick Start S3 Bucket Name
       QSS3KeyPrefix:
         default: Quick Start S3 Key Prefix
-      PlaybookLocation:
+      DeploymentDataLocation:
         default: SAS Viya Software Order File
       VPCID:
         default: VPC ID
@@ -60,14 +60,14 @@ Metadata:
 
 Parameters:
 
-  PlaybookLocation:
+  DeploymentDataLocation:
     AllowedPattern: >-
       ^([-a-zA-Z0-9@:%_\+.~#?&//=]*)$
     Description: >-
       S3 location of the Software Order Confirmation e-mail attachment.
-      Example: mysasbucket/playbooks/SAS_Viya_playbook.tgz
+      Example: mysasbucket/viya_deployment_data/SAS_Viya_deployment_data.zip
     Type: String
-    ConstraintDescription: must be a valid S3 bucket location, e.g. mysasbucket/playbooks/SAS_Viya_playbook.tgz
+    ConstraintDescription: must be a valid S3 bucket location, e.g. mysasbucket/viya_deployment_data/SAS_Viya_deployment_data.zip
 
   CASControllerNodeInstanceType:
     AllowedValues:
@@ -531,8 +531,7 @@ Resources:
           commands:
             01-setqskey:
               command: >-
-                cat /tmp/qs.pub >> /home/ec2-user/.ssh/authorized_keys; rm
-                /tmp/qs.pub;
+                cat /tmp/qs.pub >> /home/ec2-user/.ssh/authorized_keys; rm /tmp/qs.pub;
             02-diskprep:
               command: /tmp/diskprep.sh
             03-cloudwatch:
@@ -547,10 +546,15 @@ Resources:
         - RHEL74HVM
       SubnetId: !Ref PrivateSubnetID
       IamInstanceProfile: !Ref ViyaNodeProfile
-      InstanceType: i3.2xlarge
+      InstanceType: i3.4xlarge
       EbsOptimized: true
       PlacementGroupName: !Ref ViyaPlacementGroup
       BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: '20'
+            VolumeType: gp2
+            DeleteOnTermination: true
         - DeviceName: /dev/sdg
           Ebs:
             VolumeSize: '50'
@@ -702,18 +706,34 @@ Resources:
               authentication: S3AccessCreds
               context:
                 LogGroup: !Ref CloudWatchLogGroup
-            /tmp/redshift_odbc.sh:
+
+            # for the EA only - should be already available on production install
+            /tmp/accessclients.tar:
               source: !Sub
                 - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/redshift_odbc.sh
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}EA/accessclients.tar
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
                     - s3
-              mode: '000550'
+              mode: '000440'
               owner: root
               group: root
               authentication: S3AccessCreds
+            /tmp/tkeredsh.so:
+              source: !Sub
+                - >-
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}EA/tkeredsh.so
+                - QSS3Region: !If
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000644'
+              owner: root
+              group: root
+              authentication: S3AccessCreds
+
+
           commands:
             01-setqskey:
               command: >-
@@ -722,8 +742,6 @@ Resources:
               command: /tmp/diskprep.sh
             03-cloudwatch:
               command: /tmp/log_setup.sh
-            04-odbc:
-              command: /tmp/redshift_odbc.sh
         configure: {}
         cleanup: {}
     Properties:
@@ -841,9 +859,10 @@ Resources:
               - Action:
                   - 's3:getObject'
                 Resource:
-                  - !Sub 'arn:aws:s3:::${PlaybookLocation}'
+                  - !Sub 'arn:aws:s3:::${DeploymentDataLocation}'
                 Effect: Allow
           PolicyName: viya-playbook-s3-policy
+
         - PolicyDocument:
             Version: 2012-10-17
             Statement:
@@ -925,7 +944,7 @@ Resources:
           buckets:
             - !Ref QSS3BucketName
             - quickstart-reference/linux/bastion
-            - !Ref PlaybookLocation
+            - !Ref DeploymentDataLocation
       'AWS::CloudFormation::Init':
         configSets:
           quickstart:
@@ -1015,10 +1034,10 @@ Resources:
                       - ElasticLoadBalancer
                       - DNSName
                     - ':/cas-shared-default-http/tkcas.dsp'
-            /tmp/SAS_Viya_playbook.tgz:
+            /tmp/SAS_Viya_deployment_data.zip:
               source: !Sub
                 - >-
-                  https://${QSS3Region}.amazonaws.com/${PlaybookLocation}
+                  https://${QSS3Region}.amazonaws.com/${DeploymentDataLocation}
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -1027,6 +1046,21 @@ Resources:
               owner: ec2-user
               group: ec2-user
               authentication: S3AccessCreds
+
+            # temporary until production
+            /tmp/sas-orchestration:
+              source: !Sub
+                - >-
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}EA/sas-orchestration
+                - QSS3Region: !If
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000770'
+              owner: ec2-user
+              group: ec2-user
+              authentication: S3AccessCreds
+
             /tmp/qs.key:
               source: !Sub
                 - >-
@@ -1102,7 +1136,7 @@ Resources:
             /tmp/ansible.resetsasboot.sh:
               source: !Sub
                 - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/resetsasboot.sh
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/resetsasboot.sh
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -1111,18 +1145,7 @@ Resources:
               owner: ec2-user
               group: ec2-user
               authentication: S3AccessCreds
-            /tmp/ansible.cfg:
-              source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/ansible.cfg
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000444'
-              owner: ec2-user
-              group: ec2-user
-              authentication: S3AccessCreds
+
           commands:
             01-getprivatekey:
               command: mv /tmp/qs.key /home/ec2-user/.ssh/id_rsa
