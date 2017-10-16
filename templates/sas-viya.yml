@@ -531,8 +531,7 @@ Resources:
           commands:
             01-setqskey:
               command: >-
-                cat /tmp/qs.pub >> /home/ec2-user/.ssh/authorized_keys; rm
-                /tmp/qs.pub;
+                cat /tmp/qs.pub >> /home/ec2-user/.ssh/authorized_keys; rm /tmp/qs.pub;
             02-diskprep:
               command: /tmp/diskprep.sh
             03-cloudwatch:
@@ -707,6 +706,34 @@ Resources:
               authentication: S3AccessCreds
               context:
                 LogGroup: !Ref CloudWatchLogGroup
+
+            # for the EA only - should be already available on production install
+            /tmp/accessclients.tar:
+              source: !Sub
+                - >-
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}EA/accessclients.tar
+                - QSS3Region: !If
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000440'
+              owner: root
+              group: root
+              authentication: S3AccessCreds
+            /tmp/tkeredsh.so:
+              source: !Sub
+                - >-
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}EA/tkeredsh.so
+                - QSS3Region: !If
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000644'
+              owner: root
+              group: root
+              authentication: S3AccessCreds
+
+
           commands:
             01-setqskey:
               command: >-
@@ -1024,7 +1051,7 @@ Resources:
             /tmp/sas-orchestration:
               source: !Sub
                 - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}tools/sas-orchestration
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}EA/sas-orchestration
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1

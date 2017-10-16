@@ -9,14 +9,11 @@
     
   tasks:
 
-      
   - name: change cas cache location
     lineinfile: 
       dest: vars.yml
       regexp: "CAS_DISK_CACHE:" 
       line: "     CAS_DISK_CACHE: /sastmp/cascache"
-      backup: yes
-
 
   - name: change saswork location
     blockinfile:
@@ -26,20 +23,47 @@
         SASV9_CONFIGURATION:
           1: '/* this will send the SASWORK to the /sastmp location */'
           2: 'WORK /sastmp/saswork'
-      backup: yes
- 
+
+
   - name: set SASStudio folder root (remove if it exists)
     lineinfile:
       dest: vars.yml
       regexp: "webdms.showSystemRoot:"
       state: absent
-      backup: yes
 
   - name: set SASStudio folder root
     replace:
       dest: vars.yml
       regexp:  'STUDIO_CONFIGURATION:\n  init:'
       replace: 'STUDIO_CONFIGURATION:\n  init:\n    webdms.showSystemRoot: false'
+
+
+  - name: set CAS Settings
+    replace:
+      dest: vars.yml
+      regexp:  '#CAS_SETTINGS:'
+      replace: 'CAS_SETTINGS:'
+
+  - name: set ODBC home directory
+    replace:
+      dest: vars.yml
+      regexp:  '#1: ODBCHOME=.*'
+      replace: '1: ODBCHOME=/opt/sas/viya/home/lib64/accessclients'
+
+  - name: set ODBCINI
+    replace:
+      dest: vars.yml
+      regexp:  '#2: ODBCINI=.*'
+      replace: '2: ODBCINI=$ODBCHOME/odbc.ini'
+
+  - name: set LD_LIBRARY_PATH
+    replace:
+      dest: vars.yml
+      regexp:  '#5: LD_LIBRARY_PATH=.*'
+      replace: '5: LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$ODBCHOME/lib'
       backup: yes
+
+
+
 
   

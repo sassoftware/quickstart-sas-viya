@@ -234,7 +234,10 @@ pushd sas_viya_playbook
   # main deployment
   ansible-playbook ansible.update.vars.file.yml
   try 3 ansible-playbook site.yml
-  ansible-playbook ansible.post.deployment.yml -e "sasboot_pw={{SASViyaAdminPassword}}"
+  ansible-playbook ansible.post.deployment.yml -e "sasboot_pw={{SASViyaAdminPassword}}" --tags "postdep"
+
+  # Only for EA: copy the redshift resources
+  ansible-playbook ansible.post.deployment.yml --tags "EA"
 
 popd
 
