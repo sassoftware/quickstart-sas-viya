@@ -199,6 +199,25 @@ popd
 ## install the orchestration cli
 #sudo yum -y install sas-orchestration-cli
 
+# or (yet to try)
+#
+#curl -kO https://repulpmaster.unx.sas.com/pulp/repos/release-testready/va/101.0/va-101.0.0-x64_redhat_linux_6-yum-testready/sas-orchestration-cli-1.0.13-20171009.1507582997914.x86_64.rpm
+#
+#Then you can extract it as you described using a command like this.
+#
+#rpm2cpio ./sas-orchestration-cli-1.0.13-20171009.1507582997914.x86_64.rpm | cpio -idmv
+#
+#What will be written locally is as follows…
+#
+#Linux: ./opt/sas/viya/home/bin/sas-orchestration
+#OSX: ./opt/sas/viya/home/share/sas-orchestration/osx/sas-orchestration
+#Windows: ./opt/sas/viya/home/share/sas-orchestration/windows/sas-orchestration.exe
+#
+#If you happen to be on a RHEL box and want to install the RPM to that system, you should also be able to do…
+#
+#rpm -i ./sas-orchestration-cli-1.0.13-20171009.1507582997914.x86_64.rpm
+
+
 # location of installed cli: /opt/sas/viya/home/bin/sas-orchestration
 
 # build playbook

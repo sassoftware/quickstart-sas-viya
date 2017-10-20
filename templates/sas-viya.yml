@@ -935,7 +935,7 @@ Resources:
     CreationPolicy:
       ResourceSignal:
         Count: 1
-        Timeout: 'PT1H30M'
+        Timeout: 'PT2H30M'
     Metadata:
       'AWS::CloudFormation::Authentication':
         S3AccessCreds:
