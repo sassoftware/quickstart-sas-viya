@@ -104,12 +104,12 @@ Parameters:
 
   SASViyaAdminPassword:
     Description: >-
-      Password of the initial SAS Viya Admin User (sasboot).
+      Password of the initial SAS Viya Admin User (sasboot). Must have at least 6 and no more than 255 characters.
     Type: String
     MinLength: '6'
     MaxLength: '255'
     NoEcho: true
-    ConstraintDescription: Password must have a at least 6 and no more than 255 characters.
+    ConstraintDescription: Password must have at least 6 and no more than 255 characters.
 
   QSS3BucketName:
     AllowedPattern: '^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$'
