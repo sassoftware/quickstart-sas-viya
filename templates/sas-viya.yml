@@ -976,12 +976,29 @@ Resources:
               owner: root
               group: root
               authentication: S3AccessCreds
+            /tmp/cloudwatch.conf:
+              source: !Sub
+                - >-
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.bastion.conf
+                - QSS3Region: !If
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000440'
+              owner: root
+              group: root
+              authentication: S3AccessCreds
+              context:
+                LogGroup: !Ref CloudWatchLogGroup
           commands:
-            00-workaround:
-               command: echo "net.ipv4.tcp_timestamps = 0" >> /etc/sysctl.conf; sysctl -p
             01-bootstrap:
               command: /tmp/bastion_bootstrap.sh --enable false
-            02-prereqs:
+            02-cloudwatch:
+              command: >-
+                sed -i 's/{instance_id}/ansible-controller-commands.log/' /etc/awslogs/awslogs.conf;
+                cat /tmp/cloudwatch.conf >> /etc/awslogs/awslogs.conf;
+                service awslogs restart
+            03-prereqs:
               command: /tmp/bastion_prereqs.sh
         sasprep:
           files:

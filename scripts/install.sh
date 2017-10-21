@@ -207,13 +207,13 @@ popd
 #
 #rpm2cpio ./sas-orchestration-cli-1.0.13-20171009.1507582997914.x86_64.rpm | cpio -idmv
 #
-#What will be written locally is as follows…
+#What will be written locally is as follows
 #
 #Linux: ./opt/sas/viya/home/bin/sas-orchestration
 #OSX: ./opt/sas/viya/home/share/sas-orchestration/osx/sas-orchestration
 #Windows: ./opt/sas/viya/home/share/sas-orchestration/windows/sas-orchestration.exe
 #
-#If you happen to be on a RHEL box and want to install the RPM to that system, you should also be able to do…
+#If you happen to be on a RHEL box and want to install the RPM to that system, you should also be able to do
 #
 #rpm -i ./sas-orchestration-cli-1.0.13-20171009.1507582997914.x86_64.rpm
 

@@ -36,12 +36,13 @@ if ! [ type -p ansible ]; then
 fi
 
 
-# make log accessible as web page
-yum -y install httpd
-service httpd start
-sudo mkdir -p /var/www/html/status
-ln /var/log/cfn-init-cmd.log /var/www/html/status/cfn-init-cmd.log
-ln /var/log/cfn-init.log /var/www/html/status/cfn-init.log
+## make log accessible as web page
+## has been replaced by cloudwatch log configuration
+#yum -y install httpd
+#service httpd start
+#sudo mkdir -p /var/www/html/status
+#ln /var/log/cfn-init-cmd.log /var/www/html/status/cfn-init-cmd.log
+#ln /var/log/cfn-init.log /var/www/html/status/cfn-init.log
 
 
 
