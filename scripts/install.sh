@@ -128,18 +128,18 @@ cleanup () {
 
 # sometimes there are ssh connection errors (53) during the install
 # this function allows to retry N times
-try () {
-  # allow up to N attempts of a command
-  # syntax: try N [command]
-
-  max_count=$1
-  shift
-  count=1
-  until  $@  || [ $count -gt $max_count  ]
-  do
-    let count=count+1
-  done
-}
+#try () {
+#  # allow up to N attempts of a command
+#  # syntax: try N [command]
+#
+#  max_count=$1
+#  shift
+#  count=1
+#  until  $@  || [ $count -gt $max_count  ]
+#  do
+#    let count=count+1
+#  done
+#}
 
 addLogFileToCloudWatch () {
 
@@ -176,7 +176,7 @@ pushd openldap
   ansible-playbook update.inventory.yml
 
   # openldap and sssd setup
-  try 3 ansible-playbook openldapsetup.yml
+  ansible-playbook openldapsetup.yml
 
 popd
 
@@ -243,7 +243,7 @@ pushd sas_viya_playbook
   ansible-playbook ansible.update.inventory.yml
 
   # set prereqs on hosts
-  try 3 ansible-playbook ansible.pre.deployment.yml
+  ansible-playbook ansible.pre.deployment.yml
 
   # set log file for main deployment
   export ANSIBLE_LOG_PATH=viya-deployment.log
@@ -252,7 +252,7 @@ pushd sas_viya_playbook
 
   # main deployment
   ansible-playbook ansible.update.vars.file.yml
-  try 3 ansible-playbook site.yml
+  ansible-playbook site.yml
   ansible-playbook ansible.post.deployment.yml -e "sasboot_pw={{SASViyaAdminPassword}}" --tags "postdep"
 
   # Only for EA: copy the redshift resources
