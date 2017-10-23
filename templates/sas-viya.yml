@@ -84,7 +84,7 @@ Parameters:
 
   KeyPairName:
     Description: >-
-      Name of an existing EC2 key pair. This will allow you to access the Bastion host after it launches.
+      Name of an existing EC2 key pair. This will allow you to access the Ansible Contorller after it launches.
     Type: 'AWS::EC2::KeyPair::KeyName'
   WebIngressLocation:
       Description: >-
@@ -98,7 +98,7 @@ Parameters:
   AdminIngressLocation:
     Description: >-
       CIDR block (IP address range) to allow SSH access to the
-      bastion host. Example: 1.2.3.4/32.
+      Ansible Controller. Example: 1.2.3.4/32.
     Type: String
     MinLength: '9'
     MaxLength: '18'
@@ -119,12 +119,12 @@ Parameters:
   PublicSubnetID:
     Description: >-
       ID of public subnet for the ELB load balancer
-      and bastion host (e.g. subnet-9bc642ac)
+      and ansible controller (e.g. subnet-9bc642ac)
       (needs to be the same AZ as PrivateSubnetID)
     Type: 'AWS::EC2::Subnet::Id'
   PrivateSubnetID:
     Description: >-
-      ID of private subnet for the SAS Viya Application nodes (e.g. subnet-a0246dcd)
+      ID of private subnet for the SAS Viya Application VMs (e.g. subnet-a0246dcd)
       (needs to be the same AZ as PublicSubnetID)
     Type: 'AWS::EC2::Subnet::Id'
 
@@ -282,10 +282,10 @@ Resources:
 #          FromPort: '5570'
 #          ToPort: '5570'
 #          CidrIp: !Ref AdminIngressLocation
-  BastionSecurityGroup:
+  AnsibleControllerSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
-      GroupDescription: Enables SSH Access to Bastion Hosts
+      GroupDescription: Enables SSH Access to Ansible Controller
       VpcId: !Ref VPCID
       SecurityGroupIngress:
         - IpProtocol: tcp
@@ -304,7 +304,7 @@ Resources:
           FromPort: '443'
           ToPort: '443'
           CidrIp: !Ref WebIngressLocation
-  CASControllerNodeSecurityGroup:
+  CASControllerSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
       GroupDescription: Allow access to the CAS Controller instance
@@ -313,11 +313,11 @@ Resources:
         - IpProtocol: tcp
           FromPort: '8777'
           ToPort: '8777'
-          SourceSecurityGroupId: !Ref ViyaServicesNodeSecurityGroup
+          SourceSecurityGroupId: !Ref ViyaServicesSecurityGroup
         - IpProtocol: tcp
           FromPort: '5570'
           ToPort: '5570'
-          SourceSecurityGroupId: !Ref ViyaServicesNodeSecurityGroup
+          SourceSecurityGroupId: !Ref ViyaServicesSecurityGroup
 #        - IpProtocol: tcp
 #          FromPort: '5570'
 #          ToPort: '5570'
@@ -325,8 +325,8 @@ Resources:
         - IpProtocol: tcp
           FromPort: '22'
           ToPort: '22'
-          SourceSecurityGroupId: !Ref BastionSecurityGroup
-  ViyaServicesNodeSecurityGroup:
+          SourceSecurityGroupId: !Ref AnsibleControllerSecurityGroup
+  ViyaServicesSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
       GroupDescription: Allow access to the Viya Services instance
@@ -343,23 +343,23 @@ Resources:
         - IpProtocol: tcp
           FromPort: '22'
           ToPort: '22'
-          SourceSecurityGroupId: !Ref BastionSecurityGroup
+          SourceSecurityGroupId: !Ref AnsibleControllerSecurityGroup
   ViyaSGIngress:
     Type: 'AWS::EC2::SecurityGroupIngress'
     Properties:
-      GroupId: !Ref ViyaServicesNodeSecurityGroup
+      GroupId: !Ref ViyaServicesSecurityGroup
       IpProtocol: tcp
       FromPort: '0'
       ToPort: '65535'
-      SourceSecurityGroupId: !Ref CASControllerNodeSecurityGroup
+      SourceSecurityGroupId: !Ref CASControllerSecurityGroup
   CASSGIngress:
     Type: 'AWS::EC2::SecurityGroupIngress'
     Properties:
-      GroupId: !Ref CASControllerNodeSecurityGroup
+      GroupId: !Ref CASControllerSecurityGroup
       IpProtocol: tcp
       FromPort: '0'
       ToPort: '65535'
-      SourceSecurityGroupId: !Ref ViyaServicesNodeSecurityGroup
+      SourceSecurityGroupId: !Ref ViyaServicesSecurityGroup
   ElasticLoadBalancer:
     Type: 'AWS::ElasticLoadBalancing::LoadBalancer'
     Properties:
@@ -385,7 +385,7 @@ Resources:
         Interval: '30'
         Timeout: '3'
       Instances:
-        - !Ref ViyaServicesNode
+        - !Ref ViyaServices
 #  CASElasticLoadBalancer:
 #    Type: 'AWS::ElasticLoadBalancing::LoadBalancer'
 #    Properties:
@@ -398,8 +398,8 @@ Resources:
 #          InstancePort: '5570'
 #          Protocol: TCP
 #      Instances:
-#        - !Ref CASControllerNode
-  ViyaNodeRole:
+#        - !Ref CASController
+  ViyaServicesRole:
     Type: 'AWS::IAM::Role'
     Properties:
       AssumeRolePolicyDocument:
@@ -440,20 +440,20 @@ Resources:
                       - aws-us-gov
                       - aws
                 Effect: Allow
-          PolicyName: viya-node-cloudwatch-logs-policy
-  ViyaNodeProfile:
+          PolicyName: viya-services-cloudwatch-logs-policy
+  ViyaServicesProfile:
     Type: 'AWS::IAM::InstanceProfile'
     Properties:
       Path: /
       Roles:
-        - !Ref ViyaNodeRole
-  ViyaServicesNode:
+        - !Ref ViyaServicesRole
+  ViyaServices:
     Type: 'AWS::EC2::Instance'
     Metadata:
       'AWS::CloudFormation::Authentication':
         S3AccessCreds:
           type: S3
-          roleName: !Ref ViyaNodeRole
+          roleName: !Ref ViyaServicesRole
           buckets:
             - !Ref QSS3BucketName
       'AWS::CloudFormation::Init':
@@ -545,7 +545,7 @@ Resources:
         - !Ref 'AWS::Region'
         - RHEL74HVM
       SubnetId: !Ref PrivateSubnetID
-      IamInstanceProfile: !Ref ViyaNodeProfile
+      IamInstanceProfile: !Ref ViyaServicesProfile
       InstanceType: i3.4xlarge
       EbsOptimized: true
       PlacementGroupName: !Ref ViyaPlacementGroup
@@ -577,13 +577,13 @@ Resources:
         - DeviceName: /dev/sdo
           VirtualName: ephemeral7
       SecurityGroupIds:
-        - !Ref ViyaServicesNodeSecurityGroup
+        - !Ref ViyaServicesSecurityGroup
       Tags:
         - Key: Name
           Value: !Join
             - ' '
             - - !Ref 'AWS::StackName'
-              - Viya Services node
+              - Viya Services
       UserData: !Base64
         'Fn::Join':
           - ''
@@ -613,7 +613,7 @@ Resources:
             - |
             - 'cfn-init --stack '
             - !Ref 'AWS::StackName'
-            - ' --resource ViyaServicesNode --configsets quickstart --region '
+            - ' --resource ViyaServices --configsets quickstart --region '
             - !Ref 'AWS::Region'
             - |+
 
@@ -621,17 +621,17 @@ Resources:
               # Signal the status from cfn-init
             - 'cfn-signal -e $? --stack '
             - !Ref 'AWS::StackName'
-            - ' --resource ViyaServicesNode --region '
+            - ' --resource ViyaServices --region '
             - !Ref 'AWS::Region'
             - |+
 
-  CASControllerNode:
+  CASController:
     Type: 'AWS::EC2::Instance'
     Metadata:
       'AWS::CloudFormation::Authentication':
         S3AccessCreds:
           type: S3
-          roleName: !Ref ViyaNodeRole
+          roleName: !Ref ViyaServicesRole
           buckets:
             - !Ref QSS3BucketName
       'AWS::CloudFormation::Init':
@@ -751,12 +751,12 @@ Resources:
         - !Ref 'AWS::Region'
         - RHEL74HVM
       SubnetId: !Ref PrivateSubnetID
-      IamInstanceProfile: !Ref ViyaNodeProfile
+      IamInstanceProfile: !Ref ViyaServicesProfile
       InstanceType: !Select [ 0 , !Split [ " ", !Ref CASControllerNodeInstanceType ] ]
       EbsOptimized: true
       PlacementGroupName: !Ref ViyaPlacementGroup
       SecurityGroupIds:
-        - !Ref CASControllerNodeSecurityGroup
+        - !Ref CASControllerSecurityGroup
       BlockDeviceMappings:
         - DeviceName: /dev/sdg
           Ebs:
@@ -784,7 +784,7 @@ Resources:
           Value: !Join
             - ' '
             - - !Ref 'AWS::StackName'
-              - CAS Controller node
+              - CAS Controller
       UserData: !Base64
         'Fn::Join':
           - ''
@@ -814,7 +814,7 @@ Resources:
             - |
             - 'cfn-init --stack '
             - !Ref 'AWS::StackName'
-            - ' --resource CASControllerNode --configsets quickstart --region '
+            - ' --resource CASController --configsets quickstart --region '
             - !Ref 'AWS::Region'
             - |+
 
@@ -822,11 +822,11 @@ Resources:
               # Signal the status from cfn-init
             - 'cfn-signal -e $? --stack '
             - !Ref 'AWS::StackName'
-            - ' --resource CASControllerNode --region '
+            - ' --resource CASController --region '
             - !Ref 'AWS::Region'
             - |+
 
-  BastionHostRole:
+  AnsibleControllerRole:
     Type: 'AWS::IAM::Role'
     Properties:
       Policies:
@@ -837,7 +837,7 @@ Resources:
                   - 'SNS:Publish'
                 Resource: "*"
                 Effect: Allow
-          PolicyName: bastion-sns-policy
+          PolicyName: ansiblecontroller-sns-policy
         - PolicyDocument:
             Version: 2012-10-17
             Statement:
@@ -885,7 +885,7 @@ Resources:
                 Resource:
                   - '*'
                 Effect: Allow
-          PolicyName: bastion-eip-policy
+          PolicyName: ansiblecontroller-eip-policy
         - PolicyDocument:
             Version: 2012-10-17
             Statement:
@@ -906,7 +906,7 @@ Resources:
                       - aws-us-gov
                       - aws
                 Effect: Allow
-          PolicyName: bastion-cloudwatch-logs-policy
+          PolicyName: ansiblecontroller-cloudwatch-logs-policy
       Path: /
       AssumeRolePolicyDocument:
         Statement:
@@ -917,20 +917,20 @@ Resources:
                 - ec2.amazonaws.com
             Effect: Allow
         Version: 2012-10-17
-  BastionHostProfile:
+  AnsibleControllerProfile:
     Type: 'AWS::IAM::InstanceProfile'
     Properties:
       Roles:
-        - !Ref BastionHostRole
+        - !Ref AnsibleControllerRole
       Path: /
   EIP1:
     Type: 'AWS::EC2::EIP'
     Properties:
       Domain: vpc
-  BastionHost:
+  AnsibleController:
     DependsOn:
-      - ViyaServicesNode
-      - CASControllerNode
+      - ViyaServices
+      - CASController
     Type: 'AWS::EC2::Instance'
     CreationPolicy:
       ResourceSignal:
@@ -940,7 +940,7 @@ Resources:
       'AWS::CloudFormation::Authentication':
         S3AccessCreds:
           type: S3
-          roleName: !Ref BastionHostRole
+          roleName: !Ref AnsibleControllerRole
           buckets:
             - !Ref QSS3BucketName
             - quickstart-reference/linux/bastion
@@ -952,10 +952,10 @@ Resources:
             - sasprep
         config:
           files:
-            /tmp/bastion_prereqs.sh:
+            /tmp/ansiblecontroller_prereqs.sh:
               source: !Sub
                 - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/bastion_prereqs.sh
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/ansiblecontroller_prereqs.sh
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -979,7 +979,7 @@ Resources:
             /tmp/cloudwatch.conf:
               source: !Sub
                 - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.bastion.conf
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.ansiblecontroller.conf
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -999,7 +999,7 @@ Resources:
                 cat /tmp/cloudwatch.conf >> /etc/awslogs/awslogs.conf;
                 service awslogs restart
             03-prereqs:
-              command: /tmp/bastion_prereqs.sh
+              command: /tmp/ansiblecontroller_prereqs.sh
         sasprep:
           files:
             /tmp/install.sh:
@@ -1015,14 +1015,14 @@ Resources:
               group: ec2-user
               authentication: S3AccessCreds
               context:
-                ViyaServicesNodeIP: !GetAtt ViyaServicesNode.PrivateIp
-                CASControllerNodeIP: !GetAtt CASControllerNode.PrivateIp
+                ViyaServicesIP: !GetAtt ViyaServices.PrivateIp
+                CASControllerIP: !GetAtt CASController.PrivateIp
                 SASViyaAdminPassword: !Ref SASViyaAdminPassword
                 LogGroup: !Ref CloudWatchLogGroup
                 SNSTopic: !If [SNSCondition, !Ref SNSTopic, ""]
                 AWSRegion: !Ref AWS::Region
                 KeyPairName: !Ref KeyPairName
-                BastionIPV4: !Ref EIP1
+                AnsibleControllerIP: !Ref EIP1
                 CloudFormationStack: !Ref AWS::StackName
                 CloudWatchLogs: !Join
                   - ''
@@ -1175,20 +1175,20 @@ Resources:
     Properties:
       KeyName: !Ref KeyPairName
       SubnetId: !Ref PublicSubnetID
-      IamInstanceProfile: !Ref BastionHostProfile
+      IamInstanceProfile: !Ref AnsibleControllerProfile
       ImageId: !FindInMap
         - AWSAMIRegionMap
         - !Ref 'AWS::Region'
         - AMZNLINUXHVM
       SecurityGroupIds:
-        - !Ref BastionSecurityGroup
+        - !Ref AnsibleControllerSecurityGroup
       InstanceType: t2.micro
       Tags:
         - Key: Name
           Value: !Join
             - ' '
             - - !Ref 'AWS::StackName'
-              - Bastion node
+              - Ansible Controller
       UserData: !Base64
         'Fn::Join':
           - ''
@@ -1225,13 +1225,13 @@ Resources:
 
             - 'cfn-init -v --stack '
             - !Ref 'AWS::StackName'
-            - ' --resource BastionHost --configsets quickstart --region '
+            - ' --resource AnsibleController --configsets quickstart --region '
             - !Ref 'AWS::Region'
             - |+
 
 #            - 'cfn-signal -e $? --stack '
 #            - !Ref 'AWS::StackName'
-#            - ' --resource BastionHost --region '
+#            - ' --resource AnsibleController --region '
 #            - !Ref 'AWS::Region'
 #            - |+
 
@@ -1263,8 +1263,8 @@ Outputs:
           - ElasticLoadBalancer
           - DNSName
         - ':/cas-shared-default-http/tkcas.dsp'
-  BastionIPV4:
-    Description: Bastion IP address
+  AnsibleControllerIP:
+    Description: Ansible Controller IP address
     Value: !Ref EIP1
   InstallationLog:
     Description: Installation Logs
@@ -1283,14 +1283,14 @@ Outputs:
         - "#logStream:group="
         - !Ref CloudWatchLogGroup
 
-  ViyaServicesIPV4:
+  ViyaServicesIP:
     Description: Viya Services IP address
     Value: !GetAtt
-      - ViyaServicesNode
+      - ViyaServices
       - PrivateIp
-  CASControllerIPV4:
+  CASControllerIP:
     Description: CAS Controller IP address
     Value: !GetAtt
-      - CASControllerNode
+      - CASController
       - PrivateIp
 

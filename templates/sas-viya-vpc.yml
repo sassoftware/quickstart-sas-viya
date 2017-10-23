@@ -78,7 +78,7 @@ Parameters:
 
   KeyPairName:
     Description: >-
-      Name of an existing EC2 key pair. This will allow you to access the Bastion host after it launches.
+      Name of an existing EC2 key pair. This will allow you to access the Ansible Controller after it launches.
     Type: 'AWS::EC2::KeyPair::KeyName'
 
   AvailabilityZone:
@@ -87,7 +87,7 @@ Parameters:
     ConstraintDescription: must be the name of an AWS Availability Zone
 
   AdminIngressLocation:
-    Description: "CIDR block (IP address range) from which to allow SSH access to the bastion host. Example: 1.2.3.4/32."
+    Description: "CIDR block (IP address range) from which to allow SSH access to the Ansible Controller. Example: 1.2.3.4/32."
     Type: String
     MinLength: '9'
     MaxLength: '18'

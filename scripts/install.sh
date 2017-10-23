@@ -11,13 +11,13 @@ set -o nounset
 
 # This is a mustache template.
 # Make sure all the input parms are set
-test -n "{{ViyaServicesNodeIP}}"
-test -n "{{CASControllerNodeIP}}"
+test -n "{{ViyaServicesIP}}"
+test -n "{{CASControllerIP}}"
 test -n "{{SASViyaAdminPassword}}"
 test -n "{{LogGroup}}"
 test -n "{{AWSRegion}}"
 test -n "{{KeyPairName}}"
-test -n "{{BastionIPV4}}"
+test -n "{{AnsibleControllerIP}}"
 test -n "{{CloudFormationStack}}"
 test -n "{{CloudWatchLogs}}"
 test -n "{{SASHome}}"
@@ -36,10 +36,10 @@ cat <<EOF > /tmp/sns_start_message.txt
 
   Log into the Administrator VM with the private key for KeyPair "{{KeyPairName}}":
 
-       ssh -i /path/to/private/key.pem ec2-user@{{BastionIPV4}}
+       ssh -i /path/to/private/key.pem ec2-user@{{AnsibleControllerIP}}
 
-  Viya Services Node IP:  {{ViyaServicesNodeIP}}
-  CAS Controller Node IP: {{CASControllerNodeIP}}
+  Viya Services IP:  {{ViyaServicesIP}}
+  CAS Controller IP: {{CASControllerIP}}
 
 EOF
 
@@ -47,7 +47,7 @@ EOF
 
 create_success_message () {
 
-    ## on success, add link to all endpoints, and the bastion ip and keyname
+    ## on success, add link to all endpoints, and the ansible controller ip and keyname
 cat <<EOF > /tmp/sns_success_message.txt
 
    SAS Viya Deployment for Stack "{{CloudFormationStack}}" completed successfully.
@@ -60,7 +60,7 @@ cat <<EOF > /tmp/sns_success_message.txt
 
    Log into the Administrator VM with the private key for KeyPair "{{KeyPairName}}":
 
-       ssh -i /path/to/private/key.pem ec2-user@{{BastionIPV4}}
+       ssh -i /path/to/private/key.pem ec2-user@{{AnsibleControllerIP}}
 
 EOF
 
@@ -122,7 +122,7 @@ cleanup () {
 
   fi
 
-  cfn-signal -e $RC --stack {{CloudFormationStack}} --resource BastionHost --region {{AWSRegion}}
+  cfn-signal -e $RC --stack {{CloudFormationStack}} --resource AnsibleController --region {{AWSRegion}}
 
 }
 
@@ -161,8 +161,8 @@ sudo service awslogs restart
 
 
 # prepare inventory.ini header
-echo deployTarget ansible_host={{ViyaServicesNodeIP}} > /tmp/inventory.head
-echo controller ansible_host={{CASControllerNodeIP}} >> /tmp/inventory.head
+echo deployTarget ansible_host={{ViyaServicesIP}} > /tmp/inventory.head
+echo controller ansible_host={{CASControllerIP}} >> /tmp/inventory.head
 
 # set up OpenLDAP
 pushd openldap
