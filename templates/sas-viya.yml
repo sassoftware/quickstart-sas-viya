@@ -30,10 +30,17 @@ Metadata:
           - PublicSubnetID
           - PrivateSubnetID
       - Label:
+          default: Server DNS configuration
+        Parameters:
+          - SSLCertificateARN
+          - ApplicationDNS
+          - AWSHostedZoneID
+      - Label:
           default: AWS Quick Start Configuration
         Parameters:
           - QSS3BucketName
           - QSS3KeyPrefix
+
     ParameterLabels:
       KeyPairName:
         default: Key Name
@@ -57,6 +64,13 @@ Metadata:
         default: Permitted IP Range for Application Access
       SASViyaAdminPassword:
         default: SAS Viya Administrator Password
+
+      AWSHostedZoneID:
+        default: ID of existing AWS Route53 Hosted Zone for the ApplicationDNS
+      ApplicationDNS:
+        default: Full DNS Name for the Application (needs to exist and be used in the AWSHostedZoneID)
+      SSLCertificateARN:
+        default: SSL Certificate ARN (Needs to match ApplicationDNS)
 
 Parameters:
 
@@ -156,6 +170,20 @@ Parameters:
     Description: "Email address to sent a notification about deployment success or failure (optional)."
     Type: String
 
+  SSLCertificateARN:
+    Description: >-
+      The AWS CertificateManager ARN for the SSL certificate to use to enable HTTPS. The certificate needs to match the ApplicationDNS.
+      Syntax: arn:aws:acm:region:account-id:certificate/certificate-id
+      Example: arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789012
+    Type: String
+  ApplicationDNS:
+    Description: The SAS Viya Server portal will be reachable at this DNS name (blank = generated ELB name will be used as application DNS)
+    Type: String
+  AWSHostedZoneID:
+    Description: Existing DNS Zone ID for the ApplicationDNS (blank = generated ELB name will be used as application DNS)
+    Type: AWS::Route53::HostedZone::Id
+
+
 Rules:
   KeyPairsNotEmpty:
     Assertions:
@@ -246,6 +274,24 @@ Conditions:
     - !Equals
       - !Ref OperatorEmail
       - ""
+  NoDNSEntry:
+    Fn::Or:
+    - Fn::Equals:
+      - ''
+      - Ref: AWSHostedZoneID
+    - Fn::Equals:
+      - ''
+      - Ref: ApplicationDNS
+  CreateDNSEntry:
+    Fn::Not:
+    - Condition: NoDNSEntry
+  NoSSLCertficate:
+    Fn::Equals:
+    - ''
+    - Ref: SSLCertificateARN
+  HasSSLCertificate:
+    Fn::Not:
+    - Condition: NoSSLCertficate
 
 Resources:
 
@@ -272,8 +318,16 @@ Resources:
       VpcId: !Ref VPCID
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: '80'
-          ToPort: '80'
+          FromPort:
+            Fn::If:
+            - HasSSLCertificate
+            - '443'
+            - '80'
+          ToPort:
+            Fn::If:
+            - HasSSLCertificate
+            - '443'
+            - '80'
           CidrIp: !Ref WebIngressLocation
         - IpProtocol: tcp
           FromPort: '443'
@@ -302,6 +356,7 @@ Resources:
           FromPort: '443'
           ToPort: '443'
           CidrIp: !Ref WebIngressLocation
+
   CASControllerSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
@@ -320,6 +375,7 @@ Resources:
           FromPort: '22'
           ToPort: '22'
           SourceSecurityGroupId: !Ref AnsibleControllerSecurityGroup
+
   ViyaServicesSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
@@ -354,6 +410,7 @@ Resources:
       FromPort: '0'
       ToPort: '65535'
       SourceSecurityGroupId: !Ref ViyaServicesSecurityGroup
+
   ElasticLoadBalancer:
     Type: 'AWS::ElasticLoadBalancing::LoadBalancer'
     Properties:
@@ -365,10 +422,23 @@ Resources:
         - CookieName: dummy
           PolicyName: WorkloadCookieStickinessPolicy
       Listeners:
-        - LoadBalancerPort: '80'
-          Protocol: HTTP
+        - LoadBalancerPort:
+            Fn::If:
+            - HasSSLCertificate
+            - '443'
+            - '80'
+          Protocol:
+            Fn::If:
+            - HasSSLCertificate
+            - HTTPS
+            - HTTP
           InstanceProtocol: HTTPS
           InstancePort: '443'
+          SSLCertificateId:
+            Fn::If:
+            - HasSSLCertificate
+            - Ref: SSLCertificateARN
+            - Ref: AWS::NoValue
           PolicyNames:
             - WorkloadCookieStickinessPolicy
       CrossZone: 'true'
@@ -380,6 +450,29 @@ Resources:
         Timeout: '3'
       Instances:
         - !Ref ViyaServices
+
+  DNSNameEntry:
+    Type: AWS::Route53::RecordSet
+    Condition: CreateDNSEntry
+    DependsOn:
+    - ElasticLoadBalancer
+    Properties:
+      HostedZoneId:
+        Ref: AWSHostedZoneID
+      Name:
+        Fn::Sub: "${ApplicationDNS}."
+      Type: A
+      AliasTarget:
+        HostedZoneId:
+          Fn::GetAtt:
+          - ElasticLoadBalancer
+          - CanonicalHostedZoneNameID
+        DNSName:
+          Fn::GetAtt:
+          - ElasticLoadBalancer
+          - DNSName
+
+
 
   ViyaServicesRole:
     Type: 'AWS::IAM::Role'
@@ -1014,25 +1107,43 @@ Resources:
                     - !Ref CloudWatchLogGroup
                 SASHome: !Join
                   - ''
-                  - - 'http://'
-                    - !GetAtt
-                      - ElasticLoadBalancer
-                      - DNSName
+                  - - Fn::If:
+                      - HasSSLCertificate
+                      - 'https://'
+                      - 'http://'
+                    - Fn::If:
+                      - HasSSLCertificate
+                      - !GetAtt
+                        - ElasticLoadBalancer
+                        - DNSName
+                      - AWSPublicFDQN
                     - /SASHome
                 SASStudio: !Join
                   - ''
-                  - - 'http://'
-                    - !GetAtt
-                      - ElasticLoadBalancer
-                      - DNSName
+                  - - Fn::If:
+                      - HasSSLCertificate
+                      - 'https://'
+                      - 'http://'
+                    - Fn::If:
+                      - HasSSLCertificate
+                      - !GetAtt
+                        - ElasticLoadBalancer
+                        - DNSName
+                      - AWSPublicFDQN
                     - /SASStudio
                 CASMonitor: !Join
                   - ''
-                  - - 'http://'
-                    - !GetAtt
-                      - ElasticLoadBalancer
-                      - DNSName
-                    - ':/cas-shared-default-http/tkcas.dsp'
+                  - - Fn::If:
+                      - HasSSLCertificate
+                      - 'https://'
+                      - 'http://'
+                    - Fn::If:
+                      - HasSSLCertificate
+                      - !GetAtt
+                        - ElasticLoadBalancer
+                        - DNSName
+                      - AWSPublicFDQN
+                    - '/cas-shared-default-http/tkcas.dsp'
             /tmp/SAS_Viya_deployment_data.zip:
               source: !Sub
                 - >-
@@ -1222,28 +1333,46 @@ Outputs:
     Description: SAS Viya
     Value: !Join
       - ''
-      - - 'http://'
-        - !GetAtt
-          - ElasticLoadBalancer
-          - DNSName
+      - - Fn::If:
+          - HasSSLCertificate
+          - 'https://'
+          - 'http://'
+        - Fn::If:
+          - HasSSLCertificate
+          - !GetAtt
+            - ElasticLoadBalancer
+            - DNSName
+          - AWSPublicFDQN
         - '/SASHome'
   SASStudio:
     Description: SAS Studio
     Value: !Join
       - ''
-      - - 'http://'
-        - !GetAtt
-          - ElasticLoadBalancer
-          - DNSName
+      - - Fn::If:
+          - HasSSLCertificate
+          - 'https://'
+          - 'http://'
+        - Fn::If:
+          - HasSSLCertificate
+          - !GetAtt
+            - ElasticLoadBalancer
+            - DNSName
+          - AWSPublicFDQN
         - '/SASStudio'
   CASMonitor:
     Description: CAS Monitor
     Value: !Join
       - ''
-      - - 'http://'
-        - !GetAtt
-          - ElasticLoadBalancer
-          - DNSName
+      - - Fn::If:
+          - HasSSLCertificate
+          - 'https://'
+          - 'http://'
+        - Fn::If:
+          - HasSSLCertificate
+          - !GetAtt
+            - ElasticLoadBalancer
+            - DNSName
+          - AWSPublicFDQN
         - ':/cas-shared-default-http/tkcas.dsp'
   AnsibleControllerIP:
     Description: Ansible Controller IP address

@@ -42,5 +42,21 @@
     {
         "ParameterKey": "OperatorEmail",
         "ParameterValue": "matthias.ender@sas.com"
+    },
+    {
+        "ParameterKey": "AWSHostedZoneID",
+        "ParameterValue": "Z2BP7UMCNDE5Z9"
+    },
+    {
+        "ParameterKey": "ApplicationDNS",
+        "ParameterValue": "viyatest.com"
+    },
+    {
+        "ParameterKey": "SSLCertificateARN",
+        "ParameterValue": "arn:aws:acm:us-east-1:869791842936:certificate/42ef3680-be89-4c80-ae5b-ed12309a2594"
     }
+
+
+
+
 ]
