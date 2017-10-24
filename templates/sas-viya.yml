@@ -173,6 +173,17 @@ Rules:
                 - VpcId
             - 'Fn::RefAll': 'AWS::EC2::VPC::Id'
         AssertDescription: All subnets must in the VPC
+  SubnetsInSameAZ:
+    Assertions:
+      - Assert:
+          'Fn::Equals':
+            - 'Fn::ValueOf':
+              - PublicSubnetID
+              - AvailabilityZone
+            - 'Fn::ValueOf':
+              - PrivateSubnetID
+              - AvailabilityZone
+        AssertDescription: Public and Private subnet must in the same AZ
 
 Mappings:
   AWSAMIRegionMap:
@@ -268,20 +279,7 @@ Resources:
           FromPort: '443'
           ToPort: '443'
           CidrIp: !Ref WebIngressLocation
-#  CASELBSecurityGroup:
-#    Type: 'AWS::EC2::SecurityGroup'
-#    Properties:
-#      GroupDescription: Allow access to the CAS ELB
-#      VpcId: !Ref VPCID
-#      SecurityGroupIngress:
-#        - IpProtocol: tcp
-#          FromPort: '5570'
-#          ToPort: '5570'
-#          CidrIp: !Ref WebIngressLocation
-#        - IpProtocol: tcp
-#          FromPort: '5570'
-#          ToPort: '5570'
-#          CidrIp: !Ref AdminIngressLocation
+
   AnsibleControllerSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
@@ -318,10 +316,6 @@ Resources:
           FromPort: '5570'
           ToPort: '5570'
           SourceSecurityGroupId: !Ref ViyaServicesSecurityGroup
-#        - IpProtocol: tcp
-#          FromPort: '5570'
-#          ToPort: '5570'
-#          SourceSecurityGroupId: !Ref CASELBSecurityGroup
         - IpProtocol: tcp
           FromPort: '22'
           ToPort: '22'
@@ -386,19 +380,7 @@ Resources:
         Timeout: '3'
       Instances:
         - !Ref ViyaServices
-#  CASElasticLoadBalancer:
-#    Type: 'AWS::ElasticLoadBalancing::LoadBalancer'
-#    Properties:
-#      Subnets:
-#        - !Ref PublicSubnetID
-#      SecurityGroups:
-#        - !Ref CASELBSecurityGroup
-#      Listeners:
-#        - LoadBalancerPort: '5570'
-#          InstancePort: '5570'
-#          Protocol: TCP
-#      Instances:
-#        - !Ref CASController
+
   ViyaServicesRole:
     Type: 'AWS::IAM::Role'
     Properties:
@@ -1266,13 +1248,6 @@ Outputs:
   AnsibleControllerIP:
     Description: Ansible Controller IP address
     Value: !Ref EIP1
-  InstallationLog:
-    Description: Installation Logs
-    Value: !Join
-      - ''
-      - - 'http://'
-        - !Ref EIP1
-        - '/status/'
   CloudWatchLogs:
     Description: CloudWatch Logs.
     # e.g.     https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#logStream:group=qs-viya-CloudWatchLogGroup-1KIGMD9DKO4RH
