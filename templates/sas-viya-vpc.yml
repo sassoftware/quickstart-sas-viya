@@ -50,6 +50,8 @@ Metadata:
         default: Permitted IP Range for Application Access
       SASViyaAdminPassword:
         default: SAS Viya Administrator Password
+      OperatorEmail:
+        default: Operator Email
 
 # The Parameters allow the user to pass custom settings to the stack before creation
 Parameters:
@@ -73,7 +75,7 @@ Parameters:
       - "i3.16xlarge (64 vCPUs)"
     ConstraintDescription: Must contain valid instance type
     Default: "i3.2xlarge (8 vCPUs)"
-    Description: Type of EC2 instance for the Viya Compute Node.
+    Description: Type of EC2 instance for the Viya Compute Node. The number of vCPUs should match the number of CPUs in your software order.
     Type: String
 
   KeyPairName:
@@ -87,7 +89,9 @@ Parameters:
     ConstraintDescription: must be the name of an AWS Availability Zone
 
   AdminIngressLocation:
-    Description: "CIDR block (IP address range) from which to allow SSH access to the Ansible Controller. Example: 1.2.3.4/32."
+    Description: >-
+      CIDR block (IP address range) to allow SSH access to the
+      Ansible Controller. Must be a valid IP CIDR range of the form x.x.x.x/x.
     Type: String
     MinLength: '9'
     MaxLength: '18'
@@ -95,7 +99,9 @@ Parameters:
     ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
 
   WebIngressLocation:
-    Description: "CIDR block (IP address range) from which to allow HTTP access to the SAS Viya Environment. Example: 1.2.3.4/32."
+    Description: >-
+      CIDR block (IP address range) to allow HTTP access to the
+      SAS Viya Environment. Must be a valid IP CIDR range of the form x.x.x.x/x.
     Type: String
     MinLength: '9'
     MaxLength: '18'
@@ -137,8 +143,9 @@ Parameters:
   OperatorEmail:
     AllowedPattern: "([a-zA-Z0-9_\\-\\.]+)@((\\[[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.)|(([a-zA-Z0-9\\-]+\\.)+))([a-zA-Z]{2,4}|[0-9]{1,3})(\\]?)|^$"
     ConstraintDescription: "must be a valid email address."
-    Description: "Email address to sent a notification about deployment success or failure (optional)."
+    Description: "Email address to send a notification about deployment success or failure (optional)."
     Type: String
+    Default: ''
 
 Conditions:
   UsEast1Condition:
