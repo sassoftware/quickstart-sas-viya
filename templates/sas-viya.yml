@@ -79,17 +79,17 @@ Parameters:
       - "i3.16xlarge (64 vCPUs)"
     ConstraintDescription: Must contain valid instance type
     Default: "i3.2xlarge (8 vCPUs)"
-    Description: Type of EC2 instance for the Viya Compute Node
+    Description: Type of EC2 instance for the Viya Compute Node. The number of vCPUs should match the number of CPUs in your software order.
     Type: String
 
   KeyPairName:
     Description: >-
-      Name of an existing EC2 key pair. This will allow you to access the Ansible Contorller after it launches.
+      Name of an existing EC2 key pair. This will allow you to access the Ansible Controller after it launches.
     Type: 'AWS::EC2::KeyPair::KeyName'
   WebIngressLocation:
       Description: >-
-        CIDR block (IP address range) to allow HTTPS access to the
-        SAS Viya Environment. Example: 1.2.3.4/32.
+        CIDR block (IP address range) to allow HTTP access to the
+        SAS Viya Environment. Must be a valid IP CIDR range of the form x.x.x.x/x.
       Type: String
       MinLength: '9'
       MaxLength: '18'
@@ -98,7 +98,7 @@ Parameters:
   AdminIngressLocation:
     Description: >-
       CIDR block (IP address range) to allow SSH access to the
-      Ansible Controller. Example: 1.2.3.4/32.
+      Ansible Controller. Must be a valid IP CIDR range of the form x.x.x.x/x.
     Type: String
     MinLength: '9'
     MaxLength: '18'
@@ -114,18 +114,18 @@ Parameters:
     ConstraintDescription: Password must have at least 6 and no more than 255 characters.
 
   VPCID:
-    Description: ID of and existing VPC with a public and a private subnet in the same Availability Zone.
+    Description: ID of an existing VPC with a public and a private subnet in the same Availability Zone.
     Type: 'AWS::EC2::VPC::Id'
   PublicSubnetID:
     Description: >-
-      ID of public subnet for the ELB load balancer
-      and ansible controller (e.g. subnet-9bc642ac)
-      (needs to be the same AZ as PrivateSubnetID)
+      ID of public subnet for the Elastic Load Balancer
+      and Ansible Controller (e.g. subnet-9bc642ac)
+      (must be in the same AZ as PrivateSubnetID)
     Type: 'AWS::EC2::Subnet::Id'
   PrivateSubnetID:
     Description: >-
       ID of private subnet for the SAS Viya Application VMs (e.g. subnet-a0246dcd)
-      (needs to be the same AZ as PublicSubnetID)
+      (must be in the same AZ as PublicSubnetID)
     Type: 'AWS::EC2::Subnet::Id'
 
   QSS3BucketName:
@@ -153,7 +153,7 @@ Parameters:
   OperatorEmail:
     AllowedPattern: "([a-zA-Z0-9_\\-\\.]+)@((\\[[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.)|(([a-zA-Z0-9\\-]+\\.)+))([a-zA-Z]{2,4}|[0-9]{1,3})(\\]?)|^$"
     ConstraintDescription: "must be a valid email address."
-    Description: "Email address to sent a notification about deployment success or failure (optional)."
+    Description: "Email address to send a notification about deployment success or failure (optional)."
     Type: String
 
 Rules:
@@ -905,7 +905,7 @@ Resources:
       Roles:
         - !Ref AnsibleControllerRole
       Path: /
-  EIP1:
+  AnsibleControllerEIP:
     Type: 'AWS::EC2::EIP'
     Properties:
       Domain: vpc
@@ -1004,7 +1004,7 @@ Resources:
                 SNSTopic: !If [SNSCondition, !Ref SNSTopic, ""]
                 AWSRegion: !Ref AWS::Region
                 KeyPairName: !Ref KeyPairName
-                AnsibleControllerIP: !Ref EIP1
+                AnsibleControllerIP: !Ref AnsibleControllerEIP
                 CloudFormationStack: !Ref AWS::StackName
                 CloudWatchLogs: !Join
                   - ''
@@ -1198,7 +1198,7 @@ Resources:
               easy_install
               https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
             - EIP_LIST="
-            - !Ref EIP1
+            - !Ref AnsibleControllerEIP
             - |
               "
             - CLOUDWATCHGROUP=
@@ -1247,7 +1247,7 @@ Outputs:
         - ':/cas-shared-default-http/tkcas.dsp'
   AnsibleControllerIP:
     Description: Ansible Controller IP address
-    Value: !Ref EIP1
+    Value: !Ref AnsibleControllerEIP
   CloudWatchLogs:
     Description: CloudWatch Logs.
     # e.g.     https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#logStream:group=qs-viya-CloudWatchLogGroup-1KIGMD9DKO4RH
