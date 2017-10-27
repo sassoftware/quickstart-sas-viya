@@ -24,6 +24,7 @@ Metadata:
         - WebIngressLocation
         - AdminIngressLocation
         - SASViyaAdminPassword
+        - OperatorEmail
     - Label:
         default: AWS Quick Start Configuration
       Parameters:

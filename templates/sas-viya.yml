@@ -23,6 +23,7 @@ Metadata:
           - WebIngressLocation
           - AdminIngressLocation
           - SASViyaAdminPassword
+          - OperatorEmail
       - Label:
           default: Network Configuration
         Parameters:
@@ -30,11 +31,11 @@ Metadata:
           - PublicSubnetID
           - PrivateSubnetID
       - Label:
-          default: Server DNS configuration
+          default: Server DNS configuration (optional)
         Parameters:
-          - SSLCertificateARN
-          - ApplicationDNS
+          - DomainName
           - AWSHostedZoneID
+          - SSLCertificateARN
       - Label:
           default: AWS Quick Start Configuration
         Parameters:
@@ -175,17 +176,17 @@ Parameters:
 
   SSLCertificateARN:
     Description: >-
-      The AWS CertificateManager ARN for the SSL certificate to use to enable HTTPS. The certificate needs to match the ApplicationDNS.
+      The AWS CertificateManager ARN for the SSL certificate to use to enable HTTPS. The certificate needs to match the DomainName.
       Syntax: arn:aws:acm:region:account-id:certificate/certificate-id
       Example: arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789012
     Type: String
     Default: ''
   DomainName:
-    Description: The SAS Viya Server portal will be reachable at this DNS name (blank = generated ELB name will be used as application DNS)
+    Description: The SAS Viya Server portal will be reachable at this DNS name (blank = generated ELB name will be used as application DNS name)
     Type: String
     Default: ''
   AWSHostedZoneID:
-    Description: Existing DNS Zone ID for the DomainName (blank = generated ELB name will be used as application DNS)
+    Description: Existing DNS Zone ID for the DomainName (blank = generated ELB name will be used as application DNS name)
     Type: String
     Default: ''
 
@@ -287,8 +288,8 @@ Conditions:
       - Ref: AWSHostedZoneID
     - Fn::Equals:
       - ''
-      - Ref: ApplicationDNS
-  CreateDNSEntry:
+      - Ref: DomainName
+  HasDNSEntry:
     Fn::Not:
     - Condition: NoDNSEntry
   NoSSLCertficate:
@@ -354,14 +355,6 @@ Resources:
           FromPort: '-1'
           ToPort: '-1'
           CidrIp: !Ref AdminIngressLocation
-        - IpProtocol: tcp
-          FromPort: '80'
-          ToPort: '80'
-          CidrIp: !Ref WebIngressLocation
-        - IpProtocol: tcp
-          FromPort: '443'
-          ToPort: '443'
-          CidrIp: !Ref WebIngressLocation
 
   CASControllerSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
@@ -459,14 +452,14 @@ Resources:
 
   DNSNameEntry:
     Type: AWS::Route53::RecordSet
-    Condition: CreateDNSEntry
+    Condition: HasDNSEntry
     DependsOn:
     - ElasticLoadBalancer
     Properties:
       HostedZoneId:
         Ref: AWSHostedZoneID
       Name:
-        Fn::Sub: "${ApplicationDNS}."
+        Fn::Sub: "${DomainName}."
       Type: A
       AliasTarget:
         HostedZoneId:
@@ -480,7 +473,7 @@ Resources:
 
 
 
-  ViyaServicesRole:
+  ViyaRole:
     Type: 'AWS::IAM::Role'
     Properties:
       AssumeRolePolicyDocument:
@@ -522,19 +515,19 @@ Resources:
                       - aws
                 Effect: Allow
           PolicyName: viya-services-cloudwatch-logs-policy
-  ViyaServicesProfile:
+  ViyaProfile:
     Type: 'AWS::IAM::InstanceProfile'
     Properties:
       Path: /
       Roles:
-        - !Ref ViyaServicesRole
+        - !Ref ViyaRole
   ViyaServices:
     Type: 'AWS::EC2::Instance'
     Metadata:
       'AWS::CloudFormation::Authentication':
         S3AccessCreds:
           type: S3
-          roleName: !Ref ViyaServicesRole
+          roleName: !Ref ViyaRole
           buckets:
             - !Ref QSS3BucketName
       'AWS::CloudFormation::Init':
@@ -626,7 +619,7 @@ Resources:
         - !Ref 'AWS::Region'
         - RHEL74HVM
       SubnetId: !Ref PrivateSubnetID
-      IamInstanceProfile: !Ref ViyaServicesProfile
+      IamInstanceProfile: !Ref ViyaProfile
       InstanceType: i3.4xlarge
       EbsOptimized: true
       PlacementGroupName: !Ref ViyaPlacementGroup
@@ -712,7 +705,7 @@ Resources:
       'AWS::CloudFormation::Authentication':
         S3AccessCreds:
           type: S3
-          roleName: !Ref ViyaServicesRole
+          roleName: !Ref ViyaRole
           buckets:
             - !Ref QSS3BucketName
       'AWS::CloudFormation::Init':
@@ -832,7 +825,7 @@ Resources:
         - !Ref 'AWS::Region'
         - RHEL74HVM
       SubnetId: !Ref PrivateSubnetID
-      IamInstanceProfile: !Ref ViyaServicesProfile
+      IamInstanceProfile: !Ref ViyaProfile
       InstanceType: !Select [ 0 , !Split [ " ", !Ref CASControllerNodeInstanceType ] ]
       EbsOptimized: true
       PlacementGroupName: !Ref ViyaPlacementGroup
@@ -1118,11 +1111,11 @@ Resources:
                       - 'https://'
                       - 'http://'
                     - Fn::If:
-                      - HasSSLCertificate
+                      - HasDNSEntry
+                      - !Ref DomainName
                       - !GetAtt
                         - ElasticLoadBalancer
                         - DNSName
-                      - AWSPublicFDQN
                     - /SASHome
                 SASStudio: !Join
                   - ''
@@ -1131,11 +1124,11 @@ Resources:
                       - 'https://'
                       - 'http://'
                     - Fn::If:
-                      - HasSSLCertificate
+                      - HasDNSEntry
+                      - !Ref DomainName
                       - !GetAtt
                         - ElasticLoadBalancer
                         - DNSName
-                      - AWSPublicFDQN
                     - /SASStudio
                 CASMonitor: !Join
                   - ''
@@ -1144,11 +1137,11 @@ Resources:
                       - 'https://'
                       - 'http://'
                     - Fn::If:
-                      - HasSSLCertificate
+                      - HasDNSEntry
+                      - !Ref DomainName
                       - !GetAtt
                         - ElasticLoadBalancer
                         - DNSName
-                      - AWSPublicFDQN
                     - '/cas-shared-default-http/tkcas.dsp'
             /tmp/SAS_Viya_deployment_data.zip:
               source: !Sub
@@ -1314,6 +1307,15 @@ Resources:
             - >
               easy_install
               https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
+            - |
+              function try () {
+                 # allow up to N attempts of a command
+                 # syntax: try N [command]
+                 count=1; max_count=$1 ; shift
+                 until $@ || [ $count -gt $max_count ]; do
+                   let count=count+1
+                 done
+              }
             - EIP_LIST="
             - !Ref AnsibleControllerEIP
             - |
@@ -1322,7 +1324,7 @@ Resources:
             - !Ref CloudWatchLogGroup
             - |+
 
-            - 'cfn-init -v --stack '
+            - try 2 'cfn-init -v --stack '
             - !Ref 'AWS::StackName'
             - ' --resource AnsibleController --configsets quickstart --region '
             - !Ref 'AWS::Region'
@@ -1344,11 +1346,11 @@ Outputs:
           - 'https://'
           - 'http://'
         - Fn::If:
-          - HasSSLCertificate
+          - HasDNSEntry
+          - !Ref DomainName
           - !GetAtt
             - ElasticLoadBalancer
             - DNSName
-          - AWSPublicFDQN
         - '/SASHome'
   SASStudio:
     Description: SAS Studio
@@ -1359,11 +1361,11 @@ Outputs:
           - 'https://'
           - 'http://'
         - Fn::If:
-          - HasSSLCertificate
+          - HasDNSEntry
+          - !Ref DomainName
           - !GetAtt
             - ElasticLoadBalancer
             - DNSName
-          - AWSPublicFDQN
         - '/SASStudio'
   CASMonitor:
     Description: CAS Monitor
@@ -1374,11 +1376,11 @@ Outputs:
           - 'https://'
           - 'http://'
         - Fn::If:
-          - HasSSLCertificate
+          - HasDNSEntry
+          - !Ref DomainName
           - !GetAtt
             - ElasticLoadBalancer
             - DNSName
-          - AWSPublicFDQN
         - ':/cas-shared-default-http/tkcas.dsp'
   AnsibleControllerIP:
     Description: Ansible Controller IP address
