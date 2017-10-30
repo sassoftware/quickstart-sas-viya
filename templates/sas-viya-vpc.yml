@@ -13,9 +13,10 @@ Metadata:
       Parameters:
         - DeploymentDataLocation
     - Label:
-        default: SAS Viya Compute Node Size
+        default: SAS Viya Compute Configuration
       Parameters:
-        - CASControllerNodeInstanceType
+        - CASNodeInstanceType
+        - NumWorkers
     - Label:
         default: Administration
       Parameters:
@@ -66,17 +67,25 @@ Parameters:
     Type: String
     ConstraintDescription: must be a valid S3 bucket location, e.g. mysasbucket/viya_deployment_data/SAS_Viya_deployment_data.zip
 
-  CASControllerNodeInstanceType:
+  CASNodeInstanceType:
     AllowedValues:
-      - "i3.large (2 vCPUs)"
-      - "i3.xlarge (4 vCPUs)"
-      - "i3.2xlarge (8 vCPUs)"
-      - "i3.4xlarge (16 vCPUs)"
-      - "i3.8xlarge (32 vCPUs)"
-      - "i3.16xlarge (64 vCPUs)"
+      - "i3.2xlarge (4 cores)"
+      - "i3.4xlarge (8 cores)"
+      - "i3.8xlarge (16 cores)"
+      - "i3.16xlarge (32 cores)"
     ConstraintDescription: Must contain valid instance type
-    Default: "i3.2xlarge (8 vCPUs)"
+    Default: "i3.2xlarge (4 cores)"
     Description: Type of EC2 instance for the Viya Compute Node. The number of vCPUs should match the number of CPUs in your software order.
+    Type: String
+  NumWorkers:
+    AllowedValues:
+    - '0'
+    - '1'
+    - '2'
+    - '3'
+    - '4'
+    Default: '0'
+    Description: Enter the number of CAS worker nodes to create
     Type: String
 
   KeyPairName:
@@ -304,7 +313,8 @@ Resources:
         QSS3KeyPrefix: !Ref QSS3KeyPrefix
         DeploymentDataLocation: !Ref DeploymentDataLocation
         VPCID: !Ref VPC
-        CASControllerNodeInstanceType: !Ref CASControllerNodeInstanceType
+        CASNodeInstanceType: !Ref CASNodeInstanceType
+        NumWorkers: !Ref NumWorkers
         AdminIngressLocation: !Ref AdminIngressLocation
         WebIngressLocation: !Ref WebIngressLocation
         SASViyaAdminPassword: !Ref SASViyaAdminPassword

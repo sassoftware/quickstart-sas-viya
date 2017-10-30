@@ -44,6 +44,10 @@
         "ParameterValue": "matthias.ender@sas.com"
     },
     {
+        "ParameterKey": "NumWorkers",
+        "ParameterValue": "1"
+    },
+    {
         "ParameterKey": "AWSHostedZoneID",
         "ParameterValue": "Z2BP7UMCNDE5Z9"
     },

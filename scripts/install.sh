@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# this script is expect to be run by a user with sudo privileges (typically ec2-user)
+# this script is expected to be run by a user with sudo privileges (typically ec2-user)
 
 trap cleanup EXIT
 
@@ -34,14 +34,18 @@ cat <<EOF > /tmp/sns_start_message.txt
 
   Follow the deployment logs at {{CloudWatchLogs}}
 
-  Log into the Administrator VM with the private key for KeyPair "{{KeyPairName}}":
+  Log into the Ansible Controller VM with the private key for KeyPair "{{KeyPairName}}":
 
        ssh -i /path/to/private/key.pem ec2-user@{{AnsibleControllerIP}}
 
   Viya Services IP:  {{ViyaServicesIP}}
   CAS Controller IP: {{CASControllerIP}}
-
 EOF
+
+[ -n "{{CASWorker1IP}}" ] && echo "  CAS Worker 1 IP: {{CASWorker1IP}}" >> /tmp/sns_start_message.txt || :
+[ -n "{{CASWorker2IP}}" ] && echo "  CAS Worker 2 IP: {{CASWorker2IP}}" >> /tmp/sns_start_message.txt || :
+[ -n "{{CASWorker3IP}}" ] && echo "  CAS Worker 3 IP: {{CASWorker3IP}}" >> /tmp/sns_start_message.txt || :
+[ -n "{{CASWorker4IP}}" ] && echo "  CAS Worker 4 IP: {{CASWorker4IP}}" >> /tmp/sns_start_message.txt || :
 
 }
 
@@ -56,13 +60,20 @@ cat <<EOF > /tmp/sns_success_message.txt
 
    Log into SAS Studio at {{SASStudio}}
 
-   Log into CAS Monitor at {{CASMonitor}}
+   Log into CAS Server Monitor at {{CASMonitor}}
 
-   Log into the Administrator VM with the private key for KeyPair "{{KeyPairName}}":
+   Log into the Ansible Controller VM with the private key for KeyPair "{{KeyPairName}}":
 
        ssh -i /path/to/private/key.pem ec2-user@{{AnsibleControllerIP}}
 
+  Viya Services IP:  {{ViyaServicesIP}}
+  CAS Controller IP: {{CASControllerIP}}
 EOF
+
+[ -n "{{CASWorker1IP}}" ] && echo "  CAS Worker 1 IP: {{CASWorker1IP}}" >> /tmp/sns_start_message.txt || :
+[ -n "{{CASWorker2IP}}" ] && echo "  CAS Worker 2 IP: {{CASWorker2IP}}" >> /tmp/sns_start_message.txt || :
+[ -n "{{CASWorker3IP}}" ] && echo "  CAS Worker 3 IP: {{CASWorker3IP}}" >> /tmp/sns_start_message.txt || :
+[ -n "{{CASWorker4IP}}" ] && echo "  CAS Worker 4 IP: {{CASWorker4IP}}" >> /tmp/sns_start_message.txt || :
 
 }
 
@@ -85,12 +96,10 @@ if [ -n "{{SNSTopic}}" ]; then
   create_start_message
 
   aws --region {{AWSRegion}} sns publish --topic-arn {{SNSTopic}} \
-      --subject "Starting SAS Viya Deployment" \
+      --subject "Starting SAS Viya Deployment {{CloudFormationStack}}" \
       --message file:///tmp/sns_start_message.txt
 
 fi
-
-
 
 cleanup () {
 
@@ -126,17 +135,15 @@ cleanup () {
 
 }
 
+
 # sometimes there are ssh connection errors (53) during the install
 # this function allows to retry N times
-try () {
+function try () {
   # allow up to N attempts of a command
   # syntax: try N [command]
 
-  max_count=$1
-  shift
-  count=1
-  until  $@  || [ $count -gt $max_count  ]
-  do
+  count=1; max_count=$1; shift
+  until  $@  || [ $count -gt $max_count ]; do
     let count=count+1
   done
 }
@@ -160,9 +167,16 @@ sudo service awslogs restart
 }
 
 
-# prepare inventory.ini header
+
+
+# prepare host list for ansible inventory.ini file
 echo deployTarget ansible_host={{ViyaServicesIP}} > /tmp/inventory.head
 echo controller ansible_host={{CASControllerIP}} >> /tmp/inventory.head
+[ -n "{{CASWorker1IP}}" ] && echo worker1 ansible_host={{CASWorker1IP}} >> /tmp/inventory.head || :
+[ -n "{{CASWorker2IP}}" ] && echo worker2 ansible_host={{CASWorker2IP}} >> /tmp/inventory.head || :
+[ -n "{{CASWorker3IP}}" ] && echo worker3 ansible_host={{CASWorker3IP}} >> /tmp/inventory.head || :
+[ -n "{{CASWorker4IP}}" ] && echo worker4 ansible_host={{CASWorker4IP}} >> /tmp/inventory.head || :
+
 
 # set up OpenLDAP
 pushd openldap
@@ -217,6 +231,22 @@ popd
 #
 #rpm -i ./sas-orchestration-cli-1.0.13-20171009.1507582997914.x86_64.rpm
 
+## make sure the other VMs are all up
+#STATUS="status"
+#while ! [ $(echo "$STATUS" | wc -w)  -eq $(echo "$STATUS" | grep CREATE_COMPLETE | wc -w) ]; do
+#  sleep 3
+#  STATUS=$(aws cloudformation  describe-stack-resources --region {{AWSRegion}} --stack-name {{CloudFormationStack}}  --output json --query 'StackResources[?ResourceType ==`AWS::EC2::Instance`]|[?LogicalResourceId != `AnsibleController`].ResourceStatus' --output text)
+#  [ $(echo "$STATUS" | grep "CREATE_FAILED") ]  && exit 1 || :
+#done
+# needs these permissions:
+#
+#    "Action": [
+#                "cloudformation:DescribeStackResources"
+#            ],
+#            "Resource": "arn:aws:cloudformation:*:*:stack/mpp04/*",
+#            "Effect": "Allow"
+#        }
+
 
 # location of installed cli: /opt/sas/viya/home/bin/sas-orchestration
 
@@ -228,7 +258,30 @@ tar xf SAS_Viya_playbook.tgz
 
 pushd sas_viya_playbook
 
+  check_license ()
+  {
+    # number of licensed cores for CAS
+
+    # cat,xargs,sed: create single, semicolon-terminated lines;
+    UNWRAPPED=$(cat  SASViyaV0300_*_Linux_x86-64.txt | xargs | sed 's/;/;\n/g')
+    CPUNUM=$(echo "$UNWRAPPED" | grep EXPIRE | grep PRODNUM1141 | sed -r "s/.*CPU=(.*)\;/\1/")
+    LICCORES=$(echo "$UNWRAPPED" | grep NAME=$CPUNUM | sed  -r "s/.*SERIAL=\+([0-9]+).*/\1/")
+
+    CPUCOUNT=$(ssh {{CASControllerIP}} cat /proc/cpuinfo | grep -c ^processor)
+    let CPUCOUNT=CPUCOUNT/2
+
+    WORKERCOUNT=$(cat /tmp/inventory.head  | grep worker | wc -l)
+    let CASNODESCOUNT=WORKERCOUNT+1
+
+    let USEDCORES=CASNODESCOUNT*CPUCOUNT
+
+    echo Licensed Cores = $LICCORES
+    echo Used Cores = $USEDCORES
+
+  }
+
   # copy additional playbooks
+  chmod +w ansible.cfg
   cp /tmp/ansible.* .
 
   # get identities configuration from openldap setup

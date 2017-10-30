@@ -35,6 +35,10 @@
     {
         "ParameterKey": "OperatorEmail",
         "ParameterValue": "matthias.ender@sas.com"
+    },
+    {
+        "ParameterKey": "NumWorkers",
+        "ParameterValue": "1"
     }
 
 ]

@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-# TODO: support non nvm-type ephemerals (for in i*. instance types)
+# TODO: support non nvm-type ephemerals (for non i*. instance types)
 
 
 # create sastmp directory/mountpoint
@@ -11,7 +11,7 @@ fi
 # find the drive devices
 drives=""
 drive_count=0
-nvm_drives=$(lsblk  -d -n --output NAME | grep nvm)
+nvm_drives=$(lsblk  -d -n --output NAME | grep nvm || :)
 for device_name in $nvm_drives; do
 
   device_path="/dev/$device_name"

@@ -10,22 +10,21 @@
   - name: Set OpenLdapServer
     blockinfile:
       dest: inventory.ini
-      marker: "# {mark} server -->"
+      marker: "# {mark} ADD SERVER"
       insertafter: '\[openldapserver\]'
       content: |
         deployTarget
     tags:
       - updateinventory
 
-  - name: Set OpenLdapClient
+  - name: prepare client list
+    shell: cat /tmp/inventory.head | awk '{print $1}' > /tmp/inventory.head.short
+
+  - name: Set clients
     blockinfile:
       dest: inventory.ini
-      marker: "# {mark} clients -->"
       insertafter: '\[openldapclients\]'
-      content: |
-        deployTarget
-        controller
+      block: "{{ lookup('file', '/tmp/inventory.head.short') }}"
+      marker: "# {mark} ADD CLIENTS"
     tags:
       - updateinventory
-
-

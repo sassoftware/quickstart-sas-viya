@@ -1,6 +1,6 @@
---- 
+---
 - hosts: localhost
-    
+
   tasks:
 
   - name: remove default deployTarget
@@ -14,12 +14,26 @@
       insertafter='\[host-definitions\]'
       dest=inventory.ini
       block="{{ lookup('file', '/tmp/inventory.head') }}"
+      marker="# {mark} ADD HOST DEFINITIONS"
+
 
   - name: Set CAS controller target
     replace:
       dest=inventory.ini
       regexp='\[sas-casserver-primary\]\ndeployTarget'
       replace='[sas-casserver-primary]\ncontroller'
+
+  - name: Prepare CAS Workers list
+    shell: cat /tmp/inventory.head | grep worker | cut -d' ' -f1 > /tmp/inventory.workers
+
+  - name: Set CAS workers
+    blockinfile:
+      dest=inventory.ini
+      insertafter='\[sas-casserver-worker\]'
+      block="{{ lookup('file', '/tmp/inventory.workers') }}"
+      marker="# {mark} ADD WORKERS"
       backup=yes
+
+
 
       
