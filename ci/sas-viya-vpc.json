@@ -14,7 +14,7 @@
     },
     {
         "ParameterKey": "KeyPairName",
-        "ParameterValue": "a3scas"
+        "ParameterValue": " "
     },
     {
         "ParameterKey": "DeploymentDataLocation",
@@ -26,7 +26,7 @@
     },
     {
         "ParameterKey": "QSS3KeyPrefix",
-        "ParameterValue": "dev/"
+        "ParameterValue": "viya33EA/"
     },
     {
         "ParameterKey": "ViyaAdminPass",
@@ -38,7 +38,7 @@
     },
     {
         "ParameterKey": "OperatorEmail",
-        "ParameterValue": "matthias.ender@sas.com"
+        "ParameterValue": ""
     },
     {
         "ParameterKey": "NumWorkers",

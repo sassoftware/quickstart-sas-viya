@@ -182,6 +182,8 @@ echo controller ansible_host={{CASControllerIP}} >> /tmp/inventory.head
 # set up OpenLDAP
 pushd openldap
 
+  sed -i "s/{{SASViyaAdminPassword}}/sasviyapw/" group_vars/all.yml
+
   # set log file
   export ANSIBLE_LOG_PATH=openldap-deployment.log
   touch $ANSIBLE_LOG_PATH
@@ -307,7 +309,6 @@ pushd sas_viya_playbook
   # main deployment
   ansible-playbook ansible.update.vars.file.yml
   try 2 ansible-playbook site.yml
-
 
   # Only for EA: copy the redshift resources
   ansible-playbook ansible.post.deployment.yml --tags "EA"
