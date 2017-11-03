@@ -29,8 +29,12 @@
         "ParameterValue": "dev/"
     },
     {
-        "ParameterKey": "SASViyaAdminPassword",
+        "ParameterKey": "ViyaAdminPass",
         "ParameterValue": "SASViyaAdmin"
+    },
+    {
+        "ParameterKey": "ViyaUserPass",
+        "ParameterValue": "SASViyaUser"
     },
     {
         "ParameterKey": "OperatorEmail",

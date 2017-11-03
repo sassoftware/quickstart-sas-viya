@@ -25,7 +25,7 @@
     },
     {
         "ParameterKey": "DeploymentDataLocation",
-        "ParameterValue": "mercury-deployment-data/viya3.3EA/SAS_Viya_deployment_data.zip.9BV2CB"
+        "ParameterValue": "mercury-deployment-data/viya3.3EA/SAS_Viya_deployment_data.zip"
     },
     {
         "ParameterKey": "QSS3BucketName",
@@ -36,8 +36,12 @@
         "ParameterValue": "dev/"
     },
     {
-        "ParameterKey": "SASViyaAdminPassword",
+        "ParameterKey": "ViyaAdminPass",
         "ParameterValue": "SASViyaAdmin"
+    },
+    {
+        "ParameterKey": "ViyaUserPass",
+        "ParameterValue": "SASViyaUser"
     },
     {
         "ParameterKey": "OperatorEmail",
@@ -45,7 +49,7 @@
     },
     {
         "ParameterKey": "NumWorkers",
-        "ParameterValue": "4"
+        "ParameterValue": "0"
     }
 
 

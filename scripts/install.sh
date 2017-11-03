@@ -13,7 +13,8 @@ set -o nounset
 # Make sure all the input parms are set
 test -n "{{ViyaServicesIP}}"
 test -n "{{CASControllerIP}}"
-test -n "{{SASViyaAdminPassword}}"
+test -n "{{ViyaAdminPass}}"
+test -n "{{ViyaUserPass}}"
 test -n "{{LogGroup}}"
 test -n "{{AWSRegion}}"
 test -n "{{KeyPairName}}"
@@ -190,7 +191,7 @@ pushd openldap
   ansible-playbook update.inventory.yml
 
   # openldap and sssd setup
-  ansible-playbook openldapsetup.yml
+  ansible-playbook openldapsetup.yml -e "OLCROOTPW={{ViyaAdminPass}} OLCUSERPW={{ViyaUserPass}}"
 
 popd
 
@@ -306,7 +307,7 @@ pushd sas_viya_playbook
   # main deployment
   ansible-playbook ansible.update.vars.file.yml
   try 2 ansible-playbook site.yml
-  ansible-playbook ansible.post.deployment.yml -e "sasboot_pw={{SASViyaAdminPassword}}" --tags "postdep"
+
 
   # Only for EA: copy the redshift resources
   ansible-playbook ansible.post.deployment.yml --tags "EA"

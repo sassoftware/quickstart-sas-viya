@@ -24,7 +24,8 @@ Metadata:
         - AvailabilityZone
         - WebIngressLocation
         - AdminIngressLocation
-        - SASViyaAdminPassword
+          - ViyaAdminPass
+          - ViyaUserPass
         - OperatorEmail
     - Label:
         default: AWS Quick Start Configuration
@@ -50,8 +51,10 @@ Metadata:
         default: Permitted IP Range for Deployment Admin
       WebIngressLocation:
         default: Permitted IP Range for Application Access
-      SASViyaAdminPassword:
+      ViyaAdminPass:
         default: SAS Viya Administrator Password
+      ViyaUserPass:
+        default: Password for viyauser01--viyauser10
       OperatorEmail:
         default: Operator Email
 
@@ -118,9 +121,17 @@ Parameters:
     AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
     ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
 
-  SASViyaAdminPassword:
+  ViyaAdminPass:
     Description: >-
-      Password of the initial SAS Viya Admin User (sasboot). Must have at least 6 and no more than 255 characters.
+      Password of the Viya Admin User (viyaadmin). Must have at least 6 and no more than 255 characters.
+    Type: String
+    MinLength: '6'
+    MaxLength: '255'
+    NoEcho: true
+    ConstraintDescription: Password must have at least 6 and no more than 255 characters.
+  ViyaUserPass:
+    Description: >-
+      Password of the Viya Users (viyauser01--viyauser10). Must have at least 6 and no more than 255 characters.
     Type: String
     MinLength: '6'
     MaxLength: '255'
@@ -317,7 +328,8 @@ Resources:
         NumWorkers: !Ref NumWorkers
         AdminIngressLocation: !Ref AdminIngressLocation
         WebIngressLocation: !Ref WebIngressLocation
-        SASViyaAdminPassword: !Ref SASViyaAdminPassword
+        ViyaAdminPass: !Ref ViyaAdminPass
+        ViyaUserPass: !Ref ViyaUserPass
         OperatorEmail: !Ref OperatorEmail
 Outputs:
   # Outputs from VPC creation

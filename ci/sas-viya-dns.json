@@ -13,7 +13,7 @@
     },
     {
         "ParameterKey": "KeyPairName",
-        "ParameterValue": "a3scas"
+        "ParameterValue": ""
     },
     {
         "ParameterKey": "PrivateSubnetID",
@@ -33,15 +33,19 @@
     },
     {
         "ParameterKey": "QSS3KeyPrefix",
-        "ParameterValue": "dev/"
+        "ParameterValue": "viya33EA/"
     },
     {
-        "ParameterKey": "SASViyaAdminPassword",
+        "ParameterKey": "ViyaAdminPass",
         "ParameterValue": "SASViyaAdmin"
     },
     {
+        "ParameterKey": "ViyaUserPass",
+        "ParameterValue": "SASViyaUser"
+    },
+    {
         "ParameterKey": "OperatorEmail",
-        "ParameterValue": "matthias.ender@sas.com"
+        "ParameterValue": ""
     },
     {
         "ParameterKey": "NumWorkers",

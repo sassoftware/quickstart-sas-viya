@@ -7,9 +7,13 @@
      - openldap-servers
      - openldap-clients
 
-- name: encrypt the password
+- name: encrypt the admin password
   shell: "slappasswd -s {{OLCROOTPW}}"
   register: OLCROOTPW_ENC
+
+- name: encrypt the user password
+  shell: "slappasswd -s {{OLCUSERPW}}"
+  register: OLCUSERPW_ENC
 
 
 - name: copy db_config

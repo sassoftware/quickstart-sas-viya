@@ -45,23 +45,6 @@
   tasks:
 
 
-## show the saslogon url to reset the sasboot password
-  - name: copy the resetsasboot to the right machine
-    copy:
-      src: ./ansible.resetsasboot.sh
-      dest: /tmp/resetsasboot.sh
-      owner: sas
-      group: sas
-      mode: 0700
-    tags:
-      - postdep
-      - sasboot
-
-  - name: Reset the sasboot password
-    shell: /tmp/resetsasboot.sh {{sasboot_pw}}
-    tags:
-      - postdep
-      - sasboot
 
 # only for EA - these files should already be there in production
 - hosts:

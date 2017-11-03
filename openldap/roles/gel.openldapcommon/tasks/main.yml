@@ -1,6 +1,4 @@
 ---
-- name: Add the OS specific varibles
-  include_vars: "group_vars/{{ansible_distribution}}{{ansible_distribution_major_version}}.yml"
 
 - debug: var=OLCSUFFIX
 - debug: var=OLCROOTDN

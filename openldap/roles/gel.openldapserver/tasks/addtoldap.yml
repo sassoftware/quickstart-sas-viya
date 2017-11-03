@@ -17,18 +17,27 @@
   register: base
 - debug: var=base
 
-
 - name: create sasldap.ldif
   template:
     src: sasldap.ldif.j2
     dest: "{{LDIFLOC}}/sasldap.ldif"
     mode: 0600   
 
-
 - name: execute sasldap.ldif
   shell: "ldapadd -x -D {{OLCROOTDN}} -w {{OLCROOTPW}} -f {{LDIFLOC}}/sasldap.ldif"
   register: sasldap
 - debug: var=sasldap
+
+- name: create viyaadmin.ldif
+  template:
+    src: viyaadmin.ldif.j2
+    dest: "{{LDIFLOC}}/viyaadmin.ldif"
+    mode: 0600
+
+- name: execute viyaadmin.ldif
+  shell: "ldapadd -x -D {{OLCROOTDN}} -w {{OLCROOTPW}} -f {{LDIFLOC}}/viyaadmin.ldif"
+  register: sasadmin
+- debug: var=sasadmin
 
 
 - name: create install_users.ldif

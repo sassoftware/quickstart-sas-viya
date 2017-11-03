@@ -11,7 +11,7 @@ loginshell: /bin/bash
 uidNumber: {{item.uid}}
 gidNumber: {{item.gid}}
 homedirectory: /home/{{item.name}}
-userPassword: {{OLCROOTPW_ENC.stdout}}
+userPassword: {{OLCUSERPW_ENC.stdout}}
 mail: {{item.name}}@{{CERT_LDAP}}
 l: {{CERT_L}}
 o: {{CERT_O}}
