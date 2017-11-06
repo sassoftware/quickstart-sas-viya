@@ -11,7 +11,9 @@ set -o nounset
 
 # This is a mustache template.
 # Make sure all the input parms are set
-test -n "{{ViyaServicesIP}}"
+test -n "{{VisualServicesIP}}"
+test -n "{{ProgrammingServicesIP}}"
+test -n "{{StatefulServicesIP}}"
 test -n "{{CASControllerIP}}"
 test -n "{{ViyaAdminPass}}"
 test -n "{{ViyaUserPass}}"
@@ -39,7 +41,9 @@ cat <<EOF > /tmp/sns_start_message.txt
 
        ssh -i /path/to/private/key.pem ec2-user@{{AnsibleControllerIP}}
 
-  Viya Services IP:  {{ViyaServicesIP}}
+  Visual Services IP:  {{VisualServicesIP}}
+  Programming Services IP:  {{ProgrammingServicesIP}}
+  Stateful Services IP:  {{StatefulServicesIP}}
   CAS Controller IP: {{CASControllerIP}}
 EOF
 
@@ -67,7 +71,9 @@ cat <<EOF > /tmp/sns_success_message.txt
 
        ssh -i /path/to/private/key.pem ec2-user@{{AnsibleControllerIP}}
 
-  Viya Services IP:  {{ViyaServicesIP}}
+  Visual Services IP:  {{VisualServicesIP}}
+  Programming Services IP:  {{ProgrammingServicesIP}}
+  Stateful Services IP:  {{StatefulServicesIP}}
   CAS Controller IP: {{CASControllerIP}}
 EOF
 
@@ -171,7 +177,9 @@ sudo service awslogs restart
 
 
 # prepare host list for ansible inventory.ini file
-echo deployTarget ansible_host={{ViyaServicesIP}} > /tmp/inventory.head
+echo visual ansible_host={{VisualServicesIP}} > /tmp/inventory.head
+echo programming ansible_host={{ProgrammingServicesIP}} >> /tmp/inventory.head
+echo stateful ansible_host={{StatefulServicesIP}} >> /tmp/inventory.head
 echo controller ansible_host={{CASControllerIP}} >> /tmp/inventory.head
 [ -n "{{CASWorker1IP}}" ] && echo worker1 ansible_host={{CASWorker1IP}} >> /tmp/inventory.head || :
 [ -n "{{CASWorker2IP}}" ] && echo worker2 ansible_host={{CASWorker2IP}} >> /tmp/inventory.head || :
@@ -179,10 +187,26 @@ echo controller ansible_host={{CASControllerIP}} >> /tmp/inventory.head
 [ -n "{{CASWorker4IP}}" ] && echo worker4 ansible_host={{CASWorker4IP}} >> /tmp/inventory.head || :
 
 
+
+## make sure the other VMs are all up
+STATUS="status"
+while ! [ $(echo "$STATUS" | wc -w)  -eq $(echo "$STATUS" | grep CREATE_COMPLETE | wc -w) ]; do
+  sleep 3
+  STATUS=$(aws cloudformation  describe-stack-resources --region {{AWSRegion}} --stack-name {{CloudFormationStack}}  --output json --query 'StackResources[?ResourceType ==`AWS::EC2::Instance`]|[?LogicalResourceId != `AnsibleController`].ResourceStatus' --output text)
+  [ $(echo "$STATUS" | grep "CREATE_FAILED") ]  && exit 1 || :
+done
+# needs these permissions:
+#
+#    "Action": [
+#                "cloudformation:DescribeStackResources"
+#            ],
+#            "Resource": "arn:aws:cloudformation:*:*:stack/mpp04/*",
+#            "Effect": "Allow"
+#        }
+
+
 # set up OpenLDAP
 pushd openldap
-
-  sed -i "s/{{SASViyaAdminPassword}}/sasviyapw/" group_vars/all.yml
 
   # set log file
   export ANSIBLE_LOG_PATH=openldap-deployment.log
@@ -234,21 +258,7 @@ popd
 #
 #rpm -i ./sas-orchestration-cli-1.0.13-20171009.1507582997914.x86_64.rpm
 
-## make sure the other VMs are all up
-#STATUS="status"
-#while ! [ $(echo "$STATUS" | wc -w)  -eq $(echo "$STATUS" | grep CREATE_COMPLETE | wc -w) ]; do
-#  sleep 3
-#  STATUS=$(aws cloudformation  describe-stack-resources --region {{AWSRegion}} --stack-name {{CloudFormationStack}}  --output json --query 'StackResources[?ResourceType ==`AWS::EC2::Instance`]|[?LogicalResourceId != `AnsibleController`].ResourceStatus' --output text)
-#  [ $(echo "$STATUS" | grep "CREATE_FAILED") ]  && exit 1 || :
-#done
-# needs these permissions:
-#
-#    "Action": [
-#                "cloudformation:DescribeStackResources"
-#            ],
-#            "Resource": "arn:aws:cloudformation:*:*:stack/mpp04/*",
-#            "Effect": "Allow"
-#        }
+
 
 
 # location of installed cli: /opt/sas/viya/home/bin/sas-orchestration

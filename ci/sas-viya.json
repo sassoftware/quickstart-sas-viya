@@ -49,7 +49,7 @@
     },
     {
         "ParameterKey": "NumWorkers",
-        "ParameterValue": "0"
+        "ParameterValue": "1"
     }
 
 

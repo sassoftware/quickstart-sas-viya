@@ -13,7 +13,7 @@
       marker: "# {mark} ADD SERVER"
       insertafter: '\[openldapserver\]'
       content: |
-        deployTarget
+        stateful
     tags:
       - updateinventory
 

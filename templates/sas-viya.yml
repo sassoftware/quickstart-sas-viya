@@ -97,8 +97,9 @@ Parameters:
       - "i3.4xlarge (8 cores)"
       - "i3.8xlarge (16 cores)"
       - "i3.16xlarge (32 cores)"
+      - "r4.2xlarge (4 cores)"
     ConstraintDescription: Must contain valid instance type
-    Default: "i3.2xlarge (4 cores)"
+    Default: "r4.2xlarge (4 cores)"
     Description: Type of EC2 instance for the Viya Compute Node. The number of vCPUs should match the number of CPUs in your software order.
     Type: String
   NumWorkers:
@@ -362,6 +363,63 @@ Resources:
     Properties:
       RetentionInDays: 7
 
+  RecoveryAlarmVisual:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Trigger a recovery when instance status check fails more than once in 2 minutes.
+      Namespace: AWS/EC2
+      MetricName: StatusCheckFailed
+      Statistic: Maximum
+      Period: '60'
+      EvaluationPeriods: '2'
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Threshold: '1'
+      AlarmActions:
+        - !Sub "arn:aws:automate:${AWS::Region}:ec2:recover"
+        - !If [SNSCondition, !Sub "${SNSTopic}", !Ref "AWS::NoValue"]
+      Dimensions:
+      - Name: InstanceId
+        Value:
+          Ref: VisualServices
+
+  RecoveryAlarmStateful:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Trigger a recovery when instance status check fails more than once in 2 minutes.
+      Namespace: AWS/EC2
+      MetricName: StatusCheckFailed
+      Statistic: Maximum
+      Period: '60'
+      EvaluationPeriods: '2'
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Threshold: '1'
+      AlarmActions:
+        - !Sub "arn:aws:automate:${AWS::Region}:ec2:recover"
+        - !If [SNSCondition, !Sub "${SNSTopic}", !Ref "AWS::NoValue"]
+      Dimensions:
+      - Name: InstanceId
+        Value:
+          Ref: StatefulServices
+
+  RecoveryAlarmProgramming:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Trigger a recovery when instance status check fails more than once in 2 minutes.
+      Namespace: AWS/EC2
+      MetricName: StatusCheckFailed
+      Statistic: Maximum
+      Period: '60'
+      EvaluationPeriods: '2'
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Threshold: '1'
+      AlarmActions:
+        - !Sub "arn:aws:automate:${AWS::Region}:ec2:recover"
+        - !If [SNSCondition, !Sub "${SNSTopic}", !Ref "AWS::NoValue"]
+      Dimensions:
+      - Name: InstanceId
+        Value:
+          Ref: ProgrammingServices
+
   ViyaPlacementGroup:
     Type: 'AWS::EC2::PlacementGroup'
 
@@ -403,114 +461,42 @@ Resources:
           ToPort: '-1'
           CidrIp: !Ref AdminIngressLocation
 
-  CASControllerSecurityGroup:
+  ViyaSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
-      GroupDescription: Allow access to the CAS Controller instance
+      GroupDescription: Allow access to all Viya VMs
       VpcId: !Ref VPCID
       SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: '8777'
-          ToPort: '8777'
-          SourceSecurityGroupId: !Ref ViyaServicesSecurityGroup
-        - IpProtocol: tcp
-          FromPort: '5570'
-          ToPort: '5570'
-          SourceSecurityGroupId: !Ref ViyaServicesSecurityGroup
         - IpProtocol: tcp
           FromPort: '22'
           ToPort: '22'
           SourceSecurityGroupId: !Ref AnsibleControllerSecurityGroup
 
-  CASWorkerSecurityGroup:
-    Type: 'AWS::EC2::SecurityGroup'
-    Condition: 1WorkersCondition
-    Properties:
-      GroupDescription: Allow access to the CAS Workers instances
-      VpcId: !Ref VPCID
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: '0'
-          ToPort: '65535'
-          SourceSecurityGroupId: !Ref CASControllerSecurityGroup
-        - IpProtocol: tcp
-          FromPort: '22'
-          ToPort: '22'
-          SourceSecurityGroupId: !Ref AnsibleControllerSecurityGroup
-
-
-  ViyaServicesSecurityGroup:
+  ProxySecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
-      GroupDescription: Allow access to the Viya Services instance
+      GroupDescription: Allow access to the Viya HTTPD serer
       VpcId: !Ref VPCID
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: '443'
           ToPort: '443'
           SourceSecurityGroupId: !Ref ELBSecurityGroup
-        - IpProtocol: tcp
-          FromPort: '22'
-          ToPort: '22'
-          SourceSecurityGroupId: !Ref AnsibleControllerSecurityGroup
 
 
-  ViyaSGIngress:
-    Type: 'AWS::EC2::SecurityGroupIngress'
-    Properties:
-      GroupId: !Ref ViyaServicesSecurityGroup
-      IpProtocol: tcp
-      FromPort: '0'
-      ToPort: '65535'
-      SourceSecurityGroupId: !Ref CASControllerSecurityGroup
-  CASSGIngress:
-    Type: 'AWS::EC2::SecurityGroupIngress'
-    Properties:
-      GroupId: !Ref CASControllerSecurityGroup
-      IpProtocol: tcp
-      FromPort: '0'
-      ToPort: '65535'
-      SourceSecurityGroupId: !Ref ViyaServicesSecurityGroup
 
   # open ports between all participants
   # all hosts need to succeed an ssh-keyscan to all other hosts of the deployment
   # and for consul communication
-  VStoCASWorkerSGIngress:
+  ViyatoviyaSGIngress:
     Type: 'AWS::EC2::SecurityGroupIngress'
     Condition: 1WorkersCondition
     Properties:
-      GroupId: !Ref ViyaServicesSecurityGroup
+      GroupId: !Ref ViyaSecurityGroup
       IpProtocol: tcp
       FromPort: '0'
       ToPort: '65535'
-      SourceSecurityGroupId: !Ref CASWorkerSecurityGroup
-  CASWorkertoVSSGIngress:
-    Type: 'AWS::EC2::SecurityGroupIngress'
-    Condition: 1WorkersCondition
-    Properties:
-      GroupId: !Ref CASWorkerSecurityGroup
-      IpProtocol: tcp
-      FromPort: '0'
-      ToPort: '65535'
-      SourceSecurityGroupId: !Ref ViyaServicesSecurityGroup
-  CASControllertoCASWorkerSGIngress:
-    Type: 'AWS::EC2::SecurityGroupIngress'
-    Condition: 1WorkersCondition
-    Properties:
-      GroupId: !Ref CASControllerSecurityGroup
-      IpProtocol: tcp
-      FromPort: '0'
-      ToPort: '65535'
-      SourceSecurityGroupId: !Ref CASWorkerSecurityGroup
-  CASWorkerstoCASWorkerSGIngress:
-    Type: 'AWS::EC2::SecurityGroupIngress'
-    Condition: 1WorkersCondition
-    Properties:
-      GroupId: !Ref CASWorkerSecurityGroup
-      IpProtocol: tcp
-      FromPort: '0'
-      ToPort: '65535'
-      SourceSecurityGroupId: !Ref CASWorkerSecurityGroup
+      SourceSecurityGroupId: !Ref ViyaSecurityGroup
 
 
   ElasticLoadBalancer:
@@ -551,7 +537,7 @@ Resources:
         Interval: '30'
         Timeout: '3'
       Instances:
-        - !Ref ViyaServices
+        - !Ref StatefulServices
 
   DNSNameEntry:
     Type: AWS::Route53::RecordSet
@@ -624,7 +610,7 @@ Resources:
       Path: /
       Roles:
         - !Ref ViyaRole
-  ViyaServices:
+  VisualServices:
     Type: 'AWS::EC2::Instance'
     Metadata:
       'AWS::CloudFormation::Authentication':
@@ -694,7 +680,7 @@ Resources:
             /tmp/cloudwatch.conf:
               source: !Sub
                 - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.services.conf
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.conf
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -705,6 +691,7 @@ Resources:
               authentication: S3AccessCreds
               context:
                 LogGroup: !Ref CloudWatchLogGroup
+                Role: VisualServices
           commands:
             01-setqskey:
               command: >-
@@ -723,7 +710,7 @@ Resources:
         - RHEL74HVM
       SubnetId: !Ref PrivateSubnetID
       IamInstanceProfile: !Ref ViyaProfile
-      InstanceType: i3.4xlarge
+      InstanceType: r4.4xlarge
       EbsOptimized: true
       PlacementGroupName: !Ref ViyaPlacementGroup
       BlockDeviceMappings:
@@ -737,30 +724,14 @@ Resources:
             VolumeSize: '50'
             VolumeType: gp2
             DeleteOnTermination: true
-        - DeviceName: /dev/sdh
-          VirtualName: ephemeral0
-        - DeviceName: /dev/sdi
-          VirtualName: ephemeral1
-        - DeviceName: /dev/sdj
-          VirtualName: ephemeral2
-        - DeviceName: /dev/sdk
-          VirtualName: ephemeral3
-        - DeviceName: /dev/sdl
-          VirtualName: ephemeral4
-        - DeviceName: /dev/sdm
-          VirtualName: ephemeral5
-        - DeviceName: /dev/sdn
-          VirtualName: ephemeral6
-        - DeviceName: /dev/sdo
-          VirtualName: ephemeral7
       SecurityGroupIds:
-        - !Ref ViyaServicesSecurityGroup
+        - !Ref ViyaSecurityGroup
       Tags:
         - Key: Name
           Value: !Join
             - ' '
             - - !Ref 'AWS::StackName'
-              - Viya Services
+              - Visual Services
       UserData: !Base64
         'Fn::Join':
           - ''
@@ -802,7 +773,7 @@ Resources:
             - |
             - 'cfn-init --stack '
             - !Ref 'AWS::StackName'
-            - ' --resource ViyaServices --configsets quickstart --region '
+            - ' --resource VisualServices --configsets quickstart --region '
             - !Ref 'AWS::Region'
             - |+
 
@@ -810,9 +781,361 @@ Resources:
               # Signal the status from cfn-init
             - 'cfn-signal -e $? --stack '
             - !Ref 'AWS::StackName'
-            - ' --resource ViyaServices --region '
+            - ' --resource VisualServices --region '
             - !Ref 'AWS::Region'
             - |+
+
+  ProgrammingServices:
+    Type: 'AWS::EC2::Instance'
+    Metadata:
+      'AWS::CloudFormation::Authentication':
+        S3AccessCreds:
+          type: S3
+          roleName: !Ref ViyaRole
+          buckets:
+            - !Ref QSS3BucketName
+      'AWS::CloudFormation::Init':
+        configSets:
+          quickstart:
+            - install
+            - configure
+            - cleanup
+        install:
+          files:
+            /tmp/qs.pub:
+              source: !Sub
+                - >-
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}keys/qs.pub
+                - QSS3Region: !If
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000550'
+              owner: root
+              group: root
+              authentication: S3AccessCreds
+            /tmp/diskprep.sh:
+              source: !Sub
+                - >-
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/diskprep.sh
+                - QSS3Region: !If
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000550'
+              owner: root
+              group: root
+              authentication: S3AccessCreds
+            /usr/sbin/disks_ephemeral.sh:
+              source: !Sub
+                - >-
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/disks_ephemeral.sh
+                - QSS3Region: !If
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000550'
+              owner: root
+              group: root
+              authentication: S3AccessCreds
+            /tmp/log_setup.sh:
+              source: !Sub
+                - >-
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/log_setup.sh
+                - QSS3Region: !If
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000550'
+              owner: root
+              group: root
+              authentication: S3AccessCreds
+              context:
+                AWSRegion: !Ref 'AWS::Region'
+            /tmp/cloudwatch.conf:
+              source: !Sub
+                - >-
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.conf
+                - QSS3Region: !If
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000440'
+              owner: root
+              group: root
+              authentication: S3AccessCreds
+              context:
+                LogGroup: !Ref CloudWatchLogGroup
+                Role: ProgrammingServices
+          commands:
+            01-setqskey:
+              command: >-
+                cat /tmp/qs.pub >> /home/ec2-user/.ssh/authorized_keys; rm /tmp/qs.pub;
+            02-diskprep:
+              command: /tmp/diskprep.sh
+            03-cloudwatch:
+              command: /tmp/log_setup.sh
+        configure: {}
+        cleanup: {}
+    Properties:
+      KeyName: !Ref KeyPairName
+      ImageId: !FindInMap
+        - AWSAMIRegionMap
+        - !Ref 'AWS::Region'
+        - RHEL74HVM
+      SubnetId: !Ref PrivateSubnetID
+      IamInstanceProfile: !Ref ViyaProfile
+      InstanceType: r4.2xlarge
+      EbsOptimized: true
+      PlacementGroupName: !Ref ViyaPlacementGroup
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: '20'
+            VolumeType: gp2
+            DeleteOnTermination: true
+        - DeviceName: /dev/sdg
+          Ebs:
+            VolumeSize: '50'
+            VolumeType: gp2
+            DeleteOnTermination: true
+      SecurityGroupIds:
+        - !Ref ViyaSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Join
+            - ' '
+            - - !Ref 'AWS::StackName'
+              - Programming Services
+      UserData: !Base64
+        'Fn::Join':
+          - ''
+          - - |
+              #!/bin/bash
+            - |
+              export PATH=$PATH:/usr/local/bin
+            - |
+              which pip &> /dev/null
+            - |
+              if [ $? -ne 0 ] ; then
+            - |2
+                  echo "PIP NOT INSTALLED"
+            - |2
+                  [ `which yum` ] && $(yum install -y epel-release; yum install -y python-pip) && echo "PIP INSTALLED"
+            - |2
+                  [ `which apt-get` ] && apt-get -y update && apt-get -y install python-pip && echo "PIP INSTALLED"
+            - |
+              fi
+            - |
+              pip install --upgrade pip &> /dev/null
+            - |
+              pip install awscli --ignore-installed six &> /dev/null
+            - |
+              # sometimes there are ssh connection errors (53) during the install
+              # this function allows to retry N times
+              function try () {
+                # allow up to N attempts of a command
+                # syntax: try N [command]
+
+                count=1; max_count=$1; shift
+                until  $@  || [ $count -gt $max_count ]; do
+                  let count=count+1
+                done
+              }
+            - >
+              try 2 easy_install
+              https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
+            - |
+            - 'cfn-init --stack '
+            - !Ref 'AWS::StackName'
+            - ' --resource ProgrammingServices --configsets quickstart --region '
+            - !Ref 'AWS::Region'
+            - |+
+
+            - |
+              # Signal the status from cfn-init
+            - 'cfn-signal -e $? --stack '
+            - !Ref 'AWS::StackName'
+            - ' --resource ProgrammingServices --region '
+            - !Ref 'AWS::Region'
+            - |+
+
+  StatefulServices:
+    Type: 'AWS::EC2::Instance'
+    Metadata:
+      'AWS::CloudFormation::Authentication':
+        S3AccessCreds:
+          type: S3
+          roleName: !Ref ViyaRole
+          buckets:
+            - !Ref QSS3BucketName
+      'AWS::CloudFormation::Init':
+        configSets:
+          quickstart:
+            - install
+            - configure
+            - cleanup
+        install:
+          files:
+            /tmp/qs.pub:
+              source: !Sub
+                - >-
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}keys/qs.pub
+                - QSS3Region: !If
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000550'
+              owner: root
+              group: root
+              authentication: S3AccessCreds
+            /tmp/diskprep.sh:
+              source: !Sub
+                - >-
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/diskprep.sh
+                - QSS3Region: !If
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000550'
+              owner: root
+              group: root
+              authentication: S3AccessCreds
+            /usr/sbin/disks_ephemeral.sh:
+              source: !Sub
+                - >-
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/disks_ephemeral.sh
+                - QSS3Region: !If
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000550'
+              owner: root
+              group: root
+              authentication: S3AccessCreds
+            /tmp/log_setup.sh:
+              source: !Sub
+                - >-
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/log_setup.sh
+                - QSS3Region: !If
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000550'
+              owner: root
+              group: root
+              authentication: S3AccessCreds
+              context:
+                AWSRegion: !Ref 'AWS::Region'
+            /tmp/cloudwatch.conf:
+              source: !Sub
+                - >-
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.conf
+                - QSS3Region: !If
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000440'
+              owner: root
+              group: root
+              authentication: S3AccessCreds
+              context:
+                LogGroup: !Ref CloudWatchLogGroup
+                Role: StatefulServices
+          commands:
+            01-setqskey:
+              command: >-
+                cat /tmp/qs.pub >> /home/ec2-user/.ssh/authorized_keys; rm /tmp/qs.pub;
+            02-diskprep:
+              command: /tmp/diskprep.sh
+            03-cloudwatch:
+              command: /tmp/log_setup.sh
+        configure: {}
+        cleanup: {}
+    Properties:
+      KeyName: !Ref KeyPairName
+      ImageId: !FindInMap
+        - AWSAMIRegionMap
+        - !Ref 'AWS::Region'
+        - RHEL74HVM
+      SubnetId: !Ref PrivateSubnetID
+      IamInstanceProfile: !Ref ViyaProfile
+      InstanceType: r4.2xlarge
+      EbsOptimized: true
+      PlacementGroupName: !Ref ViyaPlacementGroup
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: '20'
+            VolumeType: gp2
+            DeleteOnTermination: true
+        - DeviceName: /dev/sdg
+          Ebs:
+            VolumeSize: '50'
+            VolumeType: gp2
+            DeleteOnTermination: true
+      SecurityGroupIds:
+        - !Ref ViyaSecurityGroup
+        - !Ref ProxySecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Join
+            - ' '
+            - - !Ref 'AWS::StackName'
+              - Stateful Services
+      UserData: !Base64
+        'Fn::Join':
+          - ''
+          - - |
+              #!/bin/bash
+            - |
+              export PATH=$PATH:/usr/local/bin
+            - |
+              which pip &> /dev/null
+            - |
+              if [ $? -ne 0 ] ; then
+            - |2
+                  echo "PIP NOT INSTALLED"
+            - |2
+                  [ `which yum` ] && $(yum install -y epel-release; yum install -y python-pip) && echo "PIP INSTALLED"
+            - |2
+                  [ `which apt-get` ] && apt-get -y update && apt-get -y install python-pip && echo "PIP INSTALLED"
+            - |
+              fi
+            - |
+              pip install --upgrade pip &> /dev/null
+            - |
+              pip install awscli --ignore-installed six &> /dev/null
+            - |
+              # sometimes there are ssh connection errors (53) during the install
+              # this function allows to retry N times
+              function try () {
+                # allow up to N attempts of a command
+                # syntax: try N [command]
+
+                count=1; max_count=$1; shift
+                until  $@  || [ $count -gt $max_count ]; do
+                  let count=count+1
+                done
+              }
+            - >
+              try 2 easy_install
+              https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
+            - |
+            - 'cfn-init --stack '
+            - !Ref 'AWS::StackName'
+            - ' --resource StatefulServices --configsets quickstart --region '
+            - !Ref 'AWS::Region'
+            - |+
+
+            - |
+              # Signal the status from cfn-init
+            - 'cfn-signal -e $? --stack '
+            - !Ref 'AWS::StackName'
+            - ' --resource StatefulServices --region '
+            - !Ref 'AWS::Region'
+            - |+
+
 
   CASController:
     Type: 'AWS::EC2::Instance'
@@ -884,7 +1207,7 @@ Resources:
             /tmp/cloudwatch.conf:
               source: !Sub
                 - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.cas.conf
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.conf
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -895,7 +1218,7 @@ Resources:
               authentication: S3AccessCreds
               context:
                 LogGroup: !Ref CloudWatchLogGroup
-                CASRole: controller
+                Role: cas-controller
 
             # for the EA only - should be already available on production install
             /tmp/accessclients.tar:
@@ -946,7 +1269,7 @@ Resources:
       EbsOptimized: true
       PlacementGroupName: !Ref ViyaPlacementGroup
       SecurityGroupIds:
-        - !Ref CASControllerSecurityGroup
+        - !Ref ViyaSecurityGroup
       BlockDeviceMappings:
         - DeviceName: /dev/sdg
           Ebs:
@@ -1102,7 +1425,7 @@ Resources:
             /tmp/cloudwatch.conf:
               source: !Sub
                 - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.cas.conf
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.conf
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -1113,7 +1436,7 @@ Resources:
               authentication: S3AccessCreds
               context:
                 LogGroup: !Ref CloudWatchLogGroup
-                CASRole: worker1
+                Role: cas-worker1
 
             # for the EA only - should be already available on production install
             /tmp/accessclients.tar:
@@ -1164,7 +1487,7 @@ Resources:
       EbsOptimized: true
       PlacementGroupName: !Ref ViyaPlacementGroup
       SecurityGroupIds:
-        - !Ref CASWorkerSecurityGroup
+        - !Ref ViyaSecurityGroup
       BlockDeviceMappings:
         - DeviceName: /dev/sdg
           Ebs:
@@ -1319,7 +1642,7 @@ Resources:
             /tmp/cloudwatch.conf:
               source: !Sub
                 - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.cas.conf
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.conf
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -1330,7 +1653,7 @@ Resources:
               authentication: S3AccessCreds
               context:
                 LogGroup: !Ref CloudWatchLogGroup
-                CASRole: worker2
+                Role: cas-worker2
 
             # for the EA only - should be already available on production install
             /tmp/accessclients.tar:
@@ -1381,7 +1704,7 @@ Resources:
       EbsOptimized: true
       PlacementGroupName: !Ref ViyaPlacementGroup
       SecurityGroupIds:
-        - !Ref CASWorkerSecurityGroup
+        - !Ref ViyaSecurityGroup
       BlockDeviceMappings:
         - DeviceName: /dev/sdg
           Ebs:
@@ -1536,7 +1859,7 @@ Resources:
             /tmp/cloudwatch.conf:
               source: !Sub
                 - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.cas.conf
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.conf
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -1547,7 +1870,7 @@ Resources:
               authentication: S3AccessCreds
               context:
                 LogGroup: !Ref CloudWatchLogGroup
-                CASRole: worker3
+                Role: cas-worker3
 
             # for the EA only - should be already available on production install
             /tmp/accessclients.tar:
@@ -1598,7 +1921,7 @@ Resources:
       EbsOptimized: true
       PlacementGroupName: !Ref ViyaPlacementGroup
       SecurityGroupIds:
-        - !Ref CASWorkerSecurityGroup
+        - !Ref ViyaSecurityGroup
       BlockDeviceMappings:
         - DeviceName: /dev/sdg
           Ebs:
@@ -1753,7 +2076,7 @@ Resources:
             /tmp/cloudwatch.conf:
               source: !Sub
                 - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.cas.conf
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.conf
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -1764,7 +2087,7 @@ Resources:
               authentication: S3AccessCreds
               context:
                 LogGroup: !Ref CloudWatchLogGroup
-                CASRole: worker4
+                Role: cas-corker4
 
             # for the EA only - should be already available on production install
             /tmp/accessclients.tar:
@@ -1815,7 +2138,7 @@ Resources:
       EbsOptimized: true
       PlacementGroupName: !Ref ViyaPlacementGroup
       SecurityGroupIds:
-        - !Ref CASWorkerSecurityGroup
+        - !Ref ViyaSecurityGroup
       BlockDeviceMappings:
         - DeviceName: /dev/sdg
           Ebs:
@@ -1903,6 +2226,16 @@ Resources:
     Type: 'AWS::IAM::Role'
     Properties:
       Policies:
+        - PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Action:
+                  - "cloudformation:DescribeStackResources"
+                Resource: !Sub
+                 - "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWSStackName}/*"
+                 - AWSStackName: !Ref AWS::StackName
+                Effect: Allow
+          PolicyName: ansiblecontroller-cfn-policy
         - PolicyDocument:
             Version: 2012-10-17
             Statement:
@@ -2085,7 +2418,9 @@ Resources:
               group: ec2-user
               authentication: S3AccessCreds
               context:
-                ViyaServicesIP: !GetAtt ViyaServices.PrivateIp
+                VisualServicesIP: !GetAtt VisualServices.PrivateIp
+                ProgrammingServicesIP: !GetAtt ProgrammingServices.PrivateIp
+                StatefulServicesIP: !GetAtt StatefulServices.PrivateIp
                 CASControllerIP: !GetAtt CASController.PrivateIp
                 CASWorker1IP:
                   Fn::If:
@@ -2418,10 +2753,20 @@ Outputs:
         - "#logStream:group="
         - !Ref CloudWatchLogGroup
 
-  ViyaServicesIP:
-    Description: SAS Viya Services IP address
+  VisualServicesIP:
+    Description: SAS Viya Visual Services IP address
     Value: !GetAtt
-      - ViyaServices
+      - VisualServices
+      - PrivateIp
+  ProgrammingServicesIP:
+    Description: SAS Viya Programming Services IP address
+    Value: !GetAtt
+      - ProgrammingServices
+      - PrivateIp
+  StatefulServicesIP:
+    Description: SAS Viya Stateful Services IP address
+    Value: !GetAtt
+      - StatefulServices
       - PrivateIp
   CASControllerIP:
     Description: CAS Controller IP address

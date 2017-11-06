@@ -61,8 +61,13 @@
       dest: vars.yml
       regexp:  '#5: LD_LIBRARY_PATH=.*'
       replace: '5: LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$ODBCHOME/lib'
-      backup: yes
 
+  - name: set pg host
+    replace:
+      dest: vars.yml
+      regexp:  '\ \ deployTarget'
+      replace: '  stateful'
+      backup: yes
 
 
 

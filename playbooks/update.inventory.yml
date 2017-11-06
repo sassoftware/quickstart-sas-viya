@@ -3,10 +3,11 @@
 
   tasks:
 
+  # Host definitions
   - name: remove default deployTarget
     replace:
       dest=inventory.ini
-      regexp='\[host-definitions\]\ndeployTarget.*'
+      regexp='^\[host-definitions\]\ndeployTarget.*'
       replace='[host-definitions]'
 
   - name: insert host definitions
@@ -17,10 +18,129 @@
       marker="# {mark} ADD HOST DEFINITIONS"
 
 
+  # Programming Services
+  - name: Programming - ComputeServer
+    replace:
+      dest=inventory.ini
+      regexp='^\[ComputeServer\]\ndeployTarget'
+      replace='[ComputeServer]\nprogramming'
+
+  - name: Programming - ComputeServices
+    replace:
+      dest=inventory.ini
+      regexp='^\[ComputeServices\]\ndeployTarget'
+      replace='[ComputeServices]\nprogramming'
+
+  - name: Programming - programming
+    replace:
+      dest=inventory.ini
+      regexp='^\[programming\]\ndeployTarget'
+      replace='[programming]\nprogramming'
+
+  - name: Programming - spre
+    replace:
+      dest=inventory.ini
+      regexp='^\[spre\]\ndeployTarget'
+      replace='[spre]\nprogramming'
+
+  - name: Programming - CommandLine
+    replace:
+      dest=inventory.ini
+      regexp='^\[CommandLine\]\ndeployTarget'
+      replace='[CommandLine]\nprogramming'
+
+  - name: Programming - connect
+    replace:
+      dest=inventory.ini
+      regexp='^\[connect\]\ndeployTarget'
+      replace='[connect]\nprogramming'
+
+  - name: Programming - pcfile
+    replace:
+      dest=inventory.ini
+      regexp='^\[pcfile\]\ndeployTarget'
+      replace='[pcfile]\nprogramming'
+
+  - name: Programming - platform
+    replace:
+      dest=inventory.ini
+      regexp='^\[platform\]\ndeployTarget'
+      replace='[platform]\nprogramming'
+
+  - name: Programming - psqllib
+    replace:
+      dest=inventory.ini
+      regexp='^\[psqllib\]\ndeployTarget'
+      replace='[psqllib]\nprogramming'
+
+  - name: Programming - psqllib1
+    replace:
+      dest=inventory.ini
+      regexp='^\[psqllib1\]\ndeployTarget'
+      replace='[psqllib1]\nprogramming'
+
+  - name: Programming - psqlodbc
+    replace:
+      dest=inventory.ini
+      regexp='^\[psqlodbc\]\ndeployTarget'
+      replace='[psqlodbc]\nprogramming'
+
+  - name: Programming - psqlodbc1
+    replace:
+      dest=inventory.ini
+      regexp='^\[psqlodbc1\]\ndeployTarget'
+      replace='[psqlodbc1]\nprogramming'
+
+
+  # Stateful Services
+  - name: Stateful -configuratn
+    replace:
+      dest=inventory.ini
+      regexp='^\[configuratn]\\ndeployTarget'
+      replace='[configuratn]\nstateful'
+
+  - name: Stateful -configuratn
+    replace:
+      dest=inventory.ini
+      regexp='^\[configuratn\]\ndeployTarget'
+      replace='[configuratn]\nstateful'
+
+  - name: Stateful -consul
+    replace:
+      dest=inventory.ini
+      regexp='^\[consul\]\ndeployTarget'
+      replace='[consul]\nstateful'
+
+  - name: Stateful -httpproxy
+    replace:
+      dest=inventory.ini
+      regexp='^\[httpproxy\]\ndeployTarget'
+      replace='[httpproxy]\nstateful'
+
+  - name: Stateful -pgpoolc
+    replace:
+      dest=inventory.ini
+      regexp='^\[pgpoolc\]\ndeployTarget'
+      replace='[pgpoolc]\nstateful'
+
+  - name: Stateful -rabbitmq
+    replace:
+      dest=inventory.ini
+      regexp='^\[rabbitmq\]\ndeployTarget'
+      replace='[rabbitmq]\nstateful'
+
+
+  - name: Stateful -sasdatasvrc
+    replace:
+      dest=inventory.ini
+      regexp='^\[sasdatasvrc\]\ndeployTarget'
+      replace='[sasdatasvrc]\nstateful'
+
+  # CAS
   - name: Set CAS controller target
     replace:
       dest=inventory.ini
-      regexp='\[sas-casserver-primary\]\ndeployTarget'
+      regexp='^\[sas-casserver-primary\]\ndeployTarget'
       replace='[sas-casserver-primary]\ncontroller'
 
   - name: Prepare CAS Workers list
@@ -29,11 +149,14 @@
   - name: Set CAS workers
     blockinfile:
       dest=inventory.ini
-      insertafter='\[sas-casserver-worker\]'
+      insertafter='^\[sas-casserver-worker\]'
       block="{{ lookup('file', '/tmp/inventory.workers') }}"
       marker="# {mark} ADD WORKERS"
+
+  # Everything else
+  - name: Set CAS controller target
+    replace:
+      dest=inventory.ini
+      regexp='^deployTarget'
+      replace='visual'
       backup=yes
-
-
-
-      
