@@ -209,7 +209,7 @@ done
 pushd openldap
 
   # set log file
-  export ANSIBLE_LOG_PATH=openldap-deployment.log
+  export ANSIBLE_LOG_PATH=deployment-openldap.log
   touch $ANSIBLE_LOG_PATH
   addLogFileToCloudWatch $ANSIBLE_LOG_PATH
 
@@ -293,7 +293,7 @@ pushd sas_viya_playbook
 
   }
 
-  # copy additional playbooks
+  # copy additional playbooks and ansible configuration file
   chmod +w ansible.cfg
   cp /tmp/ansible.* .
 
@@ -301,7 +301,7 @@ pushd sas_viya_playbook
   cp ../openldap/sitedefault.yml roles/consul/files/
 
   # set log file for pre deployment steps
-  export ANSIBLE_LOG_PATH=viya-pre-deployment.log
+  export ANSIBLE_LOG_PATH=deployment-pre.log
   touch $ANSIBLE_LOG_PATH
   addLogFileToCloudWatch $ANSIBLE_LOG_PATH
 
@@ -309,15 +309,18 @@ pushd sas_viya_playbook
   ansible-playbook ansible.update.inventory.yml
 
   # set prereqs on hosts
-  ansible-playbook ansible.pre.deployment.yml
+  git clone https://github.com/sassoftware/virk.git
+  ansible-playbook virk/playbooks/pre-install-playbook/viya_pre_install_playbook.yml -e 'use_pause=false'
+
+  # update vars file
+  ansible-playbook ansible.update.vars.file.yml
 
   # set log file for main deployment
-  export ANSIBLE_LOG_PATH=viya-deployment.log
+  export ANSIBLE_LOG_PATH=deployment-main.log
   touch $ANSIBLE_LOG_PATH
   addLogFileToCloudWatch $ANSIBLE_LOG_PATH
 
   # main deployment
-  ansible-playbook ansible.update.vars.file.yml
   try 2 ansible-playbook site.yml
 
   # Only for EA: copy the redshift resources

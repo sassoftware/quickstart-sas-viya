@@ -35,6 +35,11 @@ if ! [ type -p ansible ]; then
    /usr/local/bin/pip install 'ansible==2.2.1.0'
 fi
 
+if ! [ type -p git ]; then
+   # install git
+   sudo yum install -y git
+fi
+
 
 ## make log accessible as web page
 ## has been replaced by cloudwatch log configuration
