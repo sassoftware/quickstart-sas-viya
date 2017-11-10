@@ -16,7 +16,7 @@ for device_name in $nvm_drives; do
 
   device_path="/dev/$device_name"
 
-  if [ -b $device_path ]; then
+  if [ -b "$device_path" ]; then
     echo "Detected ephemeral disk: $device_path"
     drives="$drives $device_path"
     drive_count=$((drive_count + 1 ))
@@ -45,7 +45,7 @@ else
 
       device_path="/dev/$device_name"
 
-      if [ -b $device_path ]; then
+      if [ -b "$device_path" ]; then
         echo "Detected ephemeral disk: $device_path"
         drives="$drives $device_path"
         drive_count=$((drive_count + 1 ))
@@ -57,14 +57,14 @@ else
 
      # overwrite first few blocks in case there is a filesystem, otherwise mdadm will prompt for input
     for drive in $drives; do
-      dd if=/dev/zero of=$drive bs=4096 count=1024
+      dd if=/dev/zero of="$drive" bs=4096 count=1024
     done
 
     # create RAID and filesystem
     READAHEAD=16384
     partprobe
-    mdadm --create --verbose /dev/md0 --level=0 -c256 --force --raid-devices=$drive_count $drives
-    echo DEVICE $drives | tee /etc/mdadm.conf
+    mdadm --create --verbose /dev/md0 --level=0 -c256 --force --raid-devices=$drive_count "$drives"
+    echo DEVICE "$drives" | tee /etc/mdadm.conf
     mdadm --detail --scan | tee -a /etc/mdadm.conf
     blockdev --setra $READAHEAD /dev/md0
 

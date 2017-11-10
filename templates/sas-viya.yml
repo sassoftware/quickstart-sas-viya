@@ -99,7 +99,7 @@ Parameters:
       - "i3.16xlarge (32 cores)"
       - "r4.2xlarge (4 cores)"
     ConstraintDescription: Must contain valid instance type
-    Default: "r4.2xlarge (4 cores)"
+    Default: "i3.2xlarge (4 cores)"
     Description: Type of EC2 instance for the Viya Compute Node. The number of vCPUs should match the number of CPUs in your software order.
     Type: String
   NumWorkers:
@@ -490,7 +490,6 @@ Resources:
   # and for consul communication
   ViyatoviyaSGIngress:
     Type: 'AWS::EC2::SecurityGroupIngress'
-    Condition: 1WorkersCondition
     Properties:
       GroupId: !Ref ViyaSecurityGroup
       IpProtocol: tcp
@@ -2449,6 +2448,7 @@ Resources:
                 AWSRegion: !Ref AWS::Region
                 KeyPairName: !Ref KeyPairName
                 AnsibleControllerIP: !Ref AnsibleControllerEIP
+                CASNodeInstanceType: !Ref CASNodeInstanceType
                 CloudFormationStack: !Ref AWS::StackName
                 CloudWatchLogs: !Join
                   - ''

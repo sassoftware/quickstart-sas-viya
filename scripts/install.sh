@@ -21,6 +21,7 @@ test -n "{{LogGroup}}"
 test -n "{{AWSRegion}}"
 test -n "{{KeyPairName}}"
 test -n "{{AnsibleControllerIP}}"
+test -n "{{CASNodeInstanceType}}"
 test -n "{{CloudFormationStack}}"
 test -n "{{CloudWatchLogs}}"
 test -n "{{SASHome}}"
@@ -28,10 +29,19 @@ test -n "{{SASStudio}}"
 test -n "{{CASMonitor}}"
 
 
+# prepare directories for logs and messages
+export LOGDIR=$HOME/deployment-logs
+mkdir -p "$LOGDIR"
+export MSGDIR=$HOME/deployment-messages
+mkdir -p "$MSGDIR"
+
+
 
 create_start_message () {
 
-cat <<EOF > /tmp/sns_start_message.txt
+OUTFILE="$MSGDIR/sns_start_message.txt"
+
+cat <<EOF > "$OUTFILE"
 
   Starting SAS Viya Deployment for Stack "{{CloudFormationStack}}".
 
@@ -47,17 +57,17 @@ cat <<EOF > /tmp/sns_start_message.txt
   CAS Controller IP: {{CASControllerIP}}
 EOF
 
-[ -n "{{CASWorker1IP}}" ] && echo "  CAS Worker 1 IP: {{CASWorker1IP}}" >> /tmp/sns_start_message.txt || :
-[ -n "{{CASWorker2IP}}" ] && echo "  CAS Worker 2 IP: {{CASWorker2IP}}" >> /tmp/sns_start_message.txt || :
-[ -n "{{CASWorker3IP}}" ] && echo "  CAS Worker 3 IP: {{CASWorker3IP}}" >> /tmp/sns_start_message.txt || :
-[ -n "{{CASWorker4IP}}" ] && echo "  CAS Worker 4 IP: {{CASWorker4IP}}" >> /tmp/sns_start_message.txt || :
+[ -n "{{CASWorker1IP}}" ] && echo "  CAS Worker 1 IP: {{CASWorker1IP}}" >> "$OUTFILE" || :
+[ -n "{{CASWorker2IP}}" ] && echo "  CAS Worker 2 IP: {{CASWorker2IP}}" >> "$OUTFILE" || :
+[ -n "{{CASWorker3IP}}" ] && echo "  CAS Worker 3 IP: {{CASWorker3IP}}" >> "$OUTFILE" || :
+[ -n "{{CASWorker4IP}}" ] && echo "  CAS Worker 4 IP: {{CASWorker4IP}}" >> "$OUTFILE" || :
 
 }
 
 create_success_message () {
 
-    ## on success, add link to all endpoints, and the ansible controller ip and keyname
-cat <<EOF > /tmp/sns_success_message.txt
+OUTFILE="$MSGDIR/sns_success_message.txt"
+cat <<EOF > "$OUTFILE"
 
    SAS Viya Deployment for Stack "{{CloudFormationStack}}" completed successfully.
 
@@ -66,6 +76,8 @@ cat <<EOF > /tmp/sns_success_message.txt
    Log into SAS Studio at {{SASStudio}}
 
    Log into CAS Server Monitor at {{CASMonitor}}
+
+
 
    Log into the Ansible Controller VM with the private key for KeyPair "{{KeyPairName}}":
 
@@ -77,16 +89,21 @@ cat <<EOF > /tmp/sns_success_message.txt
   CAS Controller IP: {{CASControllerIP}}
 EOF
 
-[ -n "{{CASWorker1IP}}" ] && echo "  CAS Worker 1 IP: {{CASWorker1IP}}" >> /tmp/sns_start_message.txt || :
-[ -n "{{CASWorker2IP}}" ] && echo "  CAS Worker 2 IP: {{CASWorker2IP}}" >> /tmp/sns_start_message.txt || :
-[ -n "{{CASWorker3IP}}" ] && echo "  CAS Worker 3 IP: {{CASWorker3IP}}" >> /tmp/sns_start_message.txt || :
-[ -n "{{CASWorker4IP}}" ] && echo "  CAS Worker 4 IP: {{CASWorker4IP}}" >> /tmp/sns_start_message.txt || :
+[ -n "{{CASWorker1IP}}" ] && echo "  CAS Worker 1 IP: {{CASWorker1IP}}" >> "$OUTFILE" || :
+[ -n "{{CASWorker2IP}}" ] && echo "  CAS Worker 2 IP: {{CASWorker2IP}}" >> "$OUTFILE" || :
+[ -n "{{CASWorker3IP}}" ] && echo "  CAS Worker 3 IP: {{CASWorker3IP}}" >> "$OUTFILE" || :
+[ -n "{{CASWorker4IP}}" ] && echo "  CAS Worker 4 IP: {{CASWorker4IP}}" >> "$OUTFILE" || :
+
+# append licensing message is it exists
+if [ -e "$MSGDIR/sns_license_warning_message.txt" ]; then
+  cat "$MSGDIR/sns_license_warning_message.txt" >> "$OUTFILE"
+fi
 
 }
 
 create_failure_message ( ) {
 
-cat <<EOF > /tmp/sns_failure_message.txt
+cat <<EOF > "$MSGDIR/sns_failure_message.txt"
 
    SAS Viya Deployment for Stack "{{CloudFormationStack}}" failed with RC=$1.
 
@@ -96,17 +113,79 @@ EOF
 
 }
 
+create_cores_warning_message ( ) {
+
+TYPE="$1"
+
+if [ "$TYPE" = "UNDER" ]; then
+
+
+cat <<EOF > "$MSGDIR/sns_license_warning_message.txt"
+
+  WARNING:
+
+    Your SAS Viya license allows you to use $LICCORES cores for your CAS compute cluster.
+    Your current configuration uses only $USEDCORES cores for your cluster.
+    Therefore, your SAS Viya deployment is using fewer cores than the number of cores you are licensed for.
+
+    This deployment will run but it will not use the number of licensed cores in your SAS Viya deployment.
+    To use your licensed cores, you should increase your Amazon Web Services cores to match the number of licensed cores.
+
+    Redeploy with a combination EC2 instance size (CASNodeInstanceType) and CAS worker count (NumWorkers) that matches your licensed cores.
+
+    The number of cores for your deployment is determined by these options:
+
+      CASNodeInstanceType: {{CASNodeInstanceType}}
+      NumWorkers: $WORKERCOUNT
+
+    These settings result in $USEDCORES provisioned cores (CAS Controller + $WORKERCOUNT CAS Worker(s)).
+
+EOF
+
+else
+
+cat <<EOF > "$MSGDIR/sns_license_warning_message.txt"
+
+  WARNING:
+
+    Your SAS Viya license allows you to use $LICCORES cores for your CAS compute cluster.
+    Your current configuration provisions $USEDCORES cores for your cluster.
+    Therefore, your deployment is provisioning more cores than the number of cores you are licensed for.
+
+    This deployment will run but the additional AWS provisioned cores will not be used and will incur expenses from Amazon Web Services.
+    You should decrease your Amazon Web Services cores to match the number of licensed cores.
+
+    Redeploy with a combination of EC2 instance size (CASNodeInstanceType) and CAS worker count (NumWorkers) that matches your licensed cores.
+
+    The number of cores for your deployment is determined by these options:
+
+      CASNodeInstanceType: {{CASNodeInstanceType}}
+      NumWorkers: $WORKERCOUNT
+
+    These settings result in $USEDCORES provisioned cores (CAS Controller + $WORKERCOUNT CAS Worker(s)).
+
+EOF
+
+fi
+
+}
+
+
+
+
 if [ -n "{{SNSTopic}}" ]; then
 
   # create and send start email
 
   create_start_message
 
-  aws --region {{AWSRegion}} sns publish --topic-arn {{SNSTopic}} \
+  aws --region "{{AWSRegion}}" sns publish --topic-arn "{{SNSTopic}}" \
       --subject "Starting SAS Viya Deployment {{CloudFormationStack}}" \
-      --message file:///tmp/sns_start_message.txt
+      --message "file://$MSGDIR/sns_start_message.txt"
 
 fi
+
+
 
 cleanup () {
 
@@ -120,9 +199,9 @@ cleanup () {
 
       create_success_message
 
-      aws --region {{AWSRegion}} sns publish --topic-arn {{SNSTopic}} \
+      aws --region "{{AWSRegion}}" sns publish --topic-arn "{{SNSTopic}}" \
           --subject "SAS Viya Deployment {{CloudFormationStack}} completed." \
-          --message file:///tmp/sns_success_message.txt
+          --message "file://$MSGDIR/sns_success_message.txt"
 
     else
 
@@ -130,15 +209,15 @@ cleanup () {
 
       create_failure_message $RC
 
-      aws --region {{AWSRegion}} sns publish --topic-arn {{SNSTopic}} \
+      aws --region "{{AWSRegion}}" sns publish --topic-arn "{{SNSTopic}}" \
           --subject "SAS Viya Deployment {{CloudFormationStack}} failed." \
-          --message file:///tmp/sns_failure_message.txt
+          --message "file://$MSGDIR/sns_failure_message.txt"
 
     fi
 
   fi
 
-  cfn-signal -e $RC --stack {{CloudFormationStack}} --resource AnsibleController --region {{AWSRegion}}
+  cfn-signal -e $RC --stack "{{CloudFormationStack}}" --resource AnsibleController --region "{{AWSRegion}}"
 
 }
 
@@ -150,7 +229,7 @@ function try () {
   # syntax: try N [command]
 
   count=1; max_count=$1; shift
-  until  $@  || [ $count -gt $max_count ]; do
+  until  "$@"  || [ $count -gt "$max_count" ]; do
     let count=count+1
   done
 }
@@ -162,10 +241,10 @@ addLogFileToCloudWatch () {
 LOGFILE=$1
 cat <<EOF | sudo tee -a /etc/awslogs/awslogs.conf
 
-[$LOGFILE]
-log_stream_name = $LOGFILE
+[${LOGFILE##*/}]
+log_stream_name = ${LOGFILE##*/}
 initial_position = start_of_file
-file = $(pwd)/$LOGFILE
+file = $LOGFILE
 log_group_name = {{LogGroup}}
 EOF
 
@@ -175,52 +254,88 @@ sudo service awslogs restart
 
 
 
-
 # prepare host list for ansible inventory.ini file
-echo visual ansible_host={{VisualServicesIP}} > /tmp/inventory.head
-echo programming ansible_host={{ProgrammingServicesIP}} >> /tmp/inventory.head
-echo stateful ansible_host={{StatefulServicesIP}} >> /tmp/inventory.head
-echo controller ansible_host={{CASControllerIP}} >> /tmp/inventory.head
-[ -n "{{CASWorker1IP}}" ] && echo worker1 ansible_host={{CASWorker1IP}} >> /tmp/inventory.head || :
-[ -n "{{CASWorker2IP}}" ] && echo worker2 ansible_host={{CASWorker2IP}} >> /tmp/inventory.head || :
-[ -n "{{CASWorker3IP}}" ] && echo worker3 ansible_host={{CASWorker3IP}} >> /tmp/inventory.head || :
-[ -n "{{CASWorker4IP}}" ] && echo worker4 ansible_host={{CASWorker4IP}} >> /tmp/inventory.head || :
-
+{
+  echo visual ansible_host="{{VisualServicesIP}}"
+  echo programming ansible_host="{{ProgrammingServicesIP}}"
+  echo stateful ansible_host="{{StatefulServicesIP}}"
+  echo controller ansible_host="{{CASControllerIP}}"
+  [ -n "{{CASWorker1IP}}" ] && echo worker1 ansible_host="{{CASWorker1IP}}" || :
+  [ -n "{{CASWorker2IP}}" ] && echo worker2 ansible_host="{{CASWorker2IP}}" || :
+  [ -n "{{CASWorker3IP}}" ] && echo worker3 ansible_host="{{CASWorker3IP}}" || :
+  [ -n "{{CASWorker4IP}}" ] && echo worker4 ansible_host="{{CASWorker4IP}}" || :
+} > /tmp/inventory.head
 
 
 ## make sure the other VMs are all up
 STATUS="status"
-while ! [ $(echo "$STATUS" | wc -w)  -eq $(echo "$STATUS" | grep CREATE_COMPLETE | wc -w) ]; do
+while ! [ "$(echo "$STATUS" | wc -w)"  -eq "$(echo "$STATUS" | grep "CREATE_COMPLETE" | wc -w)" ]; do
   sleep 3
-  STATUS=$(aws cloudformation  describe-stack-resources --region {{AWSRegion}} --stack-name {{CloudFormationStack}}  --output json --query 'StackResources[?ResourceType ==`AWS::EC2::Instance`]|[?LogicalResourceId != `AnsibleController`].ResourceStatus' --output text)
-  [ $(echo "$STATUS" | grep "CREATE_FAILED") ]  && exit 1 || :
+  STATUS=$(aws cloudformation  describe-stack-resources --region "{{AWSRegion}}" --stack-name "{{CloudFormationStack}}"  --output json --query 'StackResources[?ResourceType ==`AWS::EC2::Instance`]|[?LogicalResourceId != `AnsibleController`].ResourceStatus' --output text)
+  [ "$(echo "$STATUS" | grep "CREATE_FAILED")" ]  && exit 1 || :
 done
-# needs these permissions:
-#
-#    "Action": [
-#                "cloudformation:DescribeStackResources"
-#            ],
-#            "Resource": "arn:aws:cloudformation:*:*:stack/mpp04/*",
-#            "Effect": "Allow"
-#        }
 
 
-# set up OpenLDAP
-pushd openldap
+install_openldap () {
+  # set up OpenLDAP
+  pushd ~/openldap
 
-  # set log file
-  export ANSIBLE_LOG_PATH=deployment-openldap.log
-  touch $ANSIBLE_LOG_PATH
-  addLogFileToCloudWatch $ANSIBLE_LOG_PATH
+    # set log file
+    export ANSIBLE_LOG_PATH=$LOGDIR/deployment-openldap.log
+    touch "$ANSIBLE_LOG_PATH"
+    addLogFileToCloudWatch "$ANSIBLE_LOG_PATH"
 
-  # add hosts
-  ansible-playbook update.inventory.yml
+    # add hosts
+    ansible-playbook update.inventory.yml
 
-  # openldap and sssd setup
-  ansible-playbook openldapsetup.yml -e "OLCROOTPW={{ViyaAdminPass}} OLCUSERPW={{ViyaUserPass}}"
+    # openldap and sssd setup
+    ansible-playbook openldapsetup.yml -e "OLCROOTPW={{ViyaAdminPass}} OLCUSERPW={{ViyaUserPass}}"
 
-popd
+  popd
+}
 
+
+check_cores ()
+{
+  # number of licensed cores for CAS
+
+  # cat,xargs,sed: create single, semicolon-terminated lines;
+  UNWRAPPED=$(cat  ~/sas_viya_playbook/SASViyaV0300_*_Linux_x86-64.txt | xargs | sed 's/;/;\n/g')
+  CPUNUM=$(echo "$UNWRAPPED" | grep EXPIRE | grep PRODNUM1141 | sed -r "s/.*CPU=(.*)\;/\1/")
+  LICCORES=$(echo "$UNWRAPPED" | grep NAME="$CPUNUM" | sed  -r "s/.*SERIAL=\+([0-9]+).*/\1/")
+
+  CPUCOUNT=$(ssh "{{CASControllerIP}}" cat /proc/cpuinfo | grep -c ^processor)
+  let CPUCOUNT=CPUCOUNT/2
+
+  WORKERCOUNT=$(grep -c worker /tmp/inventory.head || true)
+  let CASNODESCOUNT=WORKERCOUNT+1
+
+  let USEDCORES=CASNODESCOUNT*CPUCOUNT
+
+  echo Licensed Cores = "$LICCORES"
+  echo Used Cores = $USEDCORES
+
+  if ! [[ $USEDCORES -eq $LICCORES ]]; then
+
+    if [[ $USEDCORES -gt $LICCORES ]]; then
+      LICCPU="OVER"
+     elif [[ $USEDCORES -lt $LICCORES ]]; then
+      LICCPU="UNDER"
+    fi
+
+    create_cores_warning_message "$LICCPU"
+
+    if [ -n "{{SNSTopic}}" ]; then
+
+      aws --region "{{AWSRegion}}" sns publish --topic-arn "{{SNSTopic}}" \
+          --subject "Licensing Notification for SAS Viya Deployment {{CloudFormationStack}}" \
+          --message "file://$MSGDIR/sns_license_warning_message.txt"
+
+    fi
+  fi
+
+
+}
 
 ## get orchestration cli
 ### extract certificates
@@ -258,67 +373,58 @@ popd
 #
 #rpm -i ./sas-orchestration-cli-1.0.13-20171009.1507582997914.x86_64.rpm
 
-
-
-
 # location of installed cli: /opt/sas/viya/home/bin/sas-orchestration
 
+
+# set log file for pre deployment steps
+export PREDEPLOG="$LOGDIR/deployment-commands.log"
+touch "$PREDEPLOG"
+addLogFileToCloudWatch "$PREDEPLOG"
+
 # build playbook
-/tmp/sas-orchestration build --input  /tmp/SAS_Viya_deployment_data.zip
+/tmp/sas-orchestration build --input  /tmp/SAS_Viya_deployment_data.zip &> "$PREDEPLOG"
 
 # untar playbook
-tar xf SAS_Viya_playbook.tgz
+tar xf SAS_Viya_playbook.tgz &>> "$PREDEPLOG"
+rm SAS_Viya_playbook.tgz
 
 pushd sas_viya_playbook
-
-  check_license ()
-  {
-    # number of licensed cores for CAS
-
-    # cat,xargs,sed: create single, semicolon-terminated lines;
-    UNWRAPPED=$(cat  SASViyaV0300_*_Linux_x86-64.txt | xargs | sed 's/;/;\n/g')
-    CPUNUM=$(echo "$UNWRAPPED" | grep EXPIRE | grep PRODNUM1141 | sed -r "s/.*CPU=(.*)\;/\1/")
-    LICCORES=$(echo "$UNWRAPPED" | grep NAME=$CPUNUM | sed  -r "s/.*SERIAL=\+([0-9]+).*/\1/")
-
-    CPUCOUNT=$(ssh {{CASControllerIP}} cat /proc/cpuinfo | grep -c ^processor)
-    let CPUCOUNT=CPUCOUNT/2
-
-    WORKERCOUNT=$(cat /tmp/inventory.head  | grep worker | wc -l)
-    let CASNODESCOUNT=WORKERCOUNT+1
-
-    let USEDCORES=CASNODESCOUNT*CPUCOUNT
-
-    echo Licensed Cores = $LICCORES
-    echo Used Cores = $USEDCORES
-
-  }
 
   # copy additional playbooks and ansible configuration file
   chmod +w ansible.cfg
   cp /tmp/ansible.* .
 
-  # get identities configuration from openldap setup
-  cp ../openldap/sitedefault.yml roles/consul/files/
 
   # set log file for pre deployment steps
-  export ANSIBLE_LOG_PATH=deployment-pre.log
-  touch $ANSIBLE_LOG_PATH
-  addLogFileToCloudWatch $ANSIBLE_LOG_PATH
+  export ANSIBLE_LOG_PATH="$LOGDIR/deployment-pre.log"
+  touch "$ANSIBLE_LOG_PATH"
+  addLogFileToCloudWatch "$ANSIBLE_LOG_PATH"
 
   # add hosts to inventory
   ansible-playbook ansible.update.inventory.yml
 
   # set prereqs on hosts
-  git clone https://github.com/sassoftware/virk.git
+  git clone https://github.com/sassoftware/virk.git &>> "$PREDEPLOG"
   ansible-playbook virk/playbooks/pre-install-playbook/viya_pre_install_playbook.yml -e 'use_pause=false'
+
+
+  check_cores &>> "$PREDEPLOG"
+
+  install_openldap
+
+  #
+  # main deployment
+  #
+  # get identities configuration from openldap setup
+  cp ../openldap/sitedefault.yml roles/consul/files/
+
+  # set log file for main deployment
+  export ANSIBLE_LOG_PATH="$LOGDIR/deployment-main.log"
+  touch "$ANSIBLE_LOG_PATH"
+  addLogFileToCloudWatch "$ANSIBLE_LOG_PATH"
 
   # update vars file
   ansible-playbook ansible.update.vars.file.yml
-
-  # set log file for main deployment
-  export ANSIBLE_LOG_PATH=deployment-main.log
-  touch $ANSIBLE_LOG_PATH
-  addLogFileToCloudWatch $ANSIBLE_LOG_PATH
 
   # main deployment
   try 2 ansible-playbook site.yml

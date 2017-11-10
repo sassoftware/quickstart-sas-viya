@@ -30,12 +30,12 @@ if [[ "$_java" ]]; then
 fi
 
 
-if ! [ type -p ansible ]; then
+if ! type -p ansible;  then
    # install Ansible
    /usr/local/bin/pip install 'ansible==2.2.1.0'
 fi
 
-if ! [ type -p git ]; then
+if ! type -p git; then
    # install git
    sudo yum install -y git
 fi
