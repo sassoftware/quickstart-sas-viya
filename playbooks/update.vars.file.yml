@@ -19,11 +19,11 @@
     blockinfile:
       dest: vars.yml
       insertafter: EOF
+      marker: "# {mark} add saswork location"
       block: |
         SASV9_CONFIGURATION:
           1: '/* this will send the SASWORK to the /sastmp location */'
           2: 'WORK /sastmp/saswork'
-
 
   - name: set SASStudio folder root (remove if it exists)
     lineinfile:
@@ -69,6 +69,26 @@
       replace: '  stateful'
       backup: yes
 
+  - name: add additional pg hosts
+    blockinfile:
+      dest: vars.yml
+      marker: '# {mark} add additional pg hosts'
+      insertafter: '^INVOCATION_VARIABLES:'
+      block: |2
+          programming:
+            sasdatasvrc:
+            - NODE_NUMBER: '1'
+              NODE_TYPE: S
+              PG_PORT: '5432'
+              SANMOUNT: '{{ SAS_CONFIG_ROOT }}/data/sasdatasvrc'
+              SERVICE_NAME: postgres
+          visual:
+            sasdatasvrc:
+            - NODE_NUMBER: '2'
+              NODE_TYPE: S
+              PG_PORT: '5432'
+              SANMOUNT: '{{ SAS_CONFIG_ROOT }}/data/sasdatasvrc'
+              SERVICE_NAME: postgres
 
 
   

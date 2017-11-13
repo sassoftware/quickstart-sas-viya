@@ -109,13 +109,13 @@
     replace:
       dest=inventory.ini
       regexp='^\[consul\]\ndeployTarget'
-      replace='[consul]\nstateful'
+      replace='[consul]\nstateful\nprogramming\nvisual'
 
   - name: Stateful -httpproxy
     replace:
       dest=inventory.ini
       regexp='^\[httpproxy\]\ndeployTarget'
-      replace='[httpproxy]\nstateful'
+      replace='[httpproxy]\nstateful\nprogramming\nvisual'
 
   - name: Stateful -pgpoolc
     replace:
@@ -127,14 +127,14 @@
     replace:
       dest=inventory.ini
       regexp='^\[rabbitmq\]\ndeployTarget'
-      replace='[rabbitmq]\nstateful'
+      replace='[rabbitmq]\nstateful\nprogramming\nvisual'
 
 
   - name: Stateful -sasdatasvrc
     replace:
       dest=inventory.ini
       regexp='^\[sasdatasvrc\]\ndeployTarget'
-      replace='[sasdatasvrc]\nstateful'
+      replace='[sasdatasvrc]\nstateful\nprogramming\nvisual'
 
   # CAS
   - name: Set CAS controller target

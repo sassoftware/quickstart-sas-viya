@@ -234,24 +234,6 @@ function try () {
   done
 }
 
-addLogFileToCloudWatch () {
-
-# add file to CloudWatch configuration and restart CloudWatch agent
-
-LOGFILE=$1
-cat <<EOF | sudo tee -a /etc/awslogs/awslogs.conf
-
-[${LOGFILE##*/}]
-log_stream_name = ${LOGFILE##*/}
-initial_position = start_of_file
-file = $LOGFILE
-log_group_name = {{LogGroup}}
-EOF
-
-sudo service awslogs restart
-
-}
-
 
 
 # prepare host list for ansible inventory.ini file
@@ -282,8 +264,6 @@ install_openldap () {
 
     # set log file
     export ANSIBLE_LOG_PATH=$LOGDIR/deployment-openldap.log
-    touch "$ANSIBLE_LOG_PATH"
-    addLogFileToCloudWatch "$ANSIBLE_LOG_PATH"
 
     # add hosts
     ansible-playbook update.inventory.yml
@@ -378,8 +358,6 @@ check_cores ()
 
 # set log file for pre deployment steps
 export PREDEPLOG="$LOGDIR/deployment-commands.log"
-touch "$PREDEPLOG"
-addLogFileToCloudWatch "$PREDEPLOG"
 
 # build playbook
 /tmp/sas-orchestration build --input  /tmp/SAS_Viya_deployment_data.zip &> "$PREDEPLOG"
@@ -397,8 +375,6 @@ pushd sas_viya_playbook
 
   # set log file for pre deployment steps
   export ANSIBLE_LOG_PATH="$LOGDIR/deployment-pre.log"
-  touch "$ANSIBLE_LOG_PATH"
-  addLogFileToCloudWatch "$ANSIBLE_LOG_PATH"
 
   # add hosts to inventory
   ansible-playbook ansible.update.inventory.yml
@@ -420,8 +396,6 @@ pushd sas_viya_playbook
 
   # set log file for main deployment
   export ANSIBLE_LOG_PATH="$LOGDIR/deployment-main.log"
-  touch "$ANSIBLE_LOG_PATH"
-  addLogFileToCloudWatch "$ANSIBLE_LOG_PATH"
 
   # update vars file
   ansible-playbook ansible.update.vars.file.yml

@@ -4,9 +4,6 @@
 
   vars:
 
-    ## sasboot password ##
-    sasboot_pw: lnxsas
-
   tasks:
 
   - name: display the status of each machine
