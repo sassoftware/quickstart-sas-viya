@@ -34,12 +34,6 @@
       - mem
 
 
-- hosts: CoreServices
-  become: yes
-  become_user: sas
-
-
-  tasks:
 
 
 

@@ -1,0 +1,24 @@
+---
+- hosts: sas-all
+  become: yes
+  become_user: root
+
+  tasks:
+
+  - name: update hostname
+    shell: "hostnamectl set-hostname --static {{inventory_hostname}}.viya.sas"
+
+- hosts: all, localhost
+  become: yes
+  become_user: root
+
+  tasks:
+
+  - name: Set hosts
+    blockinfile:
+      dest=/etc/hosts
+      block="{{ lookup('file', '/tmp/hostnames.txt') }}"
+      marker="# {mark} ADD HOSTS"
+
+
+

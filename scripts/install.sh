@@ -51,16 +51,23 @@ cat <<EOF > "$OUTFILE"
 
        ssh -i /path/to/private/key.pem ec2-user@{{AnsibleControllerIP}}
 
-  Visual Services IP:  {{VisualServicesIP}}
-  Programming Services IP:  {{ProgrammingServicesIP}}
-  Stateful Services IP:  {{StatefulServicesIP}}
-  CAS Controller IP: {{CASControllerIP}}
+  From the ansible controller, you can ssh into these VMs:
+
+       Visual Services (visual.viya.sas):
+         visual ({{VisualServicesIP}})
+       Programming Services (programming.viya.sas):
+         programming ({{ProgrammingServicesIP}})
+       Stateful Services (stateful.viya.sas):
+         stateful ({{StatefulServicesIP}})
+       CAS Controller (controller.viya.sas)
+         controller ({{CASControllerIP}})
 EOF
 
-[ -n "{{CASWorker1IP}}" ] && echo "  CAS Worker 1 IP: {{CASWorker1IP}}" >> "$OUTFILE" || :
-[ -n "{{CASWorker2IP}}" ] && echo "  CAS Worker 2 IP: {{CASWorker2IP}}" >> "$OUTFILE" || :
-[ -n "{{CASWorker3IP}}" ] && echo "  CAS Worker 3 IP: {{CASWorker3IP}}" >> "$OUTFILE" || :
-[ -n "{{CASWorker4IP}}" ] && echo "  CAS Worker 4 IP: {{CASWorker4IP}}" >> "$OUTFILE" || :
+[ -n "{{CASWorker1IP}}" ] && echo -e "       CAS Worker 1 (worker1.viya.sas):\n         worker1 ({{CASWorker1IP}})" >> "$OUTFILE" || :
+[ -n "{{CASWorker2IP}}" ] && echo -e "       CAS Worker 2 (worker2.viya.sas):\n         worker2 ({{CASWorker2IP}})" >> "$OUTFILE" || :
+[ -n "{{CASWorker3IP}}" ] && echo -e "       CAS Worker 3 (worker3.viya.sas):\n         worker3 ({{CASWorker3IP}})" >> "$OUTFILE" || :
+[ -n "{{CASWorker4IP}}" ] && echo -e "       CAS Worker 4 (worker4.viya.sas):\n         worker4 ({{CASWorker4IP}})" >> "$OUTFILE" || :
+
 
 }
 
@@ -77,22 +84,30 @@ cat <<EOF > "$OUTFILE"
 
    Log into CAS Server Monitor at {{CASMonitor}}
 
+   For administrative tasks:
 
+     See the deployment and application logs at {{CloudWatchLogs}}
 
-   Log into the Ansible Controller VM with the private key for KeyPair "{{KeyPairName}}":
+     Log into the Ansible Controller VM with the private key for KeyPair "{{KeyPairName}}":
 
        ssh -i /path/to/private/key.pem ec2-user@{{AnsibleControllerIP}}
 
-  Visual Services IP:  {{VisualServicesIP}}
-  Programming Services IP:  {{ProgrammingServicesIP}}
-  Stateful Services IP:  {{StatefulServicesIP}}
-  CAS Controller IP: {{CASControllerIP}}
+     From the ansible controller, you can ssh into these VMs:
+
+       Visual Services (visual.viya.sas):
+         visual ({{VisualServicesIP}})
+       Programming Services (programming.viya.sas):
+         programming ({{ProgrammingServicesIP}})
+       Stateful Services (stateful.viya.sas):
+         stateful ({{StatefulServicesIP}})
+       CAS Controller (controller.viya.sas)
+         controller ({{CASControllerIP}})
 EOF
 
-[ -n "{{CASWorker1IP}}" ] && echo "  CAS Worker 1 IP: {{CASWorker1IP}}" >> "$OUTFILE" || :
-[ -n "{{CASWorker2IP}}" ] && echo "  CAS Worker 2 IP: {{CASWorker2IP}}" >> "$OUTFILE" || :
-[ -n "{{CASWorker3IP}}" ] && echo "  CAS Worker 3 IP: {{CASWorker3IP}}" >> "$OUTFILE" || :
-[ -n "{{CASWorker4IP}}" ] && echo "  CAS Worker 4 IP: {{CASWorker4IP}}" >> "$OUTFILE" || :
+[ -n "{{CASWorker1IP}}" ] && echo -e "       CAS Worker 1 (worker1.viya.sas):\n         worker1 ({{CASWorker1IP}})" >> "$OUTFILE" || :
+[ -n "{{CASWorker2IP}}" ] && echo -e "       CAS Worker 2 (worker2.viya.sas):\n         worker2 ({{CASWorker2IP}})" >> "$OUTFILE" || :
+[ -n "{{CASWorker3IP}}" ] && echo -e "       CAS Worker 3 (worker3.viya.sas):\n         worker3 ({{CASWorker3IP}})" >> "$OUTFILE" || :
+[ -n "{{CASWorker4IP}}" ] && echo -e "       CAS Worker 4 (worker4.viya.sas):\n         worker4 ({{CASWorker4IP}})" >> "$OUTFILE" || :
 
 # append licensing message is it exists
 if [ -e "$MSGDIR/sns_license_warning_message.txt" ]; then
@@ -236,6 +251,7 @@ function try () {
 
 
 
+
 # prepare host list for ansible inventory.ini file
 {
   echo visual ansible_host="{{VisualServicesIP}}"
@@ -247,6 +263,19 @@ function try () {
   [ -n "{{CASWorker3IP}}" ] && echo worker3 ansible_host="{{CASWorker3IP}}" || :
   [ -n "{{CASWorker4IP}}" ] && echo worker4 ansible_host="{{CASWorker4IP}}" || :
 } > /tmp/inventory.head
+
+# prepare list host entries for /etc/hosts
+{
+  echo "{{VisualServicesIP}} visual.viya.sas visual"
+  echo "{{ProgrammingServicesIP}} programming.viya.sas programming"
+  echo "{{StatefulServicesIP}} stateful.viya.sas stateful"
+  echo "{{CASControllerIP}} controller.viya.sas controller"
+  [ -n "{{CASWorker1IP}}" ] && echo "{{CASWorker1IP}} worker1.viya.sas worker1" || :
+  [ -n "{{CASWorker2IP}}" ] && echo "{{CASWorker2IP}} worker2.viya.sas worker2" || :
+  [ -n "{{CASWorker3IP}}" ] && echo "{{CASWorker3IP}} worker3.viya.sas worker3" || :
+  [ -n "{{CASWorker4IP}}" ] && echo "{{CASWorker4IP}} worker4.viya.sas worker4" || :
+} > /tmp/hostnames.txt
+
 
 
 ## make sure the other VMs are all up
@@ -378,6 +407,9 @@ pushd sas_viya_playbook
 
   # add hosts to inventory
   ansible-playbook ansible.update.inventory.yml
+
+  # set hostnames
+  ansible-playbook ansible.pre.deployment.yml
 
   # set prereqs on hosts
   git clone https://github.com/sassoftware/virk.git &>> "$PREDEPLOG"

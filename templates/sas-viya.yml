@@ -1323,7 +1323,6 @@ Resources:
               context:
                 LogGroup: !Ref CloudWatchLogGroup
                 Role: cas-controller
-
             # for the EA only - should be already available on production install
             /tmp/accessclients.tar:
               source: !Sub
@@ -1349,7 +1348,6 @@ Resources:
               owner: root
               group: root
               authentication: S3AccessCreds
-
 
           commands:
             01-setqskey:
@@ -1560,8 +1558,6 @@ Resources:
               owner: root
               group: root
               authentication: S3AccessCreds
-
-
           commands:
             01-setqskey:
               command: >-
@@ -2676,6 +2672,18 @@ Resources:
               source: !Sub
                 - >-
                   https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/update.inventory.yml
+                - QSS3Region: !If
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000444'
+              owner: ec2-user
+              group: ec2-user
+              authentication: S3AccessCreds
+            /tmp/ansible.pre.deployment.yml:
+              source: !Sub
+                - >-
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/pre.deployment.yml
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
