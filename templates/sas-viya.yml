@@ -93,13 +93,12 @@ Parameters:
 
   CASNodeInstanceType:
     AllowedValues:
-      - "i3.2xlarge (4 cores)"
-      - "i3.4xlarge (8 cores)"
-      - "i3.8xlarge (16 cores)"
-      - "i3.16xlarge (32 cores)"
-      - "r4.2xlarge (4 cores)"
+      - "2xlarge (4 cores)"
+      - "4xlarge (8 cores)"
+      - "8xlarge (16 cores)"
+      - "16xlarge (32 cores)"
     ConstraintDescription: Must contain valid instance type
-    Default: "i3.2xlarge (4 cores)"
+    Default: "2xlarge (4 cores)"
     Description: Type of EC2 instance for the Viya Compute Node. The number of vCPUs should match the number of CPUs in your software order.
     Type: String
   NumWorkers:
@@ -368,7 +367,7 @@ Resources:
     Properties:
       AlarmDescription: Trigger a recovery when instance status check fails more than once in 2 minutes.
       Namespace: AWS/EC2
-      MetricName: StatusCheckFailed
+      MetricName: StatusCheckFailed_System
       Statistic: Maximum
       Period: '60'
       EvaluationPeriods: '2'
@@ -387,7 +386,7 @@ Resources:
     Properties:
       AlarmDescription: Trigger a recovery when instance status check fails more than once in 2 minutes.
       Namespace: AWS/EC2
-      MetricName: StatusCheckFailed
+      MetricName: StatusCheckFailed_System
       Statistic: Maximum
       Period: '60'
       EvaluationPeriods: '2'
@@ -406,7 +405,7 @@ Resources:
     Properties:
       AlarmDescription: Trigger a recovery when instance status check fails more than once in 2 minutes.
       Namespace: AWS/EC2
-      MetricName: StatusCheckFailed
+      MetricName: StatusCheckFailed_System
       Statistic: Maximum
       Period: '60'
       EvaluationPeriods: '2'
@@ -419,6 +418,108 @@ Resources:
       - Name: InstanceId
         Value:
           Ref: ProgrammingServices
+
+  RecoveryAlarmController:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Trigger a recovery when instance status check fails more than once in 2 minutes.
+      Namespace: AWS/EC2
+      MetricName: StatusCheckFailed_System
+      Statistic: Maximum
+      Period: '60'
+      EvaluationPeriods: '2'
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Threshold: '1'
+      AlarmActions:
+        - !Sub "arn:aws:automate:${AWS::Region}:ec2:recover"
+        - !If [SNSCondition, !Sub "${SNSTopic}", !Ref "AWS::NoValue"]
+      Dimensions:
+      - Name: InstanceId
+        Value:
+          Ref: CASController
+
+  RecoveryAlarmWorker1:
+    Type: AWS::CloudWatch::Alarm
+    Condition: 1WorkersCondition
+    Properties:
+      AlarmDescription: Trigger a recovery when instance status check fails more than once in 2 minutes.
+      Namespace: AWS/EC2
+      MetricName: StatusCheckFailed_System
+      Statistic: Maximum
+      Period: '60'
+      EvaluationPeriods: '2'
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Threshold: '1'
+      AlarmActions:
+        - !Sub "arn:aws:automate:${AWS::Region}:ec2:recover"
+        - !If [SNSCondition, !Sub "${SNSTopic}", !Ref "AWS::NoValue"]
+      Dimensions:
+      - Name: InstanceId
+        Value:
+          Ref: CASWorker1
+
+  RecoveryAlarmWorker2:
+    Type: AWS::CloudWatch::Alarm
+    Condition: 2WorkersCondition
+    Properties:
+      AlarmDescription: Trigger a recovery when instance status check fails more than once in 2 minutes.
+      Namespace: AWS/EC2
+      MetricName: StatusCheckFailed_System
+      Statistic: Maximum
+      Period: '60'
+      EvaluationPeriods: '2'
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Threshold: '1'
+      AlarmActions:
+        - !Sub "arn:aws:automate:${AWS::Region}:ec2:recover"
+        - !If [SNSCondition, !Sub "${SNSTopic}", !Ref "AWS::NoValue"]
+      Dimensions:
+      - Name: InstanceId
+        Value:
+          Ref: CASWorker2
+
+  RecoveryAlarmWorker3:
+    Type: AWS::CloudWatch::Alarm
+    Condition: 3WorkersCondition
+    Properties:
+      AlarmDescription: Trigger a recovery when instance status check fails more than once in 2 minutes.
+      Namespace: AWS/EC2
+      MetricName: StatusCheckFailed_System
+      Statistic: Maximum
+      Period: '60'
+      EvaluationPeriods: '2'
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Threshold: '1'
+      AlarmActions:
+        - !Sub "arn:aws:automate:${AWS::Region}:ec2:recover"
+        - !If [SNSCondition, !Sub "${SNSTopic}", !Ref "AWS::NoValue"]
+      Dimensions:
+      - Name: InstanceId
+        Value:
+          Ref: CASWorker3
+
+  RecoveryAlarmWorker4:
+    Type: AWS::CloudWatch::Alarm
+    Condition: 4WorkersCondition
+    Properties:
+      AlarmDescription: Trigger a recovery when instance status check fails more than once in 2 minutes.
+      Namespace: AWS/EC2
+      MetricName: StatusCheckFailed_System
+      Statistic: Maximum
+      Period: '60'
+      EvaluationPeriods: '2'
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Threshold: '1'
+      AlarmActions:
+        - !Sub "arn:aws:automate:${AWS::Region}:ec2:recover"
+        - !If [SNSCondition, !Sub "${SNSTopic}", !Ref "AWS::NoValue"]
+      Dimensions:
+      - Name: InstanceId
+        Value:
+          Ref: CASWorker4
+
+
+
 
   ViyaPlacementGroup:
     Type: 'AWS::EC2::PlacementGroup'
@@ -1268,7 +1369,11 @@ Resources:
         - RHEL74HVM
       SubnetId: !Ref PrivateSubnetID
       IamInstanceProfile: !Ref ViyaProfile
-      InstanceType: !Select [ 0 , !Split [ " ", !Ref CASNodeInstanceType ] ]
+      # transform "Nxlarge (N cores)" to "r4.Nxlarge"
+      InstanceType: !Join
+        - ''
+        - - 'r4.'
+          - !Select [ 0 , !Split [ " ", !Ref CASNodeInstanceType ] ]
       EbsOptimized: true
       PlacementGroupName: !Ref ViyaPlacementGroup
       SecurityGroupIds:
@@ -1279,22 +1384,11 @@ Resources:
             VolumeSize: '50'
             VolumeType: gp2
             DeleteOnTermination: true
-        - DeviceName: /dev/sdh
-          VirtualName: ephemeral0
-        - DeviceName: /dev/sdi
-          VirtualName: ephemeral1
-        - DeviceName: /dev/sdj
-          VirtualName: ephemeral2
-        - DeviceName: /dev/sdk
-          VirtualName: ephemeral3
-        - DeviceName: /dev/sdl
-          VirtualName: ephemeral4
-        - DeviceName: /dev/sdm
-          VirtualName: ephemeral5
-        - DeviceName: /dev/sdn
-          VirtualName: ephemeral6
-        - DeviceName: /dev/sdo
-          VirtualName: ephemeral7
+        - DeviceName: /dev/sdd
+          Ebs:
+            VolumeSize: '500'
+            VolumeType: gp2
+            DeleteOnTermination: true
       Tags:
         - Key: Name
           Value: !Join
@@ -1486,7 +1580,11 @@ Resources:
         - RHEL74HVM
       SubnetId: !Ref PrivateSubnetID
       IamInstanceProfile: !Ref ViyaProfile
-      InstanceType: !Select [ 0 , !Split [ " ", !Ref CASNodeInstanceType ] ]
+      # transform "Nxlarge (N cores)" to "i3.Nxlarge"
+      InstanceType: !Join
+         - ''
+         - - 'i3.'
+           - !Select [ 0 , !Split [ " ", !Ref CASNodeInstanceType ] ]
       EbsOptimized: true
       PlacementGroupName: !Ref ViyaPlacementGroup
       SecurityGroupIds:
@@ -1703,7 +1801,11 @@ Resources:
         - RHEL74HVM
       SubnetId: !Ref PrivateSubnetID
       IamInstanceProfile: !Ref ViyaProfile
-      InstanceType: !Select [ 0 , !Split [ " ", !Ref CASNodeInstanceType ] ]
+      # transform "Nxlarge (N cores)" to "i3.Nxlarge"
+      InstanceType: !Join
+         - ''
+         - - 'i3.'
+           - !Select [ 0 , !Split [ " ", !Ref CASNodeInstanceType ] ]
       EbsOptimized: true
       PlacementGroupName: !Ref ViyaPlacementGroup
       SecurityGroupIds:
@@ -1920,7 +2022,11 @@ Resources:
         - RHEL74HVM
       SubnetId: !Ref PrivateSubnetID
       IamInstanceProfile: !Ref ViyaProfile
-      InstanceType: !Select [ 0 , !Split [ " ", !Ref CASNodeInstanceType ] ]
+      # transform "Nxlarge (N cores)" to "i3.Nxlarge"
+      InstanceType: !Join
+         - ''
+         - - 'i3.'
+           - !Select [ 0 , !Split [ " ", !Ref CASNodeInstanceType ] ]
       EbsOptimized: true
       PlacementGroupName: !Ref ViyaPlacementGroup
       SecurityGroupIds:
@@ -2137,7 +2243,11 @@ Resources:
         - RHEL74HVM
       SubnetId: !Ref PrivateSubnetID
       IamInstanceProfile: !Ref ViyaProfile
-      InstanceType: !Select [ 0 , !Split [ " ", !Ref CASNodeInstanceType ] ]
+      # transform "Nxlarge (N cores)" to "i3.Nxlarge"
+      InstanceType: !Join
+         - ''
+         - - 'i3.'
+           - !Select [ 0 , !Split [ " ", !Ref CASNodeInstanceType ] ]
       EbsOptimized: true
       PlacementGroupName: !Ref ViyaPlacementGroup
       SecurityGroupIds:
@@ -2617,7 +2727,7 @@ Resources:
         - AMZNLINUXHVM
       SecurityGroupIds:
         - !Ref AnsibleControllerSecurityGroup
-      InstanceType: t2.micro
+      InstanceType: t2.small
       Tags:
         - Key: Name
           Value: !Join

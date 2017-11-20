@@ -8,7 +8,7 @@ if [ ! -d /sastmp/ ]; then
     mkdir /sastmp
 fi
 
-# find the drive devices
+# find the nvm drive devices
 drives=""
 drive_count=0
 nvm_drives=$(lsblk  -d -n --output NAME | grep nvm || :)
@@ -29,6 +29,8 @@ done
 if [ "$drive_count" = 0 ]; then
 
   echo "No ephemeral disks detected."
+
+
 
 else
 

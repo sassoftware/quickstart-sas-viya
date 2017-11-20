@@ -24,6 +24,22 @@ if [ -b "$device_path" ] ; then
   mount $dir
 fi
 
+# mount the xxxd device to /sastmp
+dir="/sastmp"
+mkdir -p $dir
+device_path="/dev/${DRIVE_SCHEME}d"
+if [ -b "$device_path" ] ; then
+  # format if needed
+  [ "$(blkid $device_path | grep xfs)" = "" ] && mkfs.xfs $device_path
+  # add to fstab if needed and mount
+  FSTAB="$device_path      $dir   xfs    defaults,nofail        0       2"
+  ! (grep "$FSTAB" /etc/fstab) &&  echo "$FSTAB" | tee -a /etc/fstab
+  umount $dir || true
+  mount $dir
+fi
+
+
+
 # TODO: optional additional EBS library/caslib
 
 

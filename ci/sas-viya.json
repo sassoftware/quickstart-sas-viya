@@ -49,11 +49,8 @@
     },
     {
         "ParameterKey": "NumWorkers",
-        "ParameterValue": "0"
-    },
-    {
-        "ParameterKey": "CASNodeInstanceType",
-        "ParameterValue": "i3.2xlarge (4 cores)"
+        "ParameterValue": "1"
     }
 
 ]
+
