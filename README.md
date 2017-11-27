@@ -9,7 +9,7 @@ The Quick Start deploys SAS Viya into a AWS VPC. You can choose to deploy SAS Vi
 ![Quick Start SAS Viya Design Architecture (detailed)](http://gitlab.sas.com/mercury/quickstart-sas-viya/tree/doc/images/sas-viya-architecture-diagram-detailed.PNG)
 
 
-The Quick Start provides parameters that you can set to customize your deployment. For architectural details, best practices, step-by-step instructions, and customization options, see the deployment guide: []
+The Quick Start provides parameters that you can set to customize your deployment. For architectural details, best practices, step-by-step instructions, and customization options, see the [deployment guide](https://gitlab.sas.com/mercury/quickstart-sas-viya/blob/doc/doc/Partner%20Quick%20Start%20Template%20and%20Style%20Guide_2017.docx).
 
 ## What you'll build 
 
