@@ -4,7 +4,10 @@ This Quick Start provides a reliable and automated way to install and configure 
 
 The Quick Start deploys SAS Viya into a AWS VPC. You can choose to deploy SAS Viya into a new or your existing AWS environment.
 
-![Quick Start SAS Viya Design Architecture](images/sas-viya-architecture-diagram.png)
+![Quick Start SAS Viya Design Architecture](http://gitlab.sas.com/mercury/quickstart-sas-viya/tree/doc/images/sas-viya-architecture-diagram.PNG)
+
+![Quick Start SAS Viya Design Architecture (detailed)](http://gitlab.sas.com/mercury/quickstart-sas-viya/tree/doc/images/sas-viya-architecture-diagram-detailed.PNG)
+
 
 The Quick Start provides parameters that you can set to customize your deployment. For architectural details, best practices, step-by-step instructions, and customization options, see the deployment guide: []
 
