@@ -14,7 +14,7 @@
     },
     {
         "ParameterKey": "KeyPairName",
-        "ParameterValue": " "
+        "ParameterValue": ""
     },
     {
         "ParameterKey": "DeploymentDataLocation",

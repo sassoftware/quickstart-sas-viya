@@ -72,12 +72,13 @@ Parameters:
 
   CASNodeInstanceType:
     AllowedValues:
-      - "i3.2xlarge (4 cores)"
-      - "i3.4xlarge (8 cores)"
-      - "i3.8xlarge (16 cores)"
-      - "i3.16xlarge (32 cores)"
+    AllowedValues:
+      - "2xlarge (4 cores)"
+      - "4xlarge (8 cores)"
+      - "8xlarge (16 cores)"
+      - "16xlarge (32 cores)"
     ConstraintDescription: Must contain valid instance type
-    Default: "i3.2xlarge (4 cores)"
+    Default: "2xlarge (4 cores)"
     Description: Type of EC2 instance for the Viya Compute Node. The number of vCPUs should match the number of CPUs in your software order.
     Type: String
   NumWorkers:
