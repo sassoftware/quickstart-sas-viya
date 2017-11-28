@@ -13,7 +13,7 @@
     },
     {
         "ParameterKey": "KeyPairName",
-        "ParameterValue": ""
+        "ParameterValue": "a3scas"
     },
     {
         "ParameterKey": "PrivateSubnetID",
@@ -33,7 +33,7 @@
     },
     {
         "ParameterKey": "QSS3KeyPrefix",
-        "ParameterValue": "viya33EA/"
+        "ParameterValue": "dev/"
     },
     {
         "ParameterKey": "ViyaAdminPass",
@@ -45,11 +45,11 @@
     },
     {
         "ParameterKey": "OperatorEmail",
-        "ParameterValue": ""
+        "ParameterValue": "matthias.ender@sas.com"
     },
     {
         "ParameterKey": "NumWorkers",
-        "ParameterValue": "1"
+        "ParameterValue": "0"
     }
 ]
 

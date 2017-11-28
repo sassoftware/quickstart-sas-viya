@@ -24,8 +24,8 @@ Metadata:
         - AvailabilityZone
         - WebIngressLocation
         - AdminIngressLocation
-          - ViyaAdminPass
-          - ViyaUserPass
+        - ViyaAdminPass
+        - ViyaUserPass
         - OperatorEmail
     - Label:
         default: AWS Quick Start Configuration
