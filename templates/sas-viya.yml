@@ -716,6 +716,9 @@ Resources:
         - !Ref ViyaRole
   VisualServices:
     Type: 'AWS::EC2::Instance'
+    CreationPolicy:
+      ResourceSignal:
+        Count: 1
     Metadata:
       'AWS::CloudFormation::Authentication':
         S3AccessCreds:
@@ -892,6 +895,9 @@ Resources:
 
   ProgrammingServices:
     Type: 'AWS::EC2::Instance'
+    CreationPolicy:
+      ResourceSignal:
+        Count: 1
     Metadata:
       'AWS::CloudFormation::Authentication':
         S3AccessCreds:
@@ -1068,6 +1074,9 @@ Resources:
 
   StatefulServices:
     Type: 'AWS::EC2::Instance'
+    CreationPolicy:
+      ResourceSignal:
+        Count: 1
     Metadata:
       'AWS::CloudFormation::Authentication':
         S3AccessCreds:
@@ -1245,6 +1254,9 @@ Resources:
 
   CASController:
     Type: 'AWS::EC2::Instance'
+    CreationPolicy:
+      ResourceSignal:
+        Count: 1
     Metadata:
       'AWS::CloudFormation::Authentication':
         S3AccessCreds:
@@ -1452,6 +1464,9 @@ Resources:
   CASWorker1:
     Condition: 1WorkersCondition
     Type: 'AWS::EC2::Instance'
+    CreationPolicy:
+      ResourceSignal:
+        Count: 1
     Metadata:
       'AWS::CloudFormation::Authentication':
         S3AccessCreds:
@@ -1671,6 +1686,9 @@ Resources:
   CASWorker2:
     Condition: 2WorkersCondition
     Type: 'AWS::EC2::Instance'
+    CreationPolicy:
+      ResourceSignal:
+        Count: 1
     Metadata:
       'AWS::CloudFormation::Authentication':
         S3AccessCreds:
@@ -1892,6 +1910,9 @@ Resources:
   CASWorker3:
     Condition: 3WorkersCondition
     Type: 'AWS::EC2::Instance'
+    CreationPolicy:
+      ResourceSignal:
+        Count: 1
     Metadata:
       'AWS::CloudFormation::Authentication':
         S3AccessCreds:
@@ -2113,6 +2134,9 @@ Resources:
   CASWorker4:
     Condition: 4WorkersCondition
     Type: 'AWS::EC2::Instance'
+    CreationPolicy:
+      ResourceSignal:
+        Count: 1
     Metadata:
       'AWS::CloudFormation::Authentication':
         S3AccessCreds:
@@ -2799,11 +2823,11 @@ Resources:
             - !Ref 'AWS::Region'
             - |+
 
-#            - 'cfn-signal -e $? --stack '
-#            - !Ref 'AWS::StackName'
-#            - ' --resource AnsibleController --region '
-#            - !Ref 'AWS::Region'
-#            - |+
+            - 'cfn-signal -e $? --stack '
+            - !Ref 'AWS::StackName'
+            - ' --resource AnsibleController --region '
+            - !Ref 'AWS::Region'
+            - |+
 
 Outputs:
   SASHome:
