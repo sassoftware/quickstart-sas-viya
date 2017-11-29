@@ -72,7 +72,6 @@ Parameters:
 
   CASNodeInstanceType:
     AllowedValues:
-    AllowedValues:
       - "2xlarge (4 cores)"
       - "4xlarge (8 cores)"
       - "8xlarge (16 cores)"

@@ -47,7 +47,9 @@
 
 - name: log in once to create home directories
   shell: "su - {{item.name}} "
-  with_items: "{{user_list}}"
+  with_items:
+    - "{{user_list}}"
+    - { name: viyaadmin }
   register: user_login
 - debug: var=user_login
 
