@@ -319,8 +319,6 @@ check_cores ()
 
   let USEDCORES=CASNODESCOUNT*CPUCOUNT
 
-  echo Licensed Cores = "$LICCORES"
-  echo Used Cores = $USEDCORES
 
   if ! [[ $USEDCORES -eq $LICCORES ]]; then
 
@@ -332,9 +330,11 @@ check_cores ()
 
     create_cores_warning_message "$LICCPU"
 
+    cat $MSGDIR/sns_license_warning_message.txt
+
     if [ -n "{{SNSTopic}}" ]; then
 
-      aws --region "{{AWSRegion}}" sns publish --topic-arn "{{SNSTopic}}" \
+      aws --output text --region "{{AWSRegion}}" sns publish --topic-arn "{{SNSTopic}}" \
           --subject "Licensing Notification for SAS Viya Deployment {{CloudFormationStack}}" \
           --message "file://$MSGDIR/sns_license_warning_message.txt"
 
@@ -385,12 +385,16 @@ check_cores ()
 
 # set log file for pre deployment steps
 export PREDEPLOG="$LOGDIR/deployment-commands.log"
+touch $PREDEPLOG
 
 # build playbook
-/tmp/sas-orchestration build --input  /tmp/SAS_Viya_deployment_data.zip &> "$PREDEPLOG"
+echo "$(date) Build ansible playbook tar file" >> "$PREDEPLOG"
+/tmp/sas-orchestration build --input  /tmp/SAS_Viya_deployment_data.zip 2>> "$PREDEPLOG"
 
 # untar playbook
-tar xf SAS_Viya_playbook.tgz &>> "$PREDEPLOG"
+echo " " >> "$PREDEPLOG"
+echo "$(date) Untar ansible playbook" >> "$PREDEPLOG"
+tar xf SAS_Viya_playbook.tgz 2>> "$PREDEPLOG"
 rm SAS_Viya_playbook.tgz
 
 pushd sas_viya_playbook
@@ -399,6 +403,9 @@ pushd sas_viya_playbook
   chmod +w ansible.cfg
   cp /tmp/ansible.* .
 
+
+  echo " " >> "$PREDEPLOG"
+  echo "$(date) Start Pre-Deployment tasks (see deployment-pre.log)" >> "$PREDEPLOG"
 
   # set log file for pre deployment steps
   export ANSIBLE_LOG_PATH="$LOGDIR/deployment-pre.log"
@@ -410,17 +417,27 @@ pushd sas_viya_playbook
   ansible-playbook ansible.pre.deployment.yml
 
   # set prereqs on hosts
-  git clone https://github.com/sassoftware/virk.git &>> "$PREDEPLOG"
+  echo " " >> "$PREDEPLOG"
+  echo "$(date) Download and execute Viya Infrastructure Resource Kit (VIRK)" >> "$PREDEPLOG"
+  git clone -q https://github.com/sassoftware/virk.git 2>> "$PREDEPLOG"
   ansible-playbook virk/playbooks/pre-install-playbook/viya_pre_install_playbook.yml -e 'use_pause=false'
 
 
+  echo " " >> "$PREDEPLOG"
+  echo "$(date) Perform Cores/License check" >> "$PREDEPLOG"
   check_cores &>> "$PREDEPLOG"
 
+  echo " " >> "$PREDEPLOG"
+  echo "$(date) Install and set up OpenLDAP (see deployment-openldap.log)" >> "$PREDEPLOG"
   install_openldap
 
   #
   # main deployment
   #
+
+  echo " " >> "$PREDEPLOG"
+  echo "$(date) Start Main Deployment (see deployment-main.log)" >> "$PREDEPLOG"
+
   # get identities configuration from openldap setup
   cp ../openldap/sitedefault.yml roles/consul/files/
 
