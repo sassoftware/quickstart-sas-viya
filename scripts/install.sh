@@ -232,8 +232,6 @@ cleanup () {
 
   fi
 
-  cfn-signal -e $RC --stack "{{CloudFormationStack}}" --resource AnsibleController --region "{{AWSRegion}}"
-
 }
 
 
