@@ -11,10 +11,6 @@ set -o nounset
 
 # This is a mustache template.
 # Make sure all the input parms are set
-test -n "{{VisualServicesIP}}"
-test -n "{{ProgrammingServicesIP}}"
-test -n "{{StatefulServicesIP}}"
-test -n "{{CASControllerIP}}"
 test -n "{{ViyaAdminPass}}"
 test -n "{{ViyaUserPass}}"
 test -n "{{LogGroup}}"
@@ -22,11 +18,20 @@ test -n "{{AWSRegion}}"
 test -n "{{KeyPairName}}"
 test -n "{{AnsibleControllerIP}}"
 test -n "{{CASNodeInstanceType}}"
+test -n "{{NumWorkers}}"
 test -n "{{CloudFormationStack}}"
 test -n "{{CloudWatchLogs}}"
-test -n "{{SASHome}}"
-test -n "{{SASStudio}}"
-test -n "{{CASMonitor}}"
+
+
+VisualServicesIP=
+ProgrammingServicesIP=
+StatefulServicesIP=
+CASControllerIP=
+CASWorker1IP=
+CASWorker2IP=
+CASWorker3IP=
+CASWorker4IP=
+
 
 
 # prepare directories for logs and messages
@@ -53,36 +58,45 @@ cat <<EOF > "$OUTFILE"
 
   From the ansible controller, you can ssh into these VMs:
 
-       Visual Services (visual.viya.sas):
-         visual ({{VisualServicesIP}})
-       Programming Services (programming.viya.sas):
-         programming ({{ProgrammingServicesIP}})
-       Stateful Services (stateful.viya.sas):
-         stateful ({{StatefulServicesIP}})
-       CAS Controller (controller.viya.sas)
-         controller ({{CASControllerIP}})
+       Visual Services:
+         visual.viya.sas ($VisualServicesIP)
+       Programming Services:
+         prog.viya.sas ($ProgrammingServicesIP)
+       Stateful Services:
+         stateful.viya.sas ($StatefulServicesIP)
+       CAS Controller:
+         controller.viya.sas ($CASControllerIP)
 EOF
 
-[ -n "{{CASWorker1IP}}" ] && echo -e "       CAS Worker 1 (worker1.viya.sas):\n         worker1 ({{CASWorker1IP}})" >> "$OUTFILE" || :
-[ -n "{{CASWorker2IP}}" ] && echo -e "       CAS Worker 2 (worker2.viya.sas):\n         worker2 ({{CASWorker2IP}})" >> "$OUTFILE" || :
-[ -n "{{CASWorker3IP}}" ] && echo -e "       CAS Worker 3 (worker3.viya.sas):\n         worker3 ({{CASWorker3IP}})" >> "$OUTFILE" || :
-[ -n "{{CASWorker4IP}}" ] && echo -e "       CAS Worker 4 (worker4.viya.sas):\n         worker4 ({{CASWorker4IP}})" >> "$OUTFILE" || :
-
+[ -n "${CASWorker1IP}" ] && echo -e "       CAS Worker 1:\n         worker1.viya.sas (${CASWorker1IP})" >> "$OUTFILE" || :
+[ -n "${CASWorker2IP}" ] && echo -e "       CAS Worker 2:\n         worker2.viya.sas (${CASWorker2IP})" >> "$OUTFILE" || :
+[ -n "${CASWorker3IP}" ] && echo -e "       CAS Worker 3:\n         worker3.viya.sas (${CASWorker3IP})" >> "$OUTFILE" || :
+[ -n "${CASWorker4IP}" ] && echo -e "       CAS Worker 4:\n         worker4.viya.sas (${CASWorker4IP})" >> "$OUTFILE" || :
 
 }
 
 create_success_message () {
+
+if [ -z "{{DomainName}}" ]; then
+  ID=$(aws cloudformation describe-stack-resources --region "{{AWSRegion}}" --stack-name "{{CloudFormationStack}}" --logical-resource-id ElasticLoadBalancer --query StackResources[*].PhysicalResourceId --output text)
+  DomainName=$(aws elb describe-load-balancers --region us-east-1 --load-balancer-name "$ID" --query LoadBalancerDescriptions[*].DNSName --output text)
+fi
+[ -z "{{SSLCertificateARN}}" ] && PROTOCOL="http://" || PROTOCOL="https://"
+SASHome="${PROTOCOL}${DomainName}/SASHome"
+SASStudio="${PROTOCOL}${DomainName}/SASStudio"
+CASMonitor="${PROTOCOL}${DomainName}/cas-shared-default-http/tkcas.dsp"
+
 
 OUTFILE="$MSGDIR/sns_success_message.txt"
 cat <<EOF > "$OUTFILE"
 
    SAS Viya Deployment for Stack "{{CloudFormationStack}}" completed successfully.
 
-   Log into SAS Viya at {{SASHome}}
+   Log into SAS Viya at $SASHome
 
-   Log into SAS Studio at {{SASStudio}}
+   Log into SAS Studio at $SASStudio
 
-   Log into CAS Server Monitor at {{CASMonitor}}
+   Log into CAS Server Monitor at $CASMonitor
 
    For administrative tasks:
 
@@ -94,20 +108,20 @@ cat <<EOF > "$OUTFILE"
 
      From the ansible controller, you can ssh into these VMs:
 
-       Visual Services (visual.viya.sas):
-         visual ({{VisualServicesIP}})
-       Programming Services (programming.viya.sas):
-         programming ({{ProgrammingServicesIP}})
-       Stateful Services (stateful.viya.sas):
-         stateful ({{StatefulServicesIP}})
-       CAS Controller (controller.viya.sas)
-         controller ({{CASControllerIP}})
+       Visual Services:
+         visual.viya.sas ($VisualServicesIP)
+       Programming Services:
+         prog.viya.sas ($ProgrammingServicesIP)
+       Stateful Services:
+         stateful.viya.sas ($StatefulServicesIP)
+       CAS Controller:
+         controller.viya.sas ($CASControllerIP)
 EOF
 
-[ -n "{{CASWorker1IP}}" ] && echo -e "       CAS Worker 1 (worker1.viya.sas):\n         worker1 ({{CASWorker1IP}})" >> "$OUTFILE" || :
-[ -n "{{CASWorker2IP}}" ] && echo -e "       CAS Worker 2 (worker2.viya.sas):\n         worker2 ({{CASWorker2IP}})" >> "$OUTFILE" || :
-[ -n "{{CASWorker3IP}}" ] && echo -e "       CAS Worker 3 (worker3.viya.sas):\n         worker3 ({{CASWorker3IP}})" >> "$OUTFILE" || :
-[ -n "{{CASWorker4IP}}" ] && echo -e "       CAS Worker 4 (worker4.viya.sas):\n         worker4 ({{CASWorker4IP}})" >> "$OUTFILE" || :
+[ -n "${CASWorker1IP}" ] && echo -e "       CAS Worker 1:\n         worker1.viya.sas (${CASWorker1IP})" >> "$OUTFILE" || :
+[ -n "${CASWorker2IP}" ] && echo -e "       CAS Worker 2:\n         worker2.viya.sas (${CASWorker2IP})" >> "$OUTFILE" || :
+[ -n "${CASWorker3IP}" ] && echo -e "       CAS Worker 3:\n         worker3.viya.sas (${CASWorker3IP})" >> "$OUTFILE" || :
+[ -n "${CASWorker4IP}" ] && echo -e "       CAS Worker 4:\n         worker4.viya.sas (${CASWorker4IP})" >> "$OUTFILE" || :
 
 # append licensing message is it exists
 if [ -e "$MSGDIR/sns_license_warning_message.txt" ]; then
@@ -186,22 +200,6 @@ fi
 }
 
 
-
-
-if [ -n "{{SNSTopic}}" ]; then
-
-  # create and send start email
-
-  create_start_message
-
-  aws --region "{{AWSRegion}}" sns publish --topic-arn "{{SNSTopic}}" \
-      --subject "Starting SAS Viya Deployment {{CloudFormationStack}}" \
-      --message "file://$MSGDIR/sns_start_message.txt"
-
-fi
-
-
-
 cleanup () {
 
   RC=$?
@@ -235,17 +233,78 @@ cleanup () {
 }
 
 
+# create and key and make available via SSM parameter store
+echo -e y | ssh-keygen -t rsa -q -f ~/.ssh/id_rsa -N ""
+
+KEY=$(cat ~/.ssh/id_rsa.pub)
+aws ssm put-parameter --region "{{AWSRegion}}" --name "viya-ansiblekey-{{CloudFormationStack}}" --type String --value "$KEY" --overwrite
+
+## make sure the other VMs are all up
+STATUS="status"
+let NUMNODES={{NumWorkers}}+4
+while ! [ "$NUMNODES"  -eq "$(echo "$STATUS" | grep "CREATE_COMPLETE" | wc -w)" ]; do
+  sleep 3
+  STATUS=$(aws cloudformation describe-stack-resources --no-paginate --region "{{AWSRegion}}" --stack-name "{{CloudFormationStack}}"  --output json --query 'StackResources[?ResourceType ==`AWS::EC2::Instance`]|[?LogicalResourceId != `AnsibleController`].ResourceStatus' --output text)
+  [ "$(echo "$STATUS" | grep "CREATE_FAILED")" ]  && exit 1 || :
+done
+
+
+ID=$(aws cloudformation describe-stack-resources --region  "{{AWSRegion}}" --stack-name "{{CloudFormationStack}}" --logical-resource-id VisualServices --query StackResources[*].PhysicalResourceId --output text)
+VisualServicesIP=$(aws ec2 describe-instances --region  "{{AWSRegion}}" --instance-id $ID --query Reservations[*].Instances[*].PrivateIpAddress --output text)
+
+ID=$(aws cloudformation describe-stack-resources --region "{{AWSRegion}}" --stack-name "{{CloudFormationStack}}" --logical-resource-id ProgrammingServices --query StackResources[*].PhysicalResourceId --output text)
+ProgrammingServicesIP=$(aws ec2 describe-instances --region  "{{AWSRegion}}" --instance-id $ID --query Reservations[*].Instances[*].PrivateIpAddress --output text)
+
+ID=$(aws cloudformation describe-stack-resources --region "{{AWSRegion}}" --stack-name "{{CloudFormationStack}}" --logical-resource-id StatefulServices --query StackResources[*].PhysicalResourceId --output text)
+StatefulServicesIP=$(aws ec2 describe-instances --region  "{{AWSRegion}}" --instance-id $ID --query Reservations[*].Instances[*].PrivateIpAddress --output text)
+
+ID=$(aws cloudformation describe-stack-resources --region "{{AWSRegion}}" --stack-name "{{CloudFormationStack}}" --logical-resource-id CASController --query StackResources[*].PhysicalResourceId --output text)
+CASControllerIP=$(aws ec2 describe-instances --region  "{{AWSRegion}}" --instance-id $ID --query Reservations[*].Instances[*].PrivateIpAddress --output text)
+
+if [ {{NumWorkers}} -ge 1 ]; then
+  ID=$(aws cloudformation describe-stack-resources --region "{{AWSRegion}}" --stack-name "{{CloudFormationStack}}" --logical-resource-id CASWorker1 --query StackResources[*].PhysicalResourceId --output text)
+  [ -n "$ID" ] && CASWorker1IP=$(aws ec2 describe-instances --region  "{{AWSRegion}}" --instance-id $ID --query Reservations[*].Instances[*].PrivateIpAddress --output text) || :
+fi
+if [ {{NumWorkers}} -ge 2 ]; then
+  ID=$(aws cloudformation describe-stack-resources --region "{{AWSRegion}}" --stack-name "{{CloudFormationStack}}" --logical-resource-id CASWorker2 --query StackResources[*].PhysicalResourceId --output text)
+  [ -n "$ID" ] && CASWorker2IP=$(aws ec2 describe-instances --region  "{{AWSRegion}}" --instance-id $ID --query Reservations[*].Instances[*].PrivateIpAddress --output text) || :
+fi
+if [ {{NumWorkers}} -ge 3 ]; then
+  ID=$(aws cloudformation describe-stack-resources --region "{{AWSRegion}}" --stack-name "{{CloudFormationStack}}" --logical-resource-id CASWorker3 --query StackResources[*].PhysicalResourceId --output text)
+  [ -n "$ID" ] && CASWorker3IP=$(aws ec2 describe-instances --region  "{{AWSRegion}}" --instance-id $ID --query Reservations[*].Instances[*].PrivateIpAddress --output text) || :
+fi
+if [ {{NumWorkers}} -eq 4 ]; then
+  ID=$(aws cloudformation describe-stack-resources --region "{{AWSRegion}}" --stack-name "{{CloudFormationStack}}" --logical-resource-id CASWorker4 --query StackResources[*].PhysicalResourceId --output text)
+  [ -n "$ID" ] && CASWorker4IP=$(aws ec2 describe-instances --region  "{{AWSRegion}}" --instance-id $ID --query Reservations[*].Instances[*].PrivateIpAddress --output text) || :
+fi
+
+
+if [ -n "{{SNSTopic}}" ]; then
+
+  # create and send start email
+
+  create_start_message
+
+  aws --region "{{AWSRegion}}" sns publish --topic-arn "{{SNSTopic}}" \
+      --subject "Starting SAS Viya Deployment {{CloudFormationStack}}" \
+      --message "file://$MSGDIR/sns_start_message.txt"
+
+fi
+
+
+
+
+
+
 # sometimes there are ssh connection errors (53) during the install
 # this function allows to retry N times
 function try () {
   # allow up to N attempts of a command
   # syntax: try N [command]
-  RC=1
-  count=1; max_count=$1; shift
+  RC=1; count=1; max_count=$1; shift
   until  [ $count -gt "$max_count" ]
   do
-    "$@" && RC=0 && break
-    let count=count+1
+    "$@" && RC=0 && break || let count=count+1
   done
   return $RC
 }
@@ -255,37 +314,31 @@ function try () {
 
 # prepare host list for ansible inventory.ini file
 {
-  echo visual ansible_host="{{VisualServicesIP}}"
-  echo programming ansible_host="{{ProgrammingServicesIP}}"
-  echo stateful ansible_host="{{StatefulServicesIP}}"
-  echo controller ansible_host="{{CASControllerIP}}"
-  [ -n "{{CASWorker1IP}}" ] && echo worker1 ansible_host="{{CASWorker1IP}}" || :
-  [ -n "{{CASWorker2IP}}" ] && echo worker2 ansible_host="{{CASWorker2IP}}" || :
-  [ -n "{{CASWorker3IP}}" ] && echo worker3 ansible_host="{{CASWorker3IP}}" || :
-  [ -n "{{CASWorker4IP}}" ] && echo worker4 ansible_host="{{CASWorker4IP}}" || :
+  echo visual ansible_host="$VisualServicesIP"
+  echo prog ansible_host="$ProgrammingServicesIP"
+  echo stateful ansible_host="$StatefulServicesIP"
+  echo controller ansible_host="$CASControllerIP"
+  [ -n "${CASWorker1IP}" ] && echo worker1 ansible_host="${CASWorker1IP}" || :
+  [ -n "${CASWorker2IP}" ] && echo worker2 ansible_host="${CASWorker2IP}" || :
+  [ -n "${CASWorker3IP}" ] && echo worker3 ansible_host="${CASWorker3IP}" || :
+  [ -n "${CASWorker4IP}" ] && echo worker4 ansible_host="${CASWorker4IP}" || :
 } > /tmp/inventory.head
 
 # prepare list host entries for /etc/hosts
 {
-  echo "{{VisualServicesIP}} visual.viya.sas visual"
-  echo "{{ProgrammingServicesIP}} programming.viya.sas programming"
-  echo "{{StatefulServicesIP}} stateful.viya.sas stateful"
-  echo "{{CASControllerIP}} controller.viya.sas controller"
-  [ -n "{{CASWorker1IP}}" ] && echo "{{CASWorker1IP}} worker1.viya.sas worker1" || :
-  [ -n "{{CASWorker2IP}}" ] && echo "{{CASWorker2IP}} worker2.viya.sas worker2" || :
-  [ -n "{{CASWorker3IP}}" ] && echo "{{CASWorker3IP}} worker3.viya.sas worker3" || :
-  [ -n "{{CASWorker4IP}}" ] && echo "{{CASWorker4IP}} worker4.viya.sas worker4" || :
+  echo "$VisualServicesIP visual.viya.sas visual"
+  echo "$ProgrammingServicesIP prog.viya.sas prog"
+  echo "$StatefulServicesIP stateful.viya.sas stateful"
+  echo "$CASControllerIP controller.viya.sas controller"
+  [ -n "${CASWorker1IP}" ] && echo "${CASWorker1IP} worker1.viya.sas worker1" || :
+  [ -n "${CASWorker2IP}" ] && echo "${CASWorker2IP} worker2.viya.sas worker2" || :
+  [ -n "${CASWorker3IP}" ] && echo "${CASWorker3IP} worker3.viya.sas worker3" || :
+  [ -n "${CASWorker4IP}" ] && echo "${CASWorker4IP} worker4.viya.sas worker4" || :
 } > /tmp/hostnames.txt
 
 
 
-## make sure the other VMs are all up
-STATUS="status"
-while ! [ "$(echo "$STATUS" | wc -w)"  -eq "$(echo "$STATUS" | grep "CREATE_COMPLETE" | wc -w)" ]; do
-  sleep 3
-  STATUS=$(aws cloudformation  describe-stack-resources --region "{{AWSRegion}}" --stack-name "{{CloudFormationStack}}"  --output json --query 'StackResources[?ResourceType ==`AWS::EC2::Instance`]|[?LogicalResourceId != `AnsibleController`].ResourceStatus' --output text)
-  [ "$(echo "$STATUS" | grep "CREATE_FAILED")" ]  && exit 1 || :
-done
+
 
 
 install_openldap () {
@@ -314,7 +367,7 @@ check_cores ()
   CPUNUM=$(echo "$UNWRAPPED" | grep EXPIRE | grep PRODNUM1141 | sed -r "s/.*CPU=(.*)\;/\1/")
   LICCORES=$(echo "$UNWRAPPED" | grep NAME="$CPUNUM" | sed  -r "s/.*SERIAL=\+([0-9]+).*/\1/")
 
-  CPUCOUNT=$(ssh "{{CASControllerIP}}" cat /proc/cpuinfo | grep -c ^processor)
+  CPUCOUNT=$(ssh "$CASControllerIP" cat /proc/cpuinfo | grep -c ^processor)
   let CPUCOUNT=CPUCOUNT/2
 
   WORKERCOUNT=$(grep -c worker /tmp/inventory.head || true)

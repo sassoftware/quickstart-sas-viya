@@ -3,6 +3,7 @@
 # This is a mustache template.
 # Make sure all the input parms are set
 test -n "{{AWSRegion}}"
+test -n "{{CloudFormationStack}}"
 
 # sometimes there are ssh connection errors (53) during the install
 # this function allows to retry N times
@@ -19,6 +20,11 @@ function try () {
   return $RC
 }
 
+
+#
+#  Set up cloudwatch logging
+#
+
 try 2 curl https://s3.amazonaws.com/aws-cloudwatch/downloads/latest/awslogs-agent-setup.py -o /tmp/awslogs-agent-setup.py
 
 python /tmp/awslogs-agent-setup.py --region "{{AWSRegion}}" -n -c /tmp/cloudwatch.conf
@@ -32,4 +38,13 @@ EOF
 crontab /tmp/crontab.txt
 
 
-
+#
+# get ansible public key
+#
+KEY=dummy
+# wait until the key is available (the ansible controller puts it there)
+until [ ! "$KEY" = "dummy" ]; do
+   KEY=$(/var/awslogs/bin/aws ssm get-parameter --region "{{AWSRegion}}" --name "viya-ansiblekey-{{CloudFormationStack}}" --query Parameter.Value --output text)
+   sleep 1
+done
+echo "$KEY" | su ec2-user bash -c 'tee -a ~/.ssh/authorized_keys'

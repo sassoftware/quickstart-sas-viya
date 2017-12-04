@@ -351,7 +351,7 @@ Resources:
 
   SNSTopic:
     Condition: SNSCondition
-    Type: "AWS::SNS::Topic"
+    Type: 'AWS::SNS::Topic'
     Properties:
       Subscription:
         - Endpoint: !Ref OperatorEmail
@@ -688,6 +688,13 @@ Resources:
         - PolicyDocument:
             Version: 2012-10-17
             Statement:
+              - Action: 'ssm:GetParameter'
+                Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/viya-ansiblekey-${AWS::StackName}'
+                Effect: Allow
+          PolicyName: viya-services-ssm-policy
+        - PolicyDocument:
+            Version: 2012-10-17
+            Statement:
               - Action:
                   - 'logs:CreateLogStream'
                   - 'logs:GetLogEvents'
@@ -717,6 +724,7 @@ Resources:
     CreationPolicy:
       ResourceSignal:
         Count: 1
+        Timeout: 'PT10M'
     Metadata:
       'AWS::CloudFormation::Authentication':
         S3AccessCreds:
@@ -732,18 +740,6 @@ Resources:
             - cleanup
         install:
           files:
-            /tmp/qs.pub:
-              source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}keys/qs.pub
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
             /tmp/diskprep.sh:
               source: !Sub
                 - >-
@@ -768,10 +764,10 @@ Resources:
               owner: root
               group: root
               authentication: S3AccessCreds
-            /tmp/log_setup.sh:
+            /tmp/node_setup.sh:
               source: !Sub
                 - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/log_setup.sh
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/node_setup.sh
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -782,6 +778,7 @@ Resources:
               authentication: S3AccessCreds
               context:
                 AWSRegion: !Ref 'AWS::Region'
+                CloudFormationStack: !Ref AWS::StackName
             /tmp/cloudwatch.conf:
               source: !Sub
                 - >-
@@ -798,13 +795,10 @@ Resources:
                 LogGroup: !Ref CloudWatchLogGroup
                 Role: VisualServices
           commands:
-            01-setqskey:
-              command: >-
-                cat /tmp/qs.pub >> /home/ec2-user/.ssh/authorized_keys; rm /tmp/qs.pub;
-            02-diskprep:
+            01-diskprep:
               command: /tmp/diskprep.sh
-            03-cloudwatch:
-              command: /tmp/log_setup.sh
+            02-setup:
+              command: /tmp/node_setup.sh
         configure: {}
         cleanup: {}
     Properties:
@@ -862,16 +856,13 @@ Resources:
             - |
               pip install awscli --ignore-installed six &> /dev/null
             - |
-              # sometimes there are ssh connection errors (53) during the install
-              # this function allows to retry N times
               function try () {
-                # allow up to N attempts of a command
-                # syntax: try N [command]
-
-                count=1; max_count=$1; shift
-                until  $@  || [ $count -gt $max_count ]; do
-                  let count=count+1
+                RC=1; count=1; max_count=$1; shift
+                until  [ $count -gt "$max_count" ]
+                do
+                  "$@" && RC=0 && break || let count=count+1
                 done
+                return $RC
               }
             - >
               try 2 easy_install
@@ -896,6 +887,7 @@ Resources:
     CreationPolicy:
       ResourceSignal:
         Count: 1
+        Timeout: 'PT10M'
     Metadata:
       'AWS::CloudFormation::Authentication':
         S3AccessCreds:
@@ -911,18 +903,6 @@ Resources:
             - cleanup
         install:
           files:
-            /tmp/qs.pub:
-              source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}keys/qs.pub
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
             /tmp/diskprep.sh:
               source: !Sub
                 - >-
@@ -947,10 +927,10 @@ Resources:
               owner: root
               group: root
               authentication: S3AccessCreds
-            /tmp/log_setup.sh:
+            /tmp/node_setup.sh:
               source: !Sub
                 - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/log_setup.sh
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/node_setup.sh
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -961,6 +941,7 @@ Resources:
               authentication: S3AccessCreds
               context:
                 AWSRegion: !Ref 'AWS::Region'
+                CloudFormationStack: !Ref AWS::StackName
             /tmp/cloudwatch.conf:
               source: !Sub
                 - >-
@@ -977,13 +958,10 @@ Resources:
                 LogGroup: !Ref CloudWatchLogGroup
                 Role: ProgrammingServices
           commands:
-            01-setqskey:
-              command: >-
-                cat /tmp/qs.pub >> /home/ec2-user/.ssh/authorized_keys; rm /tmp/qs.pub;
-            02-diskprep:
+            01-diskprep:
               command: /tmp/diskprep.sh
-            03-cloudwatch:
-              command: /tmp/log_setup.sh
+            02-setup:
+              command: /tmp/node_setup.sh
         configure: {}
         cleanup: {}
     Properties:
@@ -1041,19 +1019,16 @@ Resources:
             - |
               pip install awscli --ignore-installed six &> /dev/null
             - |
-              # sometimes there are ssh connection errors (53) during the install
-              # this function allows to retry N times
               function try () {
-                # allow up to N attempts of a command
-                # syntax: try N [command]
-
-                count=1; max_count=$1; shift
-                until  $@  || [ $count -gt $max_count ]; do
-                  let count=count+1
+                RC=1; count=1; max_count=$1; shift
+                until  [ $count -gt "$max_count" ]
+                do
+                  "$@" && RC=0 && break || let count=count+1
                 done
+                return $RC
               }
             - >
-              try 2 easy_install
+              easy_install
               https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
             - |
             - 'cfn-init --stack '
@@ -1075,6 +1050,7 @@ Resources:
     CreationPolicy:
       ResourceSignal:
         Count: 1
+        Timeout: 'PT10M'
     Metadata:
       'AWS::CloudFormation::Authentication':
         S3AccessCreds:
@@ -1090,18 +1066,6 @@ Resources:
             - cleanup
         install:
           files:
-            /tmp/qs.pub:
-              source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}keys/qs.pub
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
             /tmp/diskprep.sh:
               source: !Sub
                 - >-
@@ -1126,10 +1090,10 @@ Resources:
               owner: root
               group: root
               authentication: S3AccessCreds
-            /tmp/log_setup.sh:
+            /tmp/node_setup.sh:
               source: !Sub
                 - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/log_setup.sh
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/node_setup.sh
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -1140,6 +1104,7 @@ Resources:
               authentication: S3AccessCreds
               context:
                 AWSRegion: !Ref 'AWS::Region'
+                CloudFormationStack: !Ref AWS::StackName
             /tmp/cloudwatch.conf:
               source: !Sub
                 - >-
@@ -1156,13 +1121,10 @@ Resources:
                 LogGroup: !Ref CloudWatchLogGroup
                 Role: StatefulServices
           commands:
-            01-setqskey:
-              command: >-
-                cat /tmp/qs.pub >> /home/ec2-user/.ssh/authorized_keys; rm /tmp/qs.pub;
-            02-diskprep:
+            01-diskprep:
               command: /tmp/diskprep.sh
-            03-cloudwatch:
-              command: /tmp/log_setup.sh
+            02-setup:
+              command: /tmp/node_setup.sh
         configure: {}
         cleanup: {}
     Properties:
@@ -1220,19 +1182,16 @@ Resources:
             - |
               pip install awscli --ignore-installed six &> /dev/null
             - |
-              # sometimes there are ssh connection errors (53) during the install
-              # this function allows to retry N times
               function try () {
-                # allow up to N attempts of a command
-                # syntax: try N [command]
-
-                count=1; max_count=$1; shift
-                until  $@  || [ $count -gt $max_count ]; do
-                  let count=count+1
+                RC=1; count=1; max_count=$1; shift
+                until  [ $count -gt "$max_count" ]
+                do
+                  "$@" && RC=0 && break || let count=count+1
                 done
+                return $RC
               }
             - >
-              try 2 easy_install
+              easy_install
               https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
             - |
             - 'cfn-init --stack '
@@ -1255,6 +1214,7 @@ Resources:
     CreationPolicy:
       ResourceSignal:
         Count: 1
+        Timeout: 'PT10M'
     Metadata:
       'AWS::CloudFormation::Authentication':
         S3AccessCreds:
@@ -1270,18 +1230,6 @@ Resources:
             - cleanup
         install:
           files:
-            /tmp/qs.pub:
-              source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}keys/qs.pub
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
             /tmp/diskprep.sh:
               source: !Sub
                 - >-
@@ -1306,10 +1254,10 @@ Resources:
               owner: root
               group: root
               authentication: S3AccessCreds
-            /tmp/log_setup.sh:
+            /tmp/node_setup.sh:
               source: !Sub
                 - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/log_setup.sh
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/node_setup.sh
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -1320,6 +1268,7 @@ Resources:
               authentication: S3AccessCreds
               context:
                 AWSRegion: !Ref 'AWS::Region'
+                CloudFormationStack: !Ref AWS::StackName
             /tmp/cloudwatch.conf:
               source: !Sub
                 - >-
@@ -1337,13 +1286,10 @@ Resources:
                 Role: cas-controller
 
           commands:
-            01-setqskey:
-              command: >-
-                cat /tmp/qs.pub >> /home/ec2-user/.ssh/authorized_keys; rm /tmp/qs.pub;
-            02-diskprep:
+            01-diskprep:
               command: /tmp/diskprep.sh
-            03-cloudwatch:
-              command: /tmp/log_setup.sh
+            02-setup:
+              command: /tmp/node_setup.sh
         configure: {}
         cleanup: {}
     Properties:
@@ -1404,16 +1350,13 @@ Resources:
             - |
               pip install awscli --ignore-installed six &> /dev/null
             - |
-              # sometimes there are ssh connection errors (53) during the install
-              # this function allows to retry N times
               function try () {
-                # allow up to N attempts of a command
-                # syntax: try N [command]
-
-                count=1; max_count=$1; shift
-                until  $@  || [ $count -gt $max_count ]; do
-                  let count=count+1
+                RC=1; count=1; max_count=$1; shift
+                until  [ $count -gt "$max_count" ]
+                do
+                  "$@" && RC=0 && break || let count=count+1
                 done
+                return $RC
               }
             - >
               try 2 easy_install
@@ -1440,6 +1383,7 @@ Resources:
     CreationPolicy:
       ResourceSignal:
         Count: 1
+        Timeout: 'PT10M'
     Metadata:
       'AWS::CloudFormation::Authentication':
         S3AccessCreds:
@@ -1455,19 +1399,6 @@ Resources:
             - cleanup
         install:
           files:
-            /tmp/qs.pub:
-              source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}keys/qs.pub
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-
             /tmp/diskprep.sh:
               source: !Sub
                 - >-
@@ -1493,10 +1424,10 @@ Resources:
               group: root
               authentication: S3AccessCreds
 
-            /tmp/log_setup.sh:
+            /tmp/node_setup.sh:
               source: !Sub
                 - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/log_setup.sh
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/node_setup.sh
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -1507,6 +1438,7 @@ Resources:
               authentication: S3AccessCreds
               context:
                 AWSRegion: !Ref 'AWS::Region'
+                CloudFormationStack: !Ref AWS::StackName
             /tmp/cloudwatch.conf:
               source: !Sub
                 - >-
@@ -1524,13 +1456,10 @@ Resources:
                 Role: cas-worker1
 
           commands:
-            01-setqskey:
-              command: >-
-                cat /tmp/qs.pub >> /home/ec2-user/.ssh/authorized_keys; rm /tmp/qs.pub;
-            02-diskprep:
+            01-diskprep:
               command: /tmp/diskprep.sh
-            03-cloudwatch:
-              command: /tmp/log_setup.sh
+            02-setup:
+              command: /tmp/node_setup.sh
         configure: {}
         cleanup: {}
     Properties:
@@ -1600,19 +1529,16 @@ Resources:
             - |
               pip install --upgrade pip &> /dev/null
             - |
-              # sometimes there are ssh connection errors (53) during the install
-              # this function allows to retry N times
-              function try () {
-                # allow up to N attempts of a command
-                # syntax: try N [command]
-
-                count=1; max_count=$1; shift
-                until  $@  || [ $count -gt $max_count ]; do
-                  let count=count+1
-                done
-              }
-            - |
               pip install awscli --ignore-installed six &> /dev/null
+            - |
+              function try () {
+                RC=1; count=1; max_count=$1; shift
+                until  [ $count -gt "$max_count" ]
+                do
+                  "$@" && RC=0 && break || let count=count+1
+                done
+                return $RC
+              }
             - >
               try 2 easy_install
               https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
@@ -1637,6 +1563,7 @@ Resources:
     CreationPolicy:
       ResourceSignal:
         Count: 1
+        Timeout: 'PT10M'
     Metadata:
       'AWS::CloudFormation::Authentication':
         S3AccessCreds:
@@ -1652,19 +1579,6 @@ Resources:
             - cleanup
         install:
           files:
-            /tmp/qs.pub:
-              source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}keys/qs.pub
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-
             /tmp/diskprep.sh:
               source: !Sub
                 - >-
@@ -1690,10 +1604,10 @@ Resources:
               group: root
               authentication: S3AccessCreds
 
-            /tmp/log_setup.sh:
+            /tmp/node_setup.sh:
               source: !Sub
                 - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/log_setup.sh
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/node_setup.sh
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -1704,6 +1618,7 @@ Resources:
               authentication: S3AccessCreds
               context:
                 AWSRegion: !Ref 'AWS::Region'
+                CloudFormationStack: !Ref AWS::StackName
             /tmp/cloudwatch.conf:
               source: !Sub
                 - >-
@@ -1721,13 +1636,10 @@ Resources:
                 Role: cas-worker2
 
           commands:
-            01-setqskey:
-              command: >-
-                cat /tmp/qs.pub >> /home/ec2-user/.ssh/authorized_keys; rm /tmp/qs.pub;
-            02-diskprep:
+            01-diskprep:
               command: /tmp/diskprep.sh
-            03-cloudwatch:
-              command: /tmp/log_setup.sh
+            02-setup:
+              command: /tmp/node_setup.sh
         configure: {}
         cleanup: {}
     Properties:
@@ -1799,16 +1711,13 @@ Resources:
             - |
               pip install awscli --ignore-installed six &> /dev/null
             - |
-              # sometimes there are ssh connection errors (53) during the install
-              # this function allows to retry N times
               function try () {
-                # allow up to N attempts of a command
-                # syntax: try N [command]
-
-                count=1; max_count=$1; shift
-                until  $@  || [ $count -gt $max_count ]; do
-                  let count=count+1
+                RC=1; count=1; max_count=$1; shift
+                until  [ $count -gt "$max_count" ]
+                do
+                  "$@" && RC=0 && break || let count=count+1
                 done
+                return $RC
               }
             - >
               try 2 easy_install
@@ -1834,6 +1743,7 @@ Resources:
     CreationPolicy:
       ResourceSignal:
         Count: 1
+        Timeout: 'PT10M'
     Metadata:
       'AWS::CloudFormation::Authentication':
         S3AccessCreds:
@@ -1849,19 +1759,6 @@ Resources:
             - cleanup
         install:
           files:
-            /tmp/qs.pub:
-              source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}keys/qs.pub
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-
             /tmp/diskprep.sh:
               source: !Sub
                 - >-
@@ -1887,10 +1784,10 @@ Resources:
               group: root
               authentication: S3AccessCreds
 
-            /tmp/log_setup.sh:
+            /tmp/node_setup.sh:
               source: !Sub
                 - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/log_setup.sh
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/node_setup.sh
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -1901,6 +1798,7 @@ Resources:
               authentication: S3AccessCreds
               context:
                 AWSRegion: !Ref 'AWS::Region'
+                CloudFormationStack: !Ref AWS::StackName
             /tmp/cloudwatch.conf:
               source: !Sub
                 - >-
@@ -1918,13 +1816,10 @@ Resources:
                 Role: cas-worker3
 
           commands:
-            01-setqskey:
-              command: >-
-                cat /tmp/qs.pub >> /home/ec2-user/.ssh/authorized_keys; rm /tmp/qs.pub;
-            02-diskprep:
+            01-diskprep:
               command: /tmp/diskprep.sh
-            03-cloudwatch:
-              command: /tmp/log_setup.sh
+            02-setup:
+              command: /tmp/node_setup.sh
         configure: {}
         cleanup: {}
     Properties:
@@ -1996,16 +1891,13 @@ Resources:
             - |
               pip install awscli --ignore-installed six &> /dev/null
             - |
-              # sometimes there are ssh connection errors (53) during the install
-              # this function allows to retry N times
               function try () {
-                # allow up to N attempts of a command
-                # syntax: try N [command]
-
-                count=1; max_count=$1; shift
-                until  $@  || [ $count -gt $max_count ]; do
-                  let count=count+1
+                RC=1; count=1; max_count=$1; shift
+                until  [ $count -gt "$max_count" ]
+                do
+                  "$@" && RC=0 && break || let count=count+1
                 done
+                return $RC
               }
             - >
               try 2 easy_install
@@ -2031,6 +1923,7 @@ Resources:
     CreationPolicy:
       ResourceSignal:
         Count: 1
+        Timeout: 'PT10M'
     Metadata:
       'AWS::CloudFormation::Authentication':
         S3AccessCreds:
@@ -2046,19 +1939,6 @@ Resources:
             - cleanup
         install:
           files:
-            /tmp/qs.pub:
-              source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}keys/qs.pub
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-
             /tmp/diskprep.sh:
               source: !Sub
                 - >-
@@ -2084,10 +1964,10 @@ Resources:
               group: root
               authentication: S3AccessCreds
 
-            /tmp/log_setup.sh:
+            /tmp/node_setup.sh:
               source: !Sub
                 - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/log_setup.sh
+                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/node_setup.sh
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -2098,6 +1978,7 @@ Resources:
               authentication: S3AccessCreds
               context:
                 AWSRegion: !Ref 'AWS::Region'
+                CloudFormationStack: !Ref AWS::StackName
             /tmp/cloudwatch.conf:
               source: !Sub
                 - >-
@@ -2115,13 +1996,10 @@ Resources:
                 Role: cas-corker4
 
           commands:
-            01-setqskey:
-              command: >-
-                cat /tmp/qs.pub >> /home/ec2-user/.ssh/authorized_keys; rm /tmp/qs.pub;
-            02-diskprep:
+            01-diskprep:
               command: /tmp/diskprep.sh
-            03-cloudwatch:
-              command: /tmp/log_setup.sh
+            02-setup:
+              command: /tmp/node_setup.sh
         configure: {}
         cleanup: {}
     Properties:
@@ -2193,16 +2071,13 @@ Resources:
             - |
               pip install awscli --ignore-installed six &> /dev/null
             - |
-              # sometimes there are ssh connection errors (53) during the install
-              # this function allows to retry N times
               function try () {
-                # allow up to N attempts of a command
-                # syntax: try N [command]
-
-                count=1; max_count=$1; shift
-                until  $@  || [ $count -gt $max_count ]; do
-                  let count=count+1
+                RC=1; count=1; max_count=$1; shift
+                until  [ $count -gt "$max_count" ]
+                do
+                  "$@" && RC=0 && break || let count=count+1
                 done
+                return $RC
               }
             - >
               try 2 easy_install
@@ -2222,7 +2097,13 @@ Resources:
             - !Ref 'AWS::Region'
             - |+
 
-
+  AnsiblePublicKey:
+    Type: "AWS::SSM::Parameter"
+    Properties:
+      Name: !Sub 'viya-ansiblekey-${AWS::StackName}'
+      Description: !Sub 'viya-ansiblekey-${AWS::StackName}'
+      Type: String
+      Value: dummy
 
   AnsibleControllerRole:
     Type: 'AWS::IAM::Role'
@@ -2234,8 +2115,8 @@ Resources:
               - Action:
                   - "cloudformation:DescribeStackResources"
                 Resource: !Sub
-                 - "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWSStackName}/*"
-                 - AWSStackName: !Ref AWS::StackName
+                  - "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWSStackName}/*"
+                  - AWSStackName: !Ref AWS::StackName
                 Effect: Allow
           PolicyName: ansiblecontroller-cfn-policy
         - PolicyDocument:
@@ -2270,7 +2151,15 @@ Resources:
                   - !Sub 'arn:aws:s3:::${DeploymentDataLocation}'
                 Effect: Allow
           PolicyName: viya-playbook-s3-policy
-
+        - PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Action:
+                  - 'ssm:PutParameter'
+                Resource:
+                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/viya-ansiblekey-${AWS::StackName}'
+                Effect: Allow
+          PolicyName: ansible-controller-ssm-policy
         - PolicyDocument:
             Version: 2012-10-17
             Statement:
@@ -2290,10 +2179,12 @@ Resources:
               - Action:
                   - 'ec2:AssociateAddress'
                   - 'ec2:DescribeAddresses'
+                  - 'ec2:DescribeInstances'
+                  - 'elasticloadbalancing:DescribeLoadBalancers'
                 Resource:
                   - '*'
                 Effect: Allow
-          PolicyName: ansiblecontroller-eip-policy
+          PolicyName: ansiblecontroller-ec2-policy
         - PolicyDocument:
             Version: 2012-10-17
             Statement:
@@ -2420,30 +2311,6 @@ Resources:
               group: ec2-user
               authentication: S3AccessCreds
               context:
-                VisualServicesIP: !GetAtt VisualServices.PrivateIp
-                ProgrammingServicesIP: !GetAtt ProgrammingServices.PrivateIp
-                StatefulServicesIP: !GetAtt StatefulServices.PrivateIp
-                CASControllerIP: !GetAtt CASController.PrivateIp
-                CASWorker1IP:
-                  Fn::If:
-                  - 1WorkersCondition
-                  - !GetAtt CASWorker1.PrivateIp
-                  - !Ref AWS::NoValue
-                CASWorker2IP:
-                  Fn::If:
-                  - 2WorkersCondition
-                  - !GetAtt CASWorker2.PrivateIp
-                  - !Ref AWS::NoValue
-                CASWorker3IP:
-                  Fn::If:
-                  - 3WorkersCondition
-                  - !GetAtt CASWorker3.PrivateIp
-                  - !Ref AWS::NoValue
-                CASWorker4IP:
-                  Fn::If:
-                  - 4WorkersCondition
-                  - !GetAtt CASWorker4.PrivateIp
-                  - !Ref AWS::NoValue
                 ViyaAdminPass: !Ref ViyaAdminPass
                 ViyaUserPass: !Ref ViyaUserPass
                 LogGroup: !Ref CloudWatchLogGroup
@@ -2452,6 +2319,7 @@ Resources:
                 KeyPairName: !Ref KeyPairName
                 AnsibleControllerIP: !Ref AnsibleControllerEIP
                 CASNodeInstanceType: !Ref CASNodeInstanceType
+                NumWorkers: !Ref NumWorkers
                 CloudFormationStack: !Ref AWS::StackName
                 CloudWatchLogs: !Join
                   - ''
@@ -2459,45 +2327,8 @@ Resources:
                     - !Ref 'AWS::Region'
                     - "#logStream:group="
                     - !Ref CloudWatchLogGroup
-                SASHome: !Join
-                  - ''
-                  - - Fn::If:
-                      - HasSSLCertificate
-                      - 'https://'
-                      - 'http://'
-                    - Fn::If:
-                      - HasDNSEntry
-                      - !Ref DomainName
-                      - !GetAtt
-                        - ElasticLoadBalancer
-                        - DNSName
-                    - /SASHome
-                SASStudio: !Join
-                  - ''
-                  - - Fn::If:
-                      - HasSSLCertificate
-                      - 'https://'
-                      - 'http://'
-                    - Fn::If:
-                      - HasDNSEntry
-                      - !Ref DomainName
-                      - !GetAtt
-                        - ElasticLoadBalancer
-                        - DNSName
-                    - /SASStudio
-                CASMonitor: !Join
-                  - ''
-                  - - Fn::If:
-                      - HasSSLCertificate
-                      - 'https://'
-                      - 'http://'
-                    - Fn::If:
-                      - HasDNSEntry
-                      - !Ref DomainName
-                      - !GetAtt
-                        - ElasticLoadBalancer
-                        - DNSName
-                    - '/cas-shared-default-http/tkcas.dsp'
+                SSLCertificateARN: !Ref SSLCertificateARN
+                DomainName: !Ref DomainName
             /tmp/SAS_Viya_deployment_data.zip:
               source: !Sub
                 - >-
@@ -2511,30 +2342,6 @@ Resources:
               group: ec2-user
               authentication: S3AccessCreds
 
-            /tmp/qs.key:
-              source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}keys/qs.key
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000600'
-              owner: ec2-user
-              group: ec2-user
-              authentication: S3AccessCreds
-            /tmp/qs.pub:
-              source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}keys/qs.pub
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000600'
-              owner: ec2-user
-              group: ec2-user
-              authentication: S3AccessCreds
             /tmp/ansible.cfg:
               source: !Sub
                 - >-
@@ -2596,13 +2403,9 @@ Resources:
               group: ec2-user
               authentication: S3AccessCreds
           commands:
-            01-getprivatekey:
-              command: mv /tmp/qs.key /home/ec2-user/.ssh/id_rsa
-            02-setqskey:
-              command: cat /tmp/qs.pub >> /home/ec2-user/.ssh/authorized_keys; rm /tmp/qs.pub
-            03-getopenldap:
+            01-getopenldap:
               command: !Sub sudo su -l ec2-user -c "mkdir openldap; aws s3 cp --recursive s3://${QSS3BucketName}/${QSS3KeyPrefix}openldap openldap"
-            04-install:
+            02-install:
               command: sudo su -l ec2-user -c "/tmp/install.sh"
     Properties:
       KeyName: !Ref KeyPairName
@@ -2645,23 +2448,17 @@ Resources:
             - |
               pip install awscli --ignore-installed six &> /dev/null
             - |
-              # sometimes there are ssh connection errors (53) during the install
-              # this function allows to retry N times
               function try () {
-                # allow up to N attempts of a command
-                # syntax: try N [command]
-
-                count=1; max_count=$1; shift
-                until  $@  || [ $count -gt $max_count ]; do
-                  let count=count+1
+                RC=1; count=1; max_count=$1; shift
+                until  [ $count -gt "$max_count" ]
+                do
+                  "$@" && RC=0 && break || let count=count+1
                 done
+                return $RC
               }
             - >
               try 2 easy_install
               https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
-            - |
-              FILE=/usr/local/lib/python2.7/site-packages/aws_cfn_bootstrap-1.4-py2.7.egg/cfnbootstrap/util.py
-              sed -i -r "s/(.*)raise RemoteError\(None, str\(e\), retry_mode='TERMINAL'\)/\1last_error = RemoteError(None, str(e))/" $FILE
             - EIP_LIST="
             - !Ref AnsibleControllerEIP
             - |

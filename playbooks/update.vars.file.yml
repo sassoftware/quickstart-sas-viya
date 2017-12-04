@@ -75,7 +75,7 @@
       marker: '# {mark} add additional pg hosts'
       insertafter: '^INVOCATION_VARIABLES:'
       block: |2
-          programming:
+          prog:
             sasdatasvrc:
             - NODE_NUMBER: '1'
               NODE_TYPE: S

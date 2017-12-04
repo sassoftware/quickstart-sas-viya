@@ -23,73 +23,73 @@
     replace:
       dest=inventory.ini
       regexp='^\[ComputeServer\]\ndeployTarget'
-      replace='[ComputeServer]\nprogramming'
+      replace='[ComputeServer]\nprog'
 
   - name: Programming - ComputeServices
     replace:
       dest=inventory.ini
       regexp='^\[ComputeServices\]\ndeployTarget'
-      replace='[ComputeServices]\nprogramming'
+      replace='[ComputeServices]\nprog'
 
   - name: Programming - programming
     replace:
       dest=inventory.ini
       regexp='^\[programming\]\ndeployTarget'
-      replace='[programming]\nprogramming'
+      replace='[programming]\nprog'
 
   - name: Programming - spre
     replace:
       dest=inventory.ini
       regexp='^\[spre\]\ndeployTarget'
-      replace='[spre]\nprogramming'
+      replace='[spre]\nprog'
 
   - name: Programming - CommandLine
     replace:
       dest=inventory.ini
       regexp='^\[CommandLine\]\ndeployTarget'
-      replace='[CommandLine]\nprogramming'
+      replace='[CommandLine]\nprog'
 
   - name: Programming - connect
     replace:
       dest=inventory.ini
       regexp='^\[connect\]\ndeployTarget'
-      replace='[connect]\nprogramming'
+      replace='[connect]\nprog'
 
   - name: Programming - pcfile
     replace:
       dest=inventory.ini
       regexp='^\[pcfile\]\ndeployTarget'
-      replace='[pcfile]\nprogramming'
+      replace='[pcfile]\nprog'
 
   - name: Programming - platform
     replace:
       dest=inventory.ini
       regexp='^\[platform\]\ndeployTarget'
-      replace='[platform]\nprogramming'
+      replace='[platform]\nprog'
 
   - name: Programming - psqllib
     replace:
       dest=inventory.ini
       regexp='^\[psqllib\]\ndeployTarget'
-      replace='[psqllib]\nprogramming'
+      replace='[psqllib]\nprog'
 
   - name: Programming - psqllib1
     replace:
       dest=inventory.ini
       regexp='^\[psqllib1\]\ndeployTarget'
-      replace='[psqllib1]\nprogramming'
+      replace='[psqllib1]\nprog'
 
   - name: Programming - psqlodbc
     replace:
       dest=inventory.ini
       regexp='^\[psqlodbc\]\ndeployTarget'
-      replace='[psqlodbc]\nprogramming'
+      replace='[psqlodbc]\nprog'
 
   - name: Programming - psqlodbc1
     replace:
       dest=inventory.ini
       regexp='^\[psqlodbc1\]\ndeployTarget'
-      replace='[psqlodbc1]\nprogramming'
+      replace='[psqlodbc1]\nprog'
 
 
   # Stateful Services
@@ -109,13 +109,13 @@
     replace:
       dest=inventory.ini
       regexp='^\[consul\]\ndeployTarget'
-      replace='[consul]\nstateful\nprogramming\nvisual'
+      replace='[consul]\nstateful\nprog\nvisual'
 
   - name: Stateful -httpproxy
     replace:
       dest=inventory.ini
       regexp='^\[httpproxy\]\ndeployTarget'
-      replace='[httpproxy]\nstateful\nprogramming\nvisual'
+      replace='[httpproxy]\nstateful\nprog\nvisual'
 
   - name: Stateful -pgpoolc
     replace:
@@ -129,12 +129,11 @@
       regexp='^\[rabbitmq\]\ndeployTarget'
       replace='[rabbitmq]\nstateful'
 
-
   - name: Stateful -sasdatasvrc
     replace:
       dest=inventory.ini
       regexp='^\[sasdatasvrc\]\ndeployTarget'
-      replace='[sasdatasvrc]\nstateful\nprogramming\nvisual'
+      replace='[sasdatasvrc]\nstateful\nprog\nvisual'
 
   # CAS
   - name: Set CAS controller target
