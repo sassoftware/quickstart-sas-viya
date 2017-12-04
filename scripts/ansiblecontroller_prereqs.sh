@@ -32,7 +32,7 @@ fi
 
 if ! type -p ansible;  then
    # install Ansible
-   /usr/local/bin/pip install 'ansible==2.2.1.0'
+   /usr/local/bin/pip install 'ansible==2.3.2.0'
 fi
 
 if ! type -p git; then
