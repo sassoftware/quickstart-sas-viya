@@ -127,7 +127,7 @@
     replace:
       dest=inventory.ini
       regexp='^\[rabbitmq\]\ndeployTarget'
-      replace='[rabbitmq]\nstateful\nprogramming\nvisual'
+      replace='[rabbitmq]\nstateful'
 
 
   - name: Stateful -sasdatasvrc
@@ -154,7 +154,7 @@
       marker="# {mark} ADD WORKERS"
 
   # Everything else
-  - name: Set CAS controller target
+  - name: All other services
     replace:
       dest=inventory.ini
       regexp='^deployTarget'

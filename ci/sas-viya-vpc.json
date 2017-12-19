@@ -18,7 +18,7 @@
     },
     {
         "ParameterKey": "DeploymentDataLocation",
-        "ParameterValue": "mercury-deployment-data/viya3.3EA/SAS_Viya_deployment_data.zip"
+        "ParameterValue": "mercury-deployment-data/viya3.3/SAS_Viya_deployment_data.zip"
     },
     {
         "ParameterKey": "QSS3BucketName",
@@ -26,7 +26,7 @@
     },
     {
         "ParameterKey": "QSS3KeyPrefix",
-        "ParameterValue": "viya33EA/"
+        "ParameterValue": "viya33/"
     },
     {
         "ParameterKey": "ViyaAdminPass",
@@ -42,7 +42,7 @@
     },
     {
         "ParameterKey": "NumWorkers",
-        "ParameterValue": "1"
+        "ParameterValue": "0"
     }
 
 ]
