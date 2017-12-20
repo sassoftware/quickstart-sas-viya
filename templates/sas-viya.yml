@@ -33,7 +33,7 @@ Metadata:
           - PublicSubnetID
           - PrivateSubnetID
       - Label:
-          default: Server DNS configuration (optional)
+          default: Server DNS configuration (only required for custom DNS name and SSL)
         Parameters:
           - DomainName
           - AWSHostedZoneID
@@ -117,8 +117,7 @@ Parameters:
     Type: 'AWS::EC2::KeyPair::KeyName'
   WebIngressLocation:
       Description: >-
-        CIDR block (IP address range) to allow HTTP access to the
-        SAS Viya Environment. Must be a valid IP CIDR range of the form x.x.x.x/x.
+        Allow inbound HTTP traffic to the SAS Viya Environment from this CIDR block (IP address range). Must be a valid IP CIDR range of the form x.x.x.x/x.
       Type: String
       MinLength: '9'
       MaxLength: '18'
@@ -126,8 +125,7 @@ Parameters:
       ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
   AdminIngressLocation:
     Description: >-
-      CIDR block (IP address range) to allow SSH access to the
-      Ansible Controller. Must be a valid IP CIDR range of the form x.x.x.x/x.
+      Allow inbound SSH traffic to the Ansible Controller from this CIDR block (IP address range). Must be a valid IP CIDR range of the form x.x.x.x/x.
     Type: String
     MinLength: '9'
     MaxLength: '18'

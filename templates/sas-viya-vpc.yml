@@ -101,20 +101,18 @@ Parameters:
     Type: AWS::EC2::AvailabilityZone::Name
     ConstraintDescription: must be the name of an AWS Availability Zone
 
-  AdminIngressLocation:
+  WebIngressLocation:
     Description: >-
-      CIDR block (IP address range) to allow SSH access to the
-      Ansible Controller. Must be a valid IP CIDR range of the form x.x.x.x/x.
+      Allow inbound HTTP traffic to the SAS Viya Environment from this CIDR block (IP address range). Must be a valid IP CIDR range of the form x.x.x.x/x.
     Type: String
     MinLength: '9'
     MaxLength: '18'
     AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
     ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
 
-  WebIngressLocation:
+  AdminIngressLocation:
     Description: >-
-      CIDR block (IP address range) to allow HTTP access to the
-      SAS Viya Environment. Must be a valid IP CIDR range of the form x.x.x.x/x.
+      Allow inbound SSH traffic to the Ansible Controller from this CIDR block (IP address range). Must be a valid IP CIDR range of the form x.x.x.x/x.
     Type: String
     MinLength: '9'
     MaxLength: '18'
