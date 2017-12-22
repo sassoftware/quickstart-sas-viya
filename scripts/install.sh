@@ -31,6 +31,7 @@ CASWorker1IP=
 CASWorker2IP=
 CASWorker3IP=
 CASWorker4IP=
+DomainName=
 
 
 
