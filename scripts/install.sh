@@ -85,7 +85,7 @@ else
   DomainName="{{DomainName}}"
 fi
 [ -z "{{SSLCertificateARN}}" ] && PROTOCOL="http://" || PROTOCOL="https://"
-SASHome="${PROTOCOL}{DomainName}/SASHome"
+SASHome="${PROTOCOL}${DomainName}/SASHome"
 SASStudio="${PROTOCOL}${DomainName}/SASStudio"
 CASMonitor="${PROTOCOL}${DomainName}/cas-shared-default-http/tkcas.dsp"
 
