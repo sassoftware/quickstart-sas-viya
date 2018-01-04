@@ -13,7 +13,7 @@
     },
     {
         "ParameterKey": "KeyPairName",
-        "ParameterValue": "s"
+        "ParameterValue": ""
     },
     {
         "ParameterKey": "PrivateSubnetID",

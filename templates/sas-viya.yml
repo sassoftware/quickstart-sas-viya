@@ -1,7 +1,7 @@
 ---
 AWSTemplateFormatVersion: 2010-09-09
 Description: >-
-  This workload template deploys a SAS Viya stack.
+  This template deploys a SAS Viya stack.
   **WARNING** This template creates EC2 instances and related resources. You
   will be billed for the AWS resources used if you create a stack from this
   template.
@@ -12,11 +12,6 @@ Metadata:
           default: SAS Viya License and Install Package
         Parameters:
           - DeploymentDataLocation
-      - Label:
-          default: SAS Viya Compute Configuration
-        Parameters:
-          - CASNodeInstanceType
-          - NumWorkers
       - Label:
           default: Administration
         Parameters:
@@ -59,10 +54,6 @@ Metadata:
         default: SAS Viya Software Order File
       VPCID:
         default: VPC ID
-      CASNodeInstanceType:
-        default: CAS Node Instance Type
-      NumWorkers:
-        default: Number of CAS Workers
       AdminIngressLocation:
         default: Permitted IP Range for Deployment Administrator
       WebIngressLocation:
@@ -91,26 +82,6 @@ Parameters:
     Type: String
     ConstraintDescription: must be a valid S3 bucket location, e.g. mysasbucket/viya_deployment_data/SAS_Viya_deployment_data.zip
 
-  CASNodeInstanceType:
-    AllowedValues:
-      - 2xlarge (4 cores)
-      - 4xlarge (8 cores)
-      - 8xlarge (16 cores)
-      - 16xlarge (32 cores)
-    ConstraintDescription: Must contain valid instance type
-    Default: 2xlarge (4 cores)
-    Description: Type of EC2 instance for the Viya Compute Node. The number of vCPUs should match the number of CPUs in your software order.
-    Type: String
-  NumWorkers:
-    AllowedValues:
-    - '0'
-    - '1'
-    - '2'
-    - '3'
-    - '4'
-    Default: '0'
-    Description: Enter the number of CAS worker nodes to create
-    Type: String
   KeyPairName:
     Description: >-
       Name of an existing EC2 key pair. This will allow you to access the Ansible Controller after it launches.
@@ -242,59 +213,6 @@ Rules:
         AssertDescription: Public and Private subnet must in the same AZ
 
 
-Mappings:
-  AWSAMIRegionMap:
-    AMI:
-      AMZNLINUXHVM: amzn-ami-hvm-2017.03.1.20170623-x86_64-gp2
-      RHEL74HVM: RHEL-7.4_HVM_GA-20170724-x86_64-1-Hourly2-GP2
-    ap-northeast-1:
-      AMZNLINUXHVM: ami-3bd3c45c
-      RHEL74HVM: ami-30ef0556
-    ap-northeast-2:
-      AMZNLINUXHVM: ami-e21cc38c
-      RHEL74HVM: ami-0f5a8361
-    ap-south-1:
-      AMZNLINUXHVM: ami-47205e28
-      RHEL74HVM: ami-e41b618b
-    ap-southeast-1:
-      AMZNLINUXHVM: ami-77af2014
-      RHEL74HVM: ami-10bb2373
-    ap-southeast-2:
-      AMZNLINUXHVM: ami-10918173
-      RHEL74HVM: ami-ccecf5af
-    ca-central-1:
-      AMZNLINUXHVM: ami-a7aa15c3
-      RHEL74HVM: ami-dad866be
-    eu-central-1:
-      AMZNLINUXHVM: ami-82be18ed
-      RHEL74HVM: ami-d74be5b8
-    eu-west-1:
-      AMZNLINUXHVM: ami-d7b9a2b1
-      RHEL74HVM: ami-bb9a6bc2
-    eu-west-2:
-      AMZNLINUXHVM: ami-ed100689
-      RHEL74HVM: ami-a1f5e4c5
-    sa-east-1:
-      AMZNLINUXHVM: ami-87dab1eb
-      RHEL74HVM: ami-a789ffcb
-    us-east-1:
-      AMZNLINUXHVM: ami-a4c7edb2
-      RHEL74HVM: ami-c998b6b2
-    us-east-2:
-      AMZNLINUXHVM: ami-8a7859ef
-      RHEL74HVM: ami-cfdafaaa
-    us-west-1:
-      AMZNLINUXHVM: ami-327f5352
-      RHEL74HVM: ami-66eec506
-    us-west-2:
-      AMZNLINUXHVM: ami-6df1e514
-      RHEL74HVM: ami-9fa343e7
-  LinuxAMINameMap:
-    RHEL-7.4-HVM:
-      Code: RHEL74HVM
-    Amazon-Linux-HVM:
-      Code: AMZNLINUXHVM
-
 Conditions:
   GovCloudCondition: !Equals
     - !Ref AWS::Region
@@ -322,33 +240,132 @@ Conditions:
     Fn::Not:
     - Condition: NoSSLCertficate
 
-  1WorkersCondition:
-    Fn::Or:
-    - Fn::Equals:
-      - Ref: NumWorkers
-      - '1'
-    - Condition: 2WorkersCondition
-    - Condition: 3WorkersCondition
-    - Condition: 4WorkersCondition
-  2WorkersCondition:
-    Fn::Or:
-    - Fn::Equals:
-      - Ref: NumWorkers
-      - '2'
-    - Condition: 3WorkersCondition
-    - Condition: 4WorkersCondition
-  3WorkersCondition:
-    Fn::Or:
-    - Fn::Equals:
-      - Ref: NumWorkers
-      - '3'
-    - Condition: 4WorkersCondition
-  4WorkersCondition:
-    Fn::Equals:
-    - Ref: NumWorkers
-    - '4'
 
 Resources:
+
+  # Lambda function to retrieve the most recent AMIs
+  # for Amazon Linux (for the Ansible Controller)
+  # and RHEL 7.4 (for the viya/cas nodes)
+  AMIInfoFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: !Ref QSS3BucketName
+        S3Key: !Sub ${QSS3KeyPrefix}lambda/functions.zip
+      Handler: functions.amilookup
+      Runtime: nodejs6.10
+      Timeout: 60
+      Role: !GetAtt AMIInfoLambdaExecutionRole.Arn
+  AMIInfoLambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+      Policies:
+      - PolicyName: root
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource: arn:aws:logs:*:*:*
+          - Effect: Allow
+            Action:
+            - ec2:DescribeImages
+            Resource: "*"
+  # create the log Group for Lambda by Cloudformation to ensure
+  # it isdeleted at termination
+  AMIInfoLambdaFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    DependsOn: AMIInfoFunction
+    Properties:
+      LogGroupName: !Join
+        - ""
+        - - /aws/lambda/
+          - !Ref AMIInfoFunction
+      RetentionInDays: 7
+
+  # Custom Property to retrieve latest Amazon Linux AMI
+  AZLXAMIInfo:
+    Type: Custom::AZLXAMIInfo
+    Properties:
+      ServiceToken: !GetAtt AMIInfoFunction.Arn
+      Region: !Ref AWS::Region
+      Architecture: AMZNLINUXHVM
+
+  # Custom Property to retrieve latest RHEL 7.4 AMI
+  RHELAMIInfo:
+    Type: Custom::RHELAMIInfo
+    Properties:
+      ServiceToken: !GetAtt AMIInfoFunction.Arn
+      Region: !Ref AWS::Region
+      Architecture: RHEL74HVM
+
+  # Lambda Function that scans the license file for the CAS cpu count
+  # and returns instance sizes and counts
+  LicenseFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: !Ref QSS3BucketName
+        S3Key: !Sub ${QSS3KeyPrefix}lambda/functions.zip
+      Handler: functions.license
+      Runtime: nodejs6.10
+      Timeout: 30
+      Role: !GetAtt LicenseLambdaExecutionRole.Arn
+  LicenseLambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+      Policies:
+      - PolicyName: root
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource: arn:aws:logs:*:*:*
+          - Effect: Allow
+            Action:
+            - s3:getObject
+            Resource: !Sub 'arn:aws:s3:::${DeploymentDataLocation}'
+  # create the log Group for Lambda by Cloudformation to ensure
+  # it isdeleted at termination
+  LicenseLambdaFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Join
+        - ""
+        - - /aws/lambda/
+          - !Ref LicenseFunction
+
+  # Custom Property to determine deployment size
+  LicenseInfo:
+    Type: Custom::LicenseInfo
+    Properties:
+      ServiceToken: !GetAtt LicenseFunction.Arn
+      DeploymentDataLocation: !Ref DeploymentDataLocation
 
   SNSTopic:
     Condition: SNSCondition
@@ -438,88 +455,6 @@ Resources:
       - Name: InstanceId
         Value:
           Ref: CASController
-
-  RecoveryAlarmWorker1:
-    Type: AWS::CloudWatch::Alarm
-    Condition: 1WorkersCondition
-    Properties:
-      AlarmDescription: Trigger a recovery when instance status check fails more than once in 2 minutes.
-      Namespace: AWS/EC2
-      MetricName: StatusCheckFailed_System
-      Statistic: Maximum
-      Period: '60'
-      EvaluationPeriods: '2'
-      ComparisonOperator: GreaterThanOrEqualToThreshold
-      Threshold: '1'
-      AlarmActions:
-        - !Sub "arn:aws:automate:${AWS::Region}:ec2:recover"
-        - !If [SNSCondition, !Sub "${SNSTopic}", !Ref "AWS::NoValue"]
-      Dimensions:
-      - Name: InstanceId
-        Value:
-          Ref: CASWorker1
-
-  RecoveryAlarmWorker2:
-    Type: AWS::CloudWatch::Alarm
-    Condition: 2WorkersCondition
-    Properties:
-      AlarmDescription: Trigger a recovery when instance status check fails more than once in 2 minutes.
-      Namespace: AWS/EC2
-      MetricName: StatusCheckFailed_System
-      Statistic: Maximum
-      Period: '60'
-      EvaluationPeriods: '2'
-      ComparisonOperator: GreaterThanOrEqualToThreshold
-      Threshold: '1'
-      AlarmActions:
-        - !Sub "arn:aws:automate:${AWS::Region}:ec2:recover"
-        - !If [SNSCondition, !Sub "${SNSTopic}", !Ref "AWS::NoValue"]
-      Dimensions:
-      - Name: InstanceId
-        Value:
-          Ref: CASWorker2
-
-  RecoveryAlarmWorker3:
-    Type: AWS::CloudWatch::Alarm
-    Condition: 3WorkersCondition
-    Properties:
-      AlarmDescription: Trigger a recovery when instance status check fails more than once in 2 minutes.
-      Namespace: AWS/EC2
-      MetricName: StatusCheckFailed_System
-      Statistic: Maximum
-      Period: '60'
-      EvaluationPeriods: '2'
-      ComparisonOperator: GreaterThanOrEqualToThreshold
-      Threshold: '1'
-      AlarmActions:
-        - !Sub "arn:aws:automate:${AWS::Region}:ec2:recover"
-        - !If [SNSCondition, !Sub "${SNSTopic}", !Ref "AWS::NoValue"]
-      Dimensions:
-      - Name: InstanceId
-        Value:
-          Ref: CASWorker3
-
-  RecoveryAlarmWorker4:
-    Type: AWS::CloudWatch::Alarm
-    Condition: 4WorkersCondition
-    Properties:
-      AlarmDescription: Trigger a recovery when instance status check fails more than once in 2 minutes.
-      Namespace: AWS/EC2
-      MetricName: StatusCheckFailed_System
-      Statistic: Maximum
-      Period: '60'
-      EvaluationPeriods: '2'
-      ComparisonOperator: GreaterThanOrEqualToThreshold
-      Threshold: '1'
-      AlarmActions:
-        - !Sub "arn:aws:automate:${AWS::Region}:ec2:recover"
-        - !If [SNSCondition, !Sub "${SNSTopic}", !Ref "AWS::NoValue"]
-      Dimensions:
-      - Name: InstanceId
-        Value:
-          Ref: CASWorker4
-
-
 
 
   ViyaPlacementGroup:
@@ -720,6 +655,7 @@ Resources:
       Path: /
       Roles:
         - !Ref ViyaRole
+
   VisualServices:
     Type: AWS::EC2::Instance
     CreationPolicy:
@@ -804,10 +740,7 @@ Resources:
         cleanup: {}
     Properties:
       KeyName: !Ref KeyPairName
-      ImageId: !FindInMap
-        - AWSAMIRegionMap
-        - !Ref AWS::Region
-        - RHEL74HVM
+      ImageId: !GetAtt RHELAMIInfo.Id
       SubnetId: !Ref PrivateSubnetID
       IamInstanceProfile: !Ref ViyaProfile
       InstanceType: r4.4xlarge
@@ -967,10 +900,7 @@ Resources:
         cleanup: {}
     Properties:
       KeyName: !Ref KeyPairName
-      ImageId: !FindInMap
-        - AWSAMIRegionMap
-        - !Ref AWS::Region
-        - RHEL74HVM
+      ImageId: !GetAtt RHELAMIInfo.Id
       SubnetId: !Ref PrivateSubnetID
       IamInstanceProfile: !Ref ViyaProfile
       InstanceType: r4.2xlarge
@@ -1130,10 +1060,7 @@ Resources:
         cleanup: {}
     Properties:
       KeyName: !Ref KeyPairName
-      ImageId: !FindInMap
-        - AWSAMIRegionMap
-        - !Ref AWS::Region
-        - RHEL74HVM
+      ImageId: !GetAtt RHELAMIInfo.Id
       SubnetId: !Ref PrivateSubnetID
       IamInstanceProfile: !Ref ViyaProfile
       InstanceType: r4.2xlarge
@@ -1295,17 +1222,14 @@ Resources:
         cleanup: {}
     Properties:
       KeyName: !Ref KeyPairName
-      ImageId: !FindInMap
-        - AWSAMIRegionMap
-        - !Ref AWS::Region
-        - RHEL74HVM
+      ImageId: !GetAtt RHELAMIInfo.Id
       SubnetId: !Ref PrivateSubnetID
       IamInstanceProfile: !Ref ViyaProfile
       # transform "Nxlarge (N cores)" to "r4.Nxlarge"
       InstanceType: !Join
         - ''
         - - 'r4.'
-          - !Select [ 0 , !Split [ " ", !Ref CASNodeInstanceType ] ]
+          - !GetAtt LicenseInfo.NodeInstanceSize
       EbsOptimized: true
       PlacementGroupName: !Ref ViyaPlacementGroup
       SecurityGroupIds:
@@ -1378,725 +1302,27 @@ Resources:
             - |+
 
 
-  CASWorker1:
-    Condition: 1WorkersCondition
-    Type: AWS::EC2::Instance
-    CreationPolicy:
-      ResourceSignal:
-        Count: 1
-        Timeout: 'PT10M'
-    Metadata:
-      'AWS::CloudFormation::Authentication':
-        S3AccessCreds:
-          type: S3
-          roleName: !Ref ViyaRole
-          buckets:
-            - !Ref QSS3BucketName
-      'AWS::CloudFormation::Init':
-        configSets:
-          quickstart:
-            - install
-            - configure
-            - cleanup
-        install:
-          files:
-            /tmp/diskprep.sh:
-              source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/diskprep.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-            /usr/sbin/disks_ephemeral.sh:
-              source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/disks_ephemeral.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-
-            /tmp/node_setup.sh:
-              source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/node_setup.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-              context:
-                AWSRegion: !Ref AWS::Region
-                CloudFormationStack: !Ref AWS::StackName
-            /tmp/cloudwatch.conf:
-              source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.conf
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000440'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-              context:
-                LogGroup: !Ref CloudWatchLogGroup
-                Role: cas-worker1
-
-          commands:
-            01-diskprep:
-              command: /tmp/diskprep.sh
-            02-setup:
-              command: /tmp/node_setup.sh
-        configure: {}
-        cleanup: {}
+  WorkerStack:
+    Type: AWS::CloudFormation::Stack
     Properties:
-      KeyName: !Ref KeyPairName
-      ImageId: !FindInMap
-        - AWSAMIRegionMap
-        - !Ref AWS::Region
-        - RHEL74HVM
-      SubnetId: !Ref PrivateSubnetID
-      IamInstanceProfile: !Ref ViyaProfile
-      # transform "Nxlarge (N cores)" to "i3.Nxlarge"
-      InstanceType: !Join
-         - ''
-         - - 'i3.'
-           - !Select [ 0 , !Split [ " ", !Ref CASNodeInstanceType ] ]
-      EbsOptimized: true
-      PlacementGroupName: !Ref ViyaPlacementGroup
-      SecurityGroupIds:
-        - !Ref ViyaSecurityGroup
-      BlockDeviceMappings:
-        - DeviceName: /dev/sdg
-          Ebs:
-            VolumeSize: '50'
-            VolumeType: gp2
-            DeleteOnTermination: true
-        - DeviceName: /dev/sdh
-          VirtualName: ephemeral0
-        - DeviceName: /dev/sdi
-          VirtualName: ephemeral1
-        - DeviceName: /dev/sdj
-          VirtualName: ephemeral2
-        - DeviceName: /dev/sdk
-          VirtualName: ephemeral3
-        - DeviceName: /dev/sdl
-          VirtualName: ephemeral4
-        - DeviceName: /dev/sdm
-          VirtualName: ephemeral5
-        - DeviceName: /dev/sdn
-          VirtualName: ephemeral6
-        - DeviceName: /dev/sdo
-          VirtualName: ephemeral7
-      Tags:
-        - Key: Name
-          Value: !Join
-            - ' '
-            - - !Ref AWS::StackName
-              - CAS Worker 1
-      UserData: !Base64
-        'Fn::Join':
-          - ''
-          - - |
-              #!/bin/bash
-            - |
-              export PATH=$PATH:/usr/local/bin
-            - |
-              which pip &> /dev/null
-            - |
-              if [ $? -ne 0 ] ; then
-            - |2
-                  echo "PIP NOT INSTALLED"
-            - |2
-                  [ `which yum` ] && $(yum install -y epel-release; yum install -y python-pip) && echo "PIP INSTALLED"
-            - |2
-                  [ `which apt-get` ] && apt-get -y update && apt-get -y install python-pip && echo "PIP INSTALLED"
-            - |
-              fi
-            - |
-              pip install --upgrade pip &> /dev/null
-            - |
-              pip install awscli --ignore-installed six &> /dev/null
-            - |
-              function try () {
-                RC=1; count=1; max_count=$1; shift
-                until  [ $count -gt "$max_count" ]
-                do
-                  "$@" && RC=0 && break || let count=count+1
-                done
-                return $RC
-              }
-            - >
-              try 2 easy_install
-              https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
-            - |
-            - 'cfn-init --stack '
-            - !Ref AWS::StackName
-            - ' --resource CASWorker1 --configsets quickstart --region '
-            - !Ref AWS::Region
-            - |+
+      TemplateURL: !Sub "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/sas-viya-workers.yml"
+      Parameters:
+        KeyPairName: !Ref KeyPairName
+        PrivateSubnetID: !Ref PrivateSubnetID
+        QSS3BucketName: !Ref QSS3BucketName
+        QSS3KeyPrefix: !Ref QSS3KeyPrefix
+        AMI: !GetAtt RHELAMIInfo.Id
+        NodeInstanceSize: !GetAtt LicenseInfo.NodeInstanceSize
+        NumWorkers: !GetAtt LicenseInfo.NumWorkers
+        ViyaRole: !Ref ViyaRole
+        ViyaProfile: !Ref ViyaProfile
+        ViyaPlacementGroup: !Ref ViyaPlacementGroup
+        ViyaSecurityGroup: !Ref ViyaSecurityGroup
+        CloudWatchLogGroup: !Ref CloudWatchLogGroup
+        SNSTopic: !Ref SNSTopic
+        ParentStack: !Ref AWS::StackName
 
-            - |
-              # Signal the status from cfn-init
-            - 'cfn-signal -e $? --stack '
-            - !Ref AWS::StackName
-            - ' --resource CASWorker1 --region '
-            - !Ref AWS::Region
-            - |+
 
-  CASWorker2:
-    Condition: 2WorkersCondition
-    Type: AWS::EC2::Instance
-    CreationPolicy:
-      ResourceSignal:
-        Count: 1
-        Timeout: 'PT10M'
-    Metadata:
-      'AWS::CloudFormation::Authentication':
-        S3AccessCreds:
-          type: S3
-          roleName: !Ref ViyaRole
-          buckets:
-            - !Ref QSS3BucketName
-      'AWS::CloudFormation::Init':
-        configSets:
-          quickstart:
-            - install
-            - configure
-            - cleanup
-        install:
-          files:
-            /tmp/diskprep.sh:
-              source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/diskprep.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-            /usr/sbin/disks_ephemeral.sh:
-              source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/disks_ephemeral.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-
-            /tmp/node_setup.sh:
-              source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/node_setup.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-              context:
-                AWSRegion: !Ref AWS::Region
-                CloudFormationStack: !Ref AWS::StackName
-            /tmp/cloudwatch.conf:
-              source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.conf
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000440'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-              context:
-                LogGroup: !Ref CloudWatchLogGroup
-                Role: cas-worker2
-
-          commands:
-            01-diskprep:
-              command: /tmp/diskprep.sh
-            02-setup:
-              command: /tmp/node_setup.sh
-        configure: {}
-        cleanup: {}
-    Properties:
-      KeyName: !Ref KeyPairName
-      ImageId: !FindInMap
-        - AWSAMIRegionMap
-        - !Ref AWS::Region
-        - RHEL74HVM
-      SubnetId: !Ref PrivateSubnetID
-      IamInstanceProfile: !Ref ViyaProfile
-      # transform "Nxlarge (N cores)" to "i3.Nxlarge"
-      InstanceType: !Join
-         - ''
-         - - 'i3.'
-           - !Select [ 0 , !Split [ " ", !Ref CASNodeInstanceType ] ]
-      EbsOptimized: true
-      PlacementGroupName: !Ref ViyaPlacementGroup
-      SecurityGroupIds:
-        - !Ref ViyaSecurityGroup
-      BlockDeviceMappings:
-        - DeviceName: /dev/sdg
-          Ebs:
-            VolumeSize: '50'
-            VolumeType: gp2
-            DeleteOnTermination: true
-        - DeviceName: /dev/sdh
-          VirtualName: ephemeral0
-        - DeviceName: /dev/sdi
-          VirtualName: ephemeral1
-        - DeviceName: /dev/sdj
-          VirtualName: ephemeral2
-        - DeviceName: /dev/sdk
-          VirtualName: ephemeral3
-        - DeviceName: /dev/sdl
-          VirtualName: ephemeral4
-        - DeviceName: /dev/sdm
-          VirtualName: ephemeral5
-        - DeviceName: /dev/sdn
-          VirtualName: ephemeral6
-        - DeviceName: /dev/sdo
-          VirtualName: ephemeral7
-      Tags:
-        - Key: Name
-          Value: !Join
-            - ' '
-            - - !Ref AWS::StackName
-              - CAS Worker 2
-      UserData: !Base64
-        'Fn::Join':
-          - ''
-          - - |
-              #!/bin/bash
-            - |
-              export PATH=$PATH:/usr/local/bin
-            - |
-              which pip &> /dev/null
-            - |
-              if [ $? -ne 0 ] ; then
-            - |2
-                  echo "PIP NOT INSTALLED"
-            - |2
-                  [ `which yum` ] && $(yum install -y epel-release; yum install -y python-pip) && echo "PIP INSTALLED"
-            - |2
-                  [ `which apt-get` ] && apt-get -y update && apt-get -y install python-pip && echo "PIP INSTALLED"
-            - |
-              fi
-            - |
-              pip install --upgrade pip &> /dev/null
-            - |
-              pip install awscli --ignore-installed six &> /dev/null
-            - |
-              function try () {
-                RC=1; count=1; max_count=$1; shift
-                until  [ $count -gt "$max_count" ]
-                do
-                  "$@" && RC=0 && break || let count=count+1
-                done
-                return $RC
-              }
-            - >
-              try 2 easy_install
-              https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
-            - |
-            - 'cfn-init --stack '
-            - !Ref AWS::StackName
-            - ' --resource CASWorker2 --configsets quickstart --region '
-            - !Ref AWS::Region
-            - |+
-
-            - |
-              # Signal the status from cfn-init
-            - 'cfn-signal -e $? --stack '
-            - !Ref AWS::StackName
-            - ' --resource CASWorker2 --region '
-            - !Ref AWS::Region
-            - |+
-
-  CASWorker3:
-    Condition: 3WorkersCondition
-    Type: AWS::EC2::Instance
-    CreationPolicy:
-      ResourceSignal:
-        Count: 1
-        Timeout: 'PT10M'
-    Metadata:
-      'AWS::CloudFormation::Authentication':
-        S3AccessCreds:
-          type: S3
-          roleName: !Ref ViyaRole
-          buckets:
-            - !Ref QSS3BucketName
-      'AWS::CloudFormation::Init':
-        configSets:
-          quickstart:
-            - install
-            - configure
-            - cleanup
-        install:
-          files:
-            /tmp/diskprep.sh:
-              source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/diskprep.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-            /usr/sbin/disks_ephemeral.sh:
-              source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/disks_ephemeral.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-
-            /tmp/node_setup.sh:
-              source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/node_setup.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-              context:
-                AWSRegion: !Ref AWS::Region
-                CloudFormationStack: !Ref AWS::StackName
-            /tmp/cloudwatch.conf:
-              source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.conf
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000440'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-              context:
-                LogGroup: !Ref CloudWatchLogGroup
-                Role: cas-worker3
-
-          commands:
-            01-diskprep:
-              command: /tmp/diskprep.sh
-            02-setup:
-              command: /tmp/node_setup.sh
-        configure: {}
-        cleanup: {}
-    Properties:
-      KeyName: !Ref KeyPairName
-      ImageId: !FindInMap
-        - AWSAMIRegionMap
-        - !Ref AWS::Region
-        - RHEL74HVM
-      SubnetId: !Ref PrivateSubnetID
-      IamInstanceProfile: !Ref ViyaProfile
-      # transform "Nxlarge (N cores)" to "i3.Nxlarge"
-      InstanceType: !Join
-         - ''
-         - - 'i3.'
-           - !Select [ 0 , !Split [ " ", !Ref CASNodeInstanceType ] ]
-      EbsOptimized: true
-      PlacementGroupName: !Ref ViyaPlacementGroup
-      SecurityGroupIds:
-        - !Ref ViyaSecurityGroup
-      BlockDeviceMappings:
-        - DeviceName: /dev/sdg
-          Ebs:
-            VolumeSize: '50'
-            VolumeType: gp2
-            DeleteOnTermination: true
-        - DeviceName: /dev/sdh
-          VirtualName: ephemeral0
-        - DeviceName: /dev/sdi
-          VirtualName: ephemeral1
-        - DeviceName: /dev/sdj
-          VirtualName: ephemeral2
-        - DeviceName: /dev/sdk
-          VirtualName: ephemeral3
-        - DeviceName: /dev/sdl
-          VirtualName: ephemeral4
-        - DeviceName: /dev/sdm
-          VirtualName: ephemeral5
-        - DeviceName: /dev/sdn
-          VirtualName: ephemeral6
-        - DeviceName: /dev/sdo
-          VirtualName: ephemeral7
-      Tags:
-        - Key: Name
-          Value: !Join
-            - ' '
-            - - !Ref AWS::StackName
-              - CAS Worker 3
-      UserData: !Base64
-        'Fn::Join':
-          - ''
-          - - |
-              #!/bin/bash
-            - |
-              export PATH=$PATH:/usr/local/bin
-            - |
-              which pip &> /dev/null
-            - |
-              if [ $? -ne 0 ] ; then
-            - |2
-                  echo "PIP NOT INSTALLED"
-            - |2
-                  [ `which yum` ] && $(yum install -y epel-release; yum install -y python-pip) && echo "PIP INSTALLED"
-            - |2
-                  [ `which apt-get` ] && apt-get -y update && apt-get -y install python-pip && echo "PIP INSTALLED"
-            - |
-              fi
-            - |
-              pip install --upgrade pip &> /dev/null
-            - |
-              pip install awscli --ignore-installed six &> /dev/null
-            - |
-              function try () {
-                RC=1; count=1; max_count=$1; shift
-                until  [ $count -gt "$max_count" ]
-                do
-                  "$@" && RC=0 && break || let count=count+1
-                done
-                return $RC
-              }
-            - >
-              try 2 easy_install
-              https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
-            - |
-            - 'cfn-init --stack '
-            - !Ref AWS::StackName
-            - ' --resource CASWorker3 --configsets quickstart --region '
-            - !Ref AWS::Region
-            - |+
-
-            - |
-              # Signal the status from cfn-init
-            - 'cfn-signal -e $? --stack '
-            - !Ref AWS::StackName
-            - ' --resource CASWorker3 --region '
-            - !Ref AWS::Region
-            - |+
-
-  CASWorker4:
-    Condition: 4WorkersCondition
-    Type: AWS::EC2::Instance
-    CreationPolicy:
-      ResourceSignal:
-        Count: 1
-        Timeout: 'PT10M'
-    Metadata:
-      'AWS::CloudFormation::Authentication':
-        S3AccessCreds:
-          type: S3
-          roleName: !Ref ViyaRole
-          buckets:
-            - !Ref QSS3BucketName
-      'AWS::CloudFormation::Init':
-        configSets:
-          quickstart:
-            - install
-            - configure
-            - cleanup
-        install:
-          files:
-            /tmp/diskprep.sh:
-              source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/diskprep.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-            /usr/sbin/disks_ephemeral.sh:
-              source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/disks_ephemeral.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-
-            /tmp/node_setup.sh:
-              source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/node_setup.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-              context:
-                AWSRegion: !Ref AWS::Region
-                CloudFormationStack: !Ref AWS::StackName
-            /tmp/cloudwatch.conf:
-              source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.conf
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000440'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-              context:
-                LogGroup: !Ref CloudWatchLogGroup
-                Role: cas-corker4
-
-          commands:
-            01-diskprep:
-              command: /tmp/diskprep.sh
-            02-setup:
-              command: /tmp/node_setup.sh
-        configure: {}
-        cleanup: {}
-    Properties:
-      KeyName: !Ref KeyPairName
-      ImageId: !FindInMap
-        - AWSAMIRegionMap
-        - !Ref AWS::Region
-        - RHEL74HVM
-      SubnetId: !Ref PrivateSubnetID
-      IamInstanceProfile: !Ref ViyaProfile
-      # transform "Nxlarge (N cores)" to "i3.Nxlarge"
-      InstanceType: !Join
-         - ''
-         - - 'i3.'
-           - !Select [ 0 , !Split [ " ", !Ref CASNodeInstanceType ] ]
-      EbsOptimized: true
-      PlacementGroupName: !Ref ViyaPlacementGroup
-      SecurityGroupIds:
-        - !Ref ViyaSecurityGroup
-      BlockDeviceMappings:
-        - DeviceName: /dev/sdg
-          Ebs:
-            VolumeSize: '50'
-            VolumeType: gp2
-            DeleteOnTermination: true
-        - DeviceName: /dev/sdh
-          VirtualName: ephemeral0
-        - DeviceName: /dev/sdi
-          VirtualName: ephemeral1
-        - DeviceName: /dev/sdj
-          VirtualName: ephemeral2
-        - DeviceName: /dev/sdk
-          VirtualName: ephemeral3
-        - DeviceName: /dev/sdl
-          VirtualName: ephemeral4
-        - DeviceName: /dev/sdm
-          VirtualName: ephemeral5
-        - DeviceName: /dev/sdn
-          VirtualName: ephemeral6
-        - DeviceName: /dev/sdo
-          VirtualName: ephemeral7
-      Tags:
-        - Key: Name
-          Value: !Join
-            - ' '
-            - - !Ref AWS::StackName
-              - CAS Worker 4
-      UserData: !Base64
-        'Fn::Join':
-          - ''
-          - - |
-              #!/bin/bash
-            - |
-              export PATH=$PATH:/usr/local/bin
-            - |
-              which pip &> /dev/null
-            - |
-              if [ $? -ne 0 ] ; then
-            - |2
-                  echo "PIP NOT INSTALLED"
-            - |2
-                  [ `which yum` ] && $(yum install -y epel-release; yum install -y python-pip) && echo "PIP INSTALLED"
-            - |2
-                  [ `which apt-get` ] && apt-get -y update && apt-get -y install python-pip && echo "PIP INSTALLED"
-            - |
-              fi
-            - |
-              pip install --upgrade pip &> /dev/null
-            - |
-              pip install awscli --ignore-installed six &> /dev/null
-            - |
-              function try () {
-                RC=1; count=1; max_count=$1; shift
-                until  [ $count -gt "$max_count" ]
-                do
-                  "$@" && RC=0 && break || let count=count+1
-                done
-                return $RC
-              }
-            - >
-              try 2 easy_install
-              https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
-            - |
-            - 'cfn-init --stack '
-            - !Ref AWS::StackName
-            - ' --resource CASWorker4 --configsets quickstart --region '
-            - !Ref AWS::Region
-            - |+
-
-            - |
-              # Signal the status from cfn-init
-            - 'cfn-signal -e $? --stack '
-            - !Ref AWS::StackName
-            - ' --resource CASWorker4 --region '
-            - !Ref AWS::Region
-            - |+
 
   AnsiblePublicKey:
     Type: AWS::SSM::Parameter
@@ -2115,9 +1341,8 @@ Resources:
             Statement:
               - Action:
                   - "cloudformation:DescribeStackResources"
-                Resource: !Sub
-                  - "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWSStackName}/*"
-                  - AWSStackName: !Ref AWS::StackName
+                Resource:
+                  - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}*/*"
                 Effect: Allow
           PolicyName: ansiblecontroller-cfn-policy
         - PolicyDocument:
@@ -2319,8 +1544,7 @@ Resources:
                 AWSRegion: !Ref AWS::Region
                 KeyPairName: !Ref KeyPairName
                 AnsibleControllerIP: !Ref AnsibleControllerEIP
-                CASNodeInstanceType: !Ref CASNodeInstanceType
-                NumWorkers: !Ref NumWorkers
+                NumWorkers: !GetAtt LicenseInfo.NumWorkers
                 CloudFormationStack: !Ref AWS::StackName
                 CloudWatchLogs: !Join
                   - ''
@@ -2330,6 +1554,7 @@ Resources:
                     - !Ref CloudWatchLogGroup
                 SSLCertificateARN: !Ref SSLCertificateARN
                 DomainName: !Ref DomainName
+
             /tmp/SAS_Viya_deployment_data.zip:
               source: !Sub
                 - >-
@@ -2412,10 +1637,7 @@ Resources:
       KeyName: !Ref KeyPairName
       SubnetId: !Ref PublicSubnetID
       IamInstanceProfile: !Ref AnsibleControllerProfile
-      ImageId: !FindInMap
-        - AWSAMIRegionMap
-        - !Ref AWS::Region
-        - AMZNLINUXHVM
+      ImageId: !GetAtt AZLXAMIInfo.Id
       SecurityGroupIds:
         - !Ref AnsibleControllerSecurityGroup
       InstanceType: t2.small
@@ -2558,29 +1780,5 @@ Outputs:
     Description: CAS Controller IP address
     Value: !GetAtt
       - CASController
-      - PrivateIp
-  CASWorker1IP:
-    Description: CAS Worker 1 IP address
-    Condition: 1WorkersCondition
-    Value: !GetAtt
-      - CASWorker1
-      - PrivateIp
-  CASWorker2IP:
-    Description: CAS Worker 2 IP address
-    Condition: 2WorkersCondition
-    Value: !GetAtt
-      - CASWorker2
-      - PrivateIp
-  CASWorker3IP:
-    Description: CAS Worker 3 IP address
-    Condition: 3WorkersCondition
-    Value: !GetAtt
-      - CASWorker3
-      - PrivateIp
-  CASWorker4IP:
-    Description: CAS Worker 4 IP address
-    Condition: 4WorkersCondition
-    Value: !GetAtt
-      - CASWorker4
       - PrivateIp
 

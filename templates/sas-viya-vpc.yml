@@ -13,11 +13,6 @@ Metadata:
       Parameters:
         - DeploymentDataLocation
     - Label:
-        default: SAS Viya Compute Configuration
-      Parameters:
-        - CASNodeInstanceType
-        - NumWorkers
-    - Label:
         default: Administration
       Parameters:
         - KeyPairName
@@ -43,10 +38,6 @@ Metadata:
         default: Quick Start S3 Key Prefix
       DeploymentDataLocation:
         default: SAS Viya Software Order File
-      ViyaServicesNodeInstanceType:
-        default: Viya Services Node Instance Type
-      CASControllerNodeInstanceType:
-        default: CAS Controller Node Instance Type
       AdminIngressLocation:
         default: Permitted IP Range for Deployment Admin
       WebIngressLocation:
@@ -69,27 +60,6 @@ Parameters:
       Example: mysasbucket/viya_deployment_data/SAS_Viya_deployment_data.zip
     Type: String
     ConstraintDescription: must be a valid S3 bucket location, e.g. mysasbucket/viya_deployment_data/SAS_Viya_deployment_data.zip
-
-  CASNodeInstanceType:
-    AllowedValues:
-      - "2xlarge (4 cores)"
-      - "4xlarge (8 cores)"
-      - "8xlarge (16 cores)"
-      - "16xlarge (32 cores)"
-    ConstraintDescription: Must contain valid instance type
-    Default: "2xlarge (4 cores)"
-    Description: Type of EC2 instance for the Viya Compute Node. The number of vCPUs should match the number of CPUs in your software order.
-    Type: String
-  NumWorkers:
-    AllowedValues:
-    - '0'
-    - '1'
-    - '2'
-    - '3'
-    - '4'
-    Default: '0'
-    Description: Enter the number of CAS worker nodes to create
-    Type: String
 
   KeyPairName:
     Description: >-
@@ -322,8 +292,6 @@ Resources:
         QSS3KeyPrefix: !Ref QSS3KeyPrefix
         DeploymentDataLocation: !Ref DeploymentDataLocation
         VPCID: !Ref VPC
-        CASNodeInstanceType: !Ref CASNodeInstanceType
-        NumWorkers: !Ref NumWorkers
         AdminIngressLocation: !Ref AdminIngressLocation
         WebIngressLocation: !Ref WebIngressLocation
         ViyaAdminPass: !Ref ViyaAdminPass

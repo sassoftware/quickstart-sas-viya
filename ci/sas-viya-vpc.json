@@ -39,10 +39,6 @@
     {
         "ParameterKey": "OperatorEmail",
         "ParameterValue": ""
-    },
-    {
-        "ParameterKey": "NumWorkers",
-        "ParameterValue": "0"
     }
 
 ]

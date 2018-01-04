@@ -17,7 +17,6 @@ test -n "{{LogGroup}}"
 test -n "{{AWSRegion}}"
 test -n "{{KeyPairName}}"
 test -n "{{AnsibleControllerIP}}"
-test -n "{{CASNodeInstanceType}}"
 test -n "{{NumWorkers}}"
 test -n "{{CloudFormationStack}}"
 test -n "{{CloudWatchLogs}}"
@@ -30,7 +29,6 @@ CASControllerIP=
 CASWorker1IP=
 CASWorker2IP=
 CASWorker3IP=
-CASWorker4IP=
 DomainName=
 
 
@@ -69,10 +67,9 @@ cat <<EOF > "$OUTFILE"
          controller.viya.sas ($CASControllerIP)
 EOF
 
-[ -n "${CASWorker1IP}" ] && echo -e "       CAS Worker 1:\n         worker1.viya.sas (${CASWorker1IP})" >> "$OUTFILE" || :
-[ -n "${CASWorker2IP}" ] && echo -e "       CAS Worker 2:\n         worker2.viya.sas (${CASWorker2IP})" >> "$OUTFILE" || :
-[ -n "${CASWorker3IP}" ] && echo -e "       CAS Worker 3:\n         worker3.viya.sas (${CASWorker3IP})" >> "$OUTFILE" || :
-[ -n "${CASWorker4IP}" ] && echo -e "       CAS Worker 4:\n         worker4.viya.sas (${CASWorker4IP})" >> "$OUTFILE" || :
+if [ -n "${CASWorker1IP}" ]; then echo -e "       CAS Worker 1:\n         worker1.viya.sas (${CASWorker1IP})" >> "$OUTFILE"; fi
+if [ -n "${CASWorker2IP}" ]; then echo -e "       CAS Worker 2:\n         worker2.viya.sas (${CASWorker2IP})" >> "$OUTFILE"; fi
+if [ -n "${CASWorker3IP}" ]; then echo -e "       CAS Worker 3:\n         worker3.viya.sas (${CASWorker3IP})" >> "$OUTFILE"; fi
 
 }
 
@@ -121,10 +118,9 @@ cat <<EOF > "$OUTFILE"
          controller.viya.sas ($CASControllerIP)
 EOF
 
-[ -n "${CASWorker1IP}" ] && echo -e "       CAS Worker 1:\n         worker1.viya.sas (${CASWorker1IP})" >> "$OUTFILE" || :
-[ -n "${CASWorker2IP}" ] && echo -e "       CAS Worker 2:\n         worker2.viya.sas (${CASWorker2IP})" >> "$OUTFILE" || :
-[ -n "${CASWorker3IP}" ] && echo -e "       CAS Worker 3:\n         worker3.viya.sas (${CASWorker3IP})" >> "$OUTFILE" || :
-[ -n "${CASWorker4IP}" ] && echo -e "       CAS Worker 4:\n         worker4.viya.sas (${CASWorker4IP})" >> "$OUTFILE" || :
+if [ -n "${CASWorker1IP}" ]; then echo -e "       CAS Worker 1:\n         worker1.viya.sas (${CASWorker1IP})" >> "$OUTFILE"; fi
+if [ -n "${CASWorker2IP}" ]; then echo -e "       CAS Worker 2:\n         worker2.viya.sas (${CASWorker2IP})" >> "$OUTFILE"; fi
+if [ -n "${CASWorker3IP}" ]; then echo -e "       CAS Worker 3:\n         worker3.viya.sas (${CASWorker3IP})" >> "$OUTFILE"; fi
 
 # append licensing message is it exists
 if [ -e "$MSGDIR/sns_license_warning_message.txt" ]; then
@@ -145,62 +141,7 @@ EOF
 
 }
 
-create_cores_warning_message ( ) {
 
-TYPE="$1"
-
-if [ "$TYPE" = "UNDER" ]; then
-
-
-cat <<EOF > "$MSGDIR/sns_license_warning_message.txt"
-
-  WARNING:
-
-    Your SAS Viya license allows you to use $LICCORES cores for your CAS compute cluster.
-    Your current configuration uses only $USEDCORES cores for your cluster.
-    Therefore, your SAS Viya deployment is using fewer cores than the number of cores you are licensed for.
-
-    This deployment will run but it will not use the number of licensed cores in your SAS Viya deployment.
-    To use your licensed cores, you should increase your Amazon Web Services cores to match the number of licensed cores.
-
-    Redeploy with a combination EC2 instance size (CASNodeInstanceType) and CAS worker count (NumWorkers) that matches your licensed cores.
-
-    The number of cores for your deployment is determined by these options:
-
-      CASNodeInstanceType: {{CASNodeInstanceType}}
-      NumWorkers: $WORKERCOUNT
-
-    These settings result in $USEDCORES provisioned cores (CAS Controller + $WORKERCOUNT CAS Worker(s)).
-
-EOF
-
-else
-
-cat <<EOF > "$MSGDIR/sns_license_warning_message.txt"
-
-  WARNING:
-
-    Your SAS Viya license allows you to use $LICCORES cores for your CAS compute cluster.
-    Your current configuration provisions $USEDCORES cores for your cluster.
-    Therefore, your deployment is provisioning more cores than the number of cores you are licensed for.
-
-    This deployment will run but the additional AWS provisioned cores will not be used and will incur expenses from Amazon Web Services.
-    You should decrease your Amazon Web Services cores to match the number of licensed cores.
-
-    Redeploy with a combination of EC2 instance size (CASNodeInstanceType) and CAS worker count (NumWorkers) that matches your licensed cores.
-
-    The number of cores for your deployment is determined by these options:
-
-      CASNodeInstanceType: {{CASNodeInstanceType}}
-      NumWorkers: $WORKERCOUNT
-
-    These settings result in $USEDCORES provisioned cores (CAS Controller + $WORKERCOUNT CAS Worker(s)).
-
-EOF
-
-fi
-
-}
 
 
 cleanup () {
@@ -244,43 +185,53 @@ aws ssm put-parameter --region "{{AWSRegion}}" --name "viya-ansiblekey-{{CloudFo
 
 ## make sure the other VMs are all up
 STATUS="status"
-let NUMNODES={{NumWorkers}}+4
+let NUMNODES=4
 while ! [ "$NUMNODES"  -eq "$(echo "$STATUS" | grep "CREATE_COMPLETE" | wc -w)" ]; do
   sleep 3
   STATUS=$(aws cloudformation describe-stack-resources --no-paginate --region "{{AWSRegion}}" --stack-name "{{CloudFormationStack}}"  --output json --query 'StackResources[?ResourceType ==`AWS::EC2::Instance`]|[?LogicalResourceId != `AnsibleController`].ResourceStatus' --output text)
-  [ "$(echo "$STATUS" | grep "CREATE_FAILED")" ]  && exit 1 || :
+  if [ "$(echo "$STATUS" | grep "CREATE_FAILED")" ]; then exit 1; fi
 done
 
-
 ID=$(aws cloudformation describe-stack-resources --region  "{{AWSRegion}}" --stack-name "{{CloudFormationStack}}" --logical-resource-id VisualServices --query StackResources[*].PhysicalResourceId --output text)
-VisualServicesIP=$(aws ec2 describe-instances --region  "{{AWSRegion}}" --instance-id $ID --query Reservations[*].Instances[*].PrivateIpAddress --output text)
+VisualServicesIP=$(aws ec2 describe-instances --region  "{{AWSRegion}}" --instance-id "$ID" --query Reservations[*].Instances[*].PrivateIpAddress --output text)
 
 ID=$(aws cloudformation describe-stack-resources --region "{{AWSRegion}}" --stack-name "{{CloudFormationStack}}" --logical-resource-id ProgrammingServices --query StackResources[*].PhysicalResourceId --output text)
-ProgrammingServicesIP=$(aws ec2 describe-instances --region  "{{AWSRegion}}" --instance-id $ID --query Reservations[*].Instances[*].PrivateIpAddress --output text)
+ProgrammingServicesIP=$(aws ec2 describe-instances --region  "{{AWSRegion}}" --instance-id "$ID" --query Reservations[*].Instances[*].PrivateIpAddress --output text)
 
 ID=$(aws cloudformation describe-stack-resources --region "{{AWSRegion}}" --stack-name "{{CloudFormationStack}}" --logical-resource-id StatefulServices --query StackResources[*].PhysicalResourceId --output text)
-StatefulServicesIP=$(aws ec2 describe-instances --region  "{{AWSRegion}}" --instance-id $ID --query Reservations[*].Instances[*].PrivateIpAddress --output text)
+StatefulServicesIP=$(aws ec2 describe-instances --region  "{{AWSRegion}}" --instance-id "$ID" --query Reservations[*].Instances[*].PrivateIpAddress --output text)
 
 ID=$(aws cloudformation describe-stack-resources --region "{{AWSRegion}}" --stack-name "{{CloudFormationStack}}" --logical-resource-id CASController --query StackResources[*].PhysicalResourceId --output text)
-CASControllerIP=$(aws ec2 describe-instances --region  "{{AWSRegion}}" --instance-id $ID --query Reservations[*].Instances[*].PrivateIpAddress --output text)
+CASControllerIP=$(aws ec2 describe-instances --region  "{{AWSRegion}}" --instance-id "$ID" --query Reservations[*].Instances[*].PrivateIpAddress --output text)
 
-if [ {{NumWorkers}} -ge 1 ]; then
-  ID=$(aws cloudformation describe-stack-resources --region "{{AWSRegion}}" --stack-name "{{CloudFormationStack}}" --logical-resource-id CASWorker1 --query StackResources[*].PhysicalResourceId --output text)
-  [ -n "$ID" ] && CASWorker1IP=$(aws ec2 describe-instances --region  "{{AWSRegion}}" --instance-id $ID --query Reservations[*].Instances[*].PrivateIpAddress --output text) || :
-fi
-if [ {{NumWorkers}} -ge 2 ]; then
-  ID=$(aws cloudformation describe-stack-resources --region "{{AWSRegion}}" --stack-name "{{CloudFormationStack}}" --logical-resource-id CASWorker2 --query StackResources[*].PhysicalResourceId --output text)
-  [ -n "$ID" ] && CASWorker2IP=$(aws ec2 describe-instances --region  "{{AWSRegion}}" --instance-id $ID --query Reservations[*].Instances[*].PrivateIpAddress --output text) || :
-fi
-if [ {{NumWorkers}} -ge 3 ]; then
-  ID=$(aws cloudformation describe-stack-resources --region "{{AWSRegion}}" --stack-name "{{CloudFormationStack}}" --logical-resource-id CASWorker3 --query StackResources[*].PhysicalResourceId --output text)
-  [ -n "$ID" ] && CASWorker3IP=$(aws ec2 describe-instances --region  "{{AWSRegion}}" --instance-id $ID --query Reservations[*].Instances[*].PrivateIpAddress --output text) || :
-fi
-if [ {{NumWorkers}} -eq 4 ]; then
-  ID=$(aws cloudformation describe-stack-resources --region "{{AWSRegion}}" --stack-name "{{CloudFormationStack}}" --logical-resource-id CASWorker4 --query StackResources[*].PhysicalResourceId --output text)
-  [ -n "$ID" ] && CASWorker4IP=$(aws ec2 describe-instances --region  "{{AWSRegion}}" --instance-id $ID --query Reservations[*].Instances[*].PrivateIpAddress --output text) || :
-fi
+if [[ "{{NumWorkers}}" -gt "0" ]]; then
 
+  # get id work worker substack
+  WorkerStackID=$(aws cloudformation describe-stack-resources --region "{{AWSRegion}}" --stack-name "{{CloudFormationStack}}" --logical-resource-id WorkerStack --query StackResources[*].PhysicalResourceId --output text)
+
+  STATUS="status"
+  while ! [ "{{NumWorkers}}"  -eq "$(echo "$STATUS" | grep "CREATE_COMPLETE" | wc -w)" ]; do
+    sleep 3
+    STATUS=$(aws cloudformation describe-stack-resources --no-paginate --region "{{AWSRegion}}" --stack-name "$WorkerStackID"  --output json --query 'StackResources[?ResourceType ==`AWS::EC2::Instance`]|[?LogicalResourceId != `AnsibleController`].ResourceStatus' --output text)
+    if [ "$(echo "$STATUS" | grep "CREATE_FAILED")" ]; then exit 1; fi
+  done
+
+
+  if [ {{NumWorkers}} -ge 1 ]; then
+    # get worker sub stack id
+    ID=$(aws cloudformation describe-stack-resources --region "{{AWSRegion}}" --stack-name "$WorkerStackID" --logical-resource-id CASWorker1 --query StackResources[*].PhysicalResourceId --output text)
+    if [ -n "$ID" ]; then CASWorker1IP=$(aws ec2 describe-instances --region  "{{AWSRegion}}" --instance-id "$ID" --query Reservations[*].Instances[*].PrivateIpAddress --output text); fi
+  fi
+  if [ {{NumWorkers}} -ge 2 ]; then
+    ID=$(aws cloudformation describe-stack-resources --region "{{AWSRegion}}" --stack-name "$WorkerStackID" --logical-resource-id CASWorker2 --query StackResources[*].PhysicalResourceId --output text)
+    if [ -n "$ID" ]; then CASWorker2IP=$(aws ec2 describe-instances --region  "{{AWSRegion}}" --instance-id "$ID" --query Reservations[*].Instances[*].PrivateIpAddress --output text); fi
+  fi
+  if [ {{NumWorkers}} -ge 3 ]; then
+    ID=$(aws cloudformation describe-stack-resources --region "{{AWSRegion}}" --stack-name "$WorkerStackID" --logical-resource-id CASWorker3 --query StackResources[*].PhysicalResourceId --output text)
+    if [ -n "$ID" ]; then CASWorker3IP=$(aws ec2 describe-instances --region  "{{AWSRegion}}" --instance-id "$ID" --query Reservations[*].Instances[*].PrivateIpAddress --output text); fi
+  fi
+
+fi
 
 if [ -n "{{SNSTopic}}" ]; then
 
@@ -293,10 +244,6 @@ if [ -n "{{SNSTopic}}" ]; then
       --message "file://$MSGDIR/sns_start_message.txt"
 
 fi
-
-
-
-
 
 
 # sometimes there are ssh connection errors (53) during the install
@@ -321,10 +268,9 @@ function try () {
   echo prog ansible_host="$ProgrammingServicesIP"
   echo stateful ansible_host="$StatefulServicesIP"
   echo controller ansible_host="$CASControllerIP"
-  [ -n "${CASWorker1IP}" ] && echo worker1 ansible_host="${CASWorker1IP}" || :
-  [ -n "${CASWorker2IP}" ] && echo worker2 ansible_host="${CASWorker2IP}" || :
-  [ -n "${CASWorker3IP}" ] && echo worker3 ansible_host="${CASWorker3IP}" || :
-  [ -n "${CASWorker4IP}" ] && echo worker4 ansible_host="${CASWorker4IP}" || :
+  if [ -n "${CASWorker1IP}" ]; then echo worker1 ansible_host="${CASWorker1IP}"; fi
+  if [ -n "${CASWorker2IP}" ]; then echo worker2 ansible_host="${CASWorker2IP}"; fi
+  if [ -n "${CASWorker3IP}" ]; then echo worker3 ansible_host="${CASWorker3IP}"; fi
 } > /tmp/inventory.head
 
 # prepare list host entries for /etc/hosts
@@ -333,10 +279,9 @@ function try () {
   echo "$ProgrammingServicesIP prog.viya.sas prog"
   echo "$StatefulServicesIP stateful.viya.sas stateful"
   echo "$CASControllerIP controller.viya.sas controller"
-  [ -n "${CASWorker1IP}" ] && echo "${CASWorker1IP} worker1.viya.sas worker1" || :
-  [ -n "${CASWorker2IP}" ] && echo "${CASWorker2IP} worker2.viya.sas worker2" || :
-  [ -n "${CASWorker3IP}" ] && echo "${CASWorker3IP} worker3.viya.sas worker3" || :
-  [ -n "${CASWorker4IP}" ] && echo "${CASWorker4IP} worker4.viya.sas worker4" || :
+  if [ -n "${CASWorker1IP}" ]; then echo "${CASWorker1IP} worker1.viya.sas worker1"; fi
+  if [ -n "${CASWorker2IP}" ]; then echo "${CASWorker2IP} worker2.viya.sas worker2"; fi
+  if [ -n "${CASWorker3IP}" ]; then echo "${CASWorker3IP} worker3.viya.sas worker3"; fi
 } > /tmp/hostnames.txt
 
 
@@ -361,52 +306,10 @@ install_openldap () {
 }
 
 
-check_cores ()
-{
-  # number of licensed cores for CAS
-
-  # cat,xargs,sed: create single, semicolon-terminated lines;
-  UNWRAPPED=$(cat  ~/sas_viya_playbook/SASViyaV0300_*_Linux_x86-64.txt | xargs | sed 's/;/;\n/g')
-  CPUNUM=$(echo "$UNWRAPPED" | grep EXPIRE | grep PRODNUM1141 | sed -r "s/.*CPU=(.*)\;/\1/")
-  LICCORES=$(echo "$UNWRAPPED" | grep NAME="$CPUNUM" | sed  -r "s/.*SERIAL=\+([0-9]+).*/\1/")
-
-  CPUCOUNT=$(ssh "$CASControllerIP" cat /proc/cpuinfo | grep -c ^processor)
-  let CPUCOUNT=CPUCOUNT/2
-
-  WORKERCOUNT=$(grep -c worker /tmp/inventory.head || true)
-  let CASNODESCOUNT=WORKERCOUNT+1
-
-  let USEDCORES=CASNODESCOUNT*CPUCOUNT
-
-
-  if ! [[ $USEDCORES -eq $LICCORES ]]; then
-
-    if [[ $USEDCORES -gt $LICCORES ]]; then
-      LICCPU="OVER"
-     elif [[ $USEDCORES -lt $LICCORES ]]; then
-      LICCPU="UNDER"
-    fi
-
-    create_cores_warning_message "$LICCPU"
-
-    cat $MSGDIR/sns_license_warning_message.txt
-
-    if [ -n "{{SNSTopic}}" ]; then
-
-      aws --output text --region "{{AWSRegion}}" sns publish --topic-arn "{{SNSTopic}}" \
-          --subject "Licensing Notification for SAS Viya Deployment {{CloudFormationStack}}" \
-          --message "file://$MSGDIR/sns_license_warning_message.txt"
-
-    fi
-  fi
-
-
-}
-
 
 # set log file for pre deployment steps
 export PREDEPLOG="$LOGDIR/deployment-commands.log"
-touch $PREDEPLOG
+touch "$PREDEPLOG"
 
 # get sas-orchestration cli
 echo "$(date) Download and extract sas-orchestration cli" >> "$PREDEPLOG"
@@ -450,10 +353,6 @@ pushd sas_viya_playbook
   git clone -q https://github.com/sassoftware/virk.git 2>> "$PREDEPLOG"
   ansible-playbook virk/playbooks/pre-install-playbook/viya_pre_install_playbook.yml -e 'use_pause=false'
 
-
-  echo " " >> "$PREDEPLOG"
-  echo "$(date) Perform Cores/License check" >> "$PREDEPLOG"
-  check_cores &>> "$PREDEPLOG"
 
   echo " " >> "$PREDEPLOG"
   echo "$(date) Install and set up OpenLDAP (see deployment-openldap.log)" >> "$PREDEPLOG"

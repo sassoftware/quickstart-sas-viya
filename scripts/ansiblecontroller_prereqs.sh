@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-# make sure we have at least java8 and ansible 2.2.1.0
+# make sure we have at least java8 and ansible 2.3.2.0
 
 install_java () {
    echo Install java 1.8
@@ -32,7 +32,7 @@ fi
 
 if ! type -p ansible;  then
    # install Ansible
-   /usr/local/bin/pip install 'ansible==2.3.2.0'
+   pip install 'ansible==2.3.2.0'
 fi
 
 if ! type -p git; then
