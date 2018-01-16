@@ -65,7 +65,7 @@ else
     # create RAID and filesystem
     READAHEAD=16384
     partprobe
-    mdadm --create --verbose /dev/md0 --level=0 -c256 --force --raid-devices=$drive_count "$drives"
+    mdadm --create --verbose /dev/md0 --level=0 -c256 --force --raid-devices=$drive_count $drives
     echo DEVICE "$drives" | tee /etc/mdadm.conf
     mdadm --detail --scan | tee -a /etc/mdadm.conf
     blockdev --setra $READAHEAD /dev/md0
