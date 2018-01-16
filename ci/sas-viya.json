@@ -36,11 +36,11 @@
         "ParameterValue": "viya33/"
     },
     {
-        "ParameterKey": "ViyaAdminPass",
+        "ParameterKey": "SASAdminPass",
         "ParameterValue": "SASViyaAdmin"
     },
     {
-        "ParameterKey": "ViyaUserPass",
+        "ParameterKey": "SASUserPass",
         "ParameterValue": "SASViyaUser"
     },
     {

@@ -18,8 +18,8 @@ Metadata:
           - KeyPairName
           - WebIngressLocation
           - AdminIngressLocation
-          - ViyaAdminPass
-          - ViyaUserPass
+          - SASAdminPass
+          - SASUserPass
           - OperatorEmail
       - Label:
           default: Network Configuration
@@ -58,10 +58,10 @@ Metadata:
         default: Permitted IP Range for Deployment Administrator
       WebIngressLocation:
         default: Permitted IP Range for Application Access
-      ViyaAdminPass:
-        default: SAS Viya Administrator Password
-      ViyaUserPass:
-        default: Password for viyauser01--viyauser10
+      SASAdminPass:
+        default: SAS Administrator Password
+      SASUserPass:
+        default: Password for sasuser01--sasuser10
       OperatorEmail:
         default: Operator Email
       SSLCertificateARN:
@@ -104,17 +104,17 @@ Parameters:
     ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
 
 
-  ViyaAdminPass:
+  SASAdminPass:
     Description: >-
-      Password of the Viya Admin User (viyaadmin). Must have at least 6 and no more than 255 characters.
+      Password of the SAS Admin User (sasadmin). Must have at least 6 and no more than 255 characters.
     Type: String
     MinLength: '6'
     MaxLength: '255'
     NoEcho: true
     ConstraintDescription: Password must have at least 6 and no more than 255 characters.
-  ViyaUserPass:
+  SASUserPass:
     Description: >-
-      Password of the Viya Users (viyauser01--viyauser10). Must have at least 6 and no more than 255 characters.
+      Password of the SAS Users (sasuser01--sasuser10). Must have at least 6 and no more than 255 characters.
     Type: String
     MinLength: '6'
     MaxLength: '255'
@@ -1537,8 +1537,8 @@ Resources:
               group: ec2-user
               authentication: S3AccessCreds
               context:
-                ViyaAdminPass: !Ref ViyaAdminPass
-                ViyaUserPass: !Ref ViyaUserPass
+                SASAdminPass: !Ref SASAdminPass
+                SASUserPass: !Ref SASUserPass
                 LogGroup: !Ref CloudWatchLogGroup
                 SNSTopic: !If [SNSCondition, !Ref SNSTopic, ""]
                 AWSRegion: !Ref AWS::Region

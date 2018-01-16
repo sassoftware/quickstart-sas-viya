@@ -26,14 +26,14 @@
     },
     {
         "ParameterKey": "QSS3KeyPrefix",
-        "ParameterValue": "viya33/"
+        "ParameterValue": "viya33"
     },
     {
-        "ParameterKey": "ViyaAdminPass",
+        "ParameterKey": "SASAdminPass",
         "ParameterValue": "SASViyaAdmin"
     },
     {
-        "ParameterKey": "ViyaUserPass",
+        "ParameterKey": "SASUserPass",
         "ParameterValue": "SASViyaUser"
     },
     {

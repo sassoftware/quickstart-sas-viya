@@ -2,7 +2,7 @@
 ## you probably want to update these 2 variables. 
 DC: sasviya     # the name of your OpenLDAP
 OLCROOTPW: ""     # the password used for sasldap and sasadmin
-OLCUSERPW: ""      # the password for the viyauser01--viyauser10 accounts
+OLCUSERPW: ""      # the password for the sasuser01--sasuser10 accounts
 
 
 # Hopefully you don't need to update this variable:
@@ -12,32 +12,32 @@ OpenLDAPFQDN: "{{hostvars[groups['openldapserver'][0]]['ansible_fqdn']}}"
 
 # if you are not happy with the following default users and groups, feel free to udpate. 
 user_list:
-  - { name: viyauser01, first: "Viya", last: "User01", uid: 100001, gid: 100001}
-  - { name: viyauser02, first: "Viya", last: "User02", uid: 100002, gid: 100001}
-  - { name: viyauser03, first: "Viya", last: "User03", uid: 100003, gid: 100001}
-  - { name: viyauser04, first: "Viya", last: "User04", uid: 100004, gid: 100001}
-  - { name: viyauser05, first: "Viya", last: "User05", uid: 100005, gid: 100001}
-  - { name: viyauser06, first: "Viya", last: "User06", uid: 100006, gid: 100001}
-  - { name: viyauser07, first: "Viya", last: "User07", uid: 100007, gid: 100001}
-  - { name: viyauser08, first: "Viya", last: "User08", uid: 100008, gid: 100001}
-  - { name: viyauser09, first: "Viya", last: "User09", uid: 100009, gid: 100001}
-  - { name: viyauser10, first: "Viya", last: "User10", uid: 100010, gid: 100001}
+  - { name: sasuser01, first: "SAS", last: "User01", uid: 100001, gid: 100001}
+  - { name: sasuser02, first: "SAS", last: "User02", uid: 100002, gid: 100001}
+  - { name: sasuser03, first: "SAS", last: "User03", uid: 100003, gid: 100001}
+  - { name: sasuser04, first: "SAS", last: "User04", uid: 100004, gid: 100001}
+  - { name: sasuser05, first: "SAS", last: "User05", uid: 100005, gid: 100001}
+  - { name: sasuser06, first: "SAS", last: "User06", uid: 100006, gid: 100001}
+  - { name: sasuser07, first: "SAS", last: "User07", uid: 100007, gid: 100001}
+  - { name: sasuser08, first: "SAS", last: "User08", uid: 100008, gid: 100001}
+  - { name: sasuser09, first: "SAS", last: "User09", uid: 100009, gid: 100001}
+  - { name: sasuser10, first: "SAS", last: "User10", uid: 100010, gid: 100001}
 
 group_list:
-  - group: viyausers
+  - group: sasusers
     gid: 100001
-    desc: Viya Users
+    desc: SAS Users
     member:
-    - viyauser01
-    - viyauser02
-    - viyauser03
-    - viyauser04
-    - viyauser05
-    - viyauser06
-    - viyauser07
-    - viyauser08
-    - viyauser09
-    - viyauser10
+    - sasuser01
+    - sasuser02
+    - sasuser03
+    - sasuser04
+    - sasuser05
+    - sasuser06
+    - sasuser07
+    - sasuser08
+    - sasuser09
+    - sasuser10
 
 
 ## you probably should leave the rest of this alone 

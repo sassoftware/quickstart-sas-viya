@@ -11,8 +11,8 @@ set -o nounset
 
 # This is a mustache template.
 # Make sure all the input parms are set
-test -n "{{ViyaAdminPass}}"
-test -n "{{ViyaUserPass}}"
+test -n "{{SASAdminPass}}"
+test -n "{{SASUserPass}}"
 test -n "{{LogGroup}}"
 test -n "{{AWSRegion}}"
 test -n "{{KeyPairName}}"
@@ -300,7 +300,7 @@ install_openldap () {
     ansible-playbook update.inventory.yml
 
     # openldap and sssd setup
-    ansible-playbook openldapsetup.yml -e "OLCROOTPW={{ViyaAdminPass}} OLCUSERPW={{ViyaUserPass}}"
+    ansible-playbook openldapsetup.yml -e "OLCROOTPW={{SASAdminPass}} OLCUSERPW={{SASUserPass}}"
 
   popd
 }
@@ -375,7 +375,7 @@ pushd sas_viya_playbook
   ansible-playbook ansible.update.vars.file.yml
 
   # main deployment
-  try 2 ansible-playbook site.yml
+  try 3 ansible-playbook site.yml
 
 
 popd

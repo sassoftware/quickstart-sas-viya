@@ -36,22 +36,18 @@
         "ParameterValue": "viya33/"
     },
     {
-        "ParameterKey": "ViyaAdminPass",
+        "ParameterKey": "SASAdminPass",
         "ParameterValue": "SASViyaAdmin"
     },
     {
-        "ParameterKey": "ViyaUserPass",
+        "ParameterKey": "SASUserPass",
         "ParameterValue": "SASViyaUser"
     },
     {
         "ParameterKey": "OperatorEmail",
         "ParameterValue": ""
     },
-    {
-        "ParameterKey": "NumWorkers",
-        "ParameterValue": "1"
-    },
-    {
+        {
         "ParameterKey": "AWSHostedZoneID",
         "ParameterValue": "Z2BP7UMCNDE5Z9"
     },

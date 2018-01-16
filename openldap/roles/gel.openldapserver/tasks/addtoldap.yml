@@ -28,14 +28,14 @@
   register: sasldap
 - debug: var=sasldap
 
-- name: create viyaadmin.ldif
+- name: create sasadmin.ldif
   template:
-    src: viyaadmin.ldif.j2
-    dest: "{{LDIFLOC}}/viyaadmin.ldif"
+    src: sasadmin.ldif.j2
+    dest: "{{LDIFLOC}}/sasadmin.ldif"
     mode: 0600
 
-- name: execute viyaadmin.ldif
-  shell: "ldapadd -x -D {{OLCROOTDN}} -w {{OLCROOTPW}} -f {{LDIFLOC}}/viyaadmin.ldif"
+- name: execute sasadmin.ldif
+  shell: "ldapadd -x -D {{OLCROOTDN}} -w {{OLCROOTPW}} -f {{LDIFLOC}}/sasadmin.ldif"
   register: sasadmin
 - debug: var=sasadmin
 
