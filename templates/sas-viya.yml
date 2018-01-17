@@ -1302,25 +1302,25 @@ Resources:
             - |+
 
 
-  WorkerStack:
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      TemplateURL: !Sub "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/sas-viya-workers.yml"
-      Parameters:
-        KeyPairName: !Ref KeyPairName
-        PrivateSubnetID: !Ref PrivateSubnetID
-        QSS3BucketName: !Ref QSS3BucketName
-        QSS3KeyPrefix: !Ref QSS3KeyPrefix
-        AMI: !GetAtt RHELAMIInfo.Id
-        NodeInstanceSize: !GetAtt LicenseInfo.NodeInstanceSize
-        NumWorkers: !GetAtt LicenseInfo.NumWorkers
-        ViyaRole: !Ref ViyaRole
-        ViyaProfile: !Ref ViyaProfile
-        ViyaPlacementGroup: !Ref ViyaPlacementGroup
-        ViyaSecurityGroup: !Ref ViyaSecurityGroup
-        CloudWatchLogGroup: !Ref CloudWatchLogGroup
-        SNSTopic: !Ref SNSTopic
-        ParentStack: !Ref AWS::StackName
+#  WorkerStack:
+#    Type: AWS::CloudFormation::Stack
+#    Properties:
+#      TemplateURL: !Sub "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/sas-viya-workers.yml"
+#      Parameters:
+#        KeyPairName: !Ref KeyPairName
+#        PrivateSubnetID: !Ref PrivateSubnetID
+#        QSS3BucketName: !Ref QSS3BucketName
+#        QSS3KeyPrefix: !Ref QSS3KeyPrefix
+#        AMI: !GetAtt RHELAMIInfo.Id
+#        NodeInstanceSize: !GetAtt LicenseInfo.NodeInstanceSize
+#        NumWorkers: !GetAtt LicenseInfo.NumWorkers
+#        ViyaRole: !Ref ViyaRole
+#        ViyaProfile: !Ref ViyaProfile
+#        ViyaPlacementGroup: !Ref ViyaPlacementGroup
+#        ViyaSecurityGroup: !Ref ViyaSecurityGroup
+#        CloudWatchLogGroup: !Ref CloudWatchLogGroup
+#        SNSTopic: !If [SNSCondition, !Sub "${SNSTopic}", ""]
+#        ParentStack: !Ref AWS::StackName
 
 
 
