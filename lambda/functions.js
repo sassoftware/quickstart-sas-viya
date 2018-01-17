@@ -91,7 +91,7 @@ exports.license = function(event, context) {
                     responseStatus = "SUCCESS";
                     responseData["CPUCount"] = cpucount;
 
-                    if (cpucount === 4) {
+                    if (cpucount == 4) {
                          responseData["NodeInstanceSize"] = "2xlarge";
                          responseData["NumWorkers"] = 0;
                     } else if (cpucount <= 8) {
