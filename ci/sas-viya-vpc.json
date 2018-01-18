@@ -1,16 +1,16 @@
 [
     {
         "ParameterKey": "AvailabilityZone",
-        "ParameterValue": "us-east-1a"
+        "ParameterValue": ""
     },
 
     {
         "ParameterKey": "AdminIngressLocation",
-        "ParameterValue": "149.173.0.0/16"
+        "ParameterValue": ""
     },
     {
         "ParameterKey": "WebIngressLocation",
-        "ParameterValue": "149.173.0.0/16"
+        "ParameterValue": ""
     },
     {
         "ParameterKey": "KeyPairName",

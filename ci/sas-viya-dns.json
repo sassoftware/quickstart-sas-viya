@@ -17,11 +17,11 @@
     },
     {
         "ParameterKey": "PrivateSubnetID",
-        "ParameterValue": "subnet-5a007000"
+        "ParameterValue": ""
     },
     {
         "ParameterKey": "PublicSubnetID",
-        "ParameterValue": "subnet-301e6e6a"
+        "ParameterValue": ""
     },
     {
         "ParameterKey": "DeploymentDataLocation",
@@ -49,15 +49,15 @@
     },
         {
         "ParameterKey": "AWSHostedZoneID",
-        "ParameterValue": "Z2BP7UMCNDE5Z9"
-    },
+        "ParameterValue": ""
+        },
     {
         "ParameterKey": "DomainName",
-        "ParameterValue": "viyatest.com"
+        "ParameterValue": ""
     },
     {
         "ParameterKey": "SSLCertificateARN",
-        "ParameterValue": "arn:aws:acm:us-east-1:869791842936:certificate/42ef3680-be89-4c80-ae5b-ed12309a2594"
+        "ParameterValue": ""
     }
 
 

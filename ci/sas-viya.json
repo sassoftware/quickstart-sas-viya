@@ -1,15 +1,15 @@
 [
     {
         "ParameterKey": "VPCID",
-        "ParameterValue": "vpc-19500560"
+        "ParameterValue": ""
     },
     {
         "ParameterKey": "AdminIngressLocation",
-        "ParameterValue": "149.173.0.0/16"
-    },
+        "ParameterValue": ""
+    },`
     {
         "ParameterKey": "WebIngressLocation",
-        "ParameterValue": "149.173.0.0/16"
+        "ParameterValue": ""
     },
     {
         "ParameterKey": "KeyPairName",
@@ -17,15 +17,15 @@
     },
     {
         "ParameterKey": "PrivateSubnetID",
-        "ParameterValue": "subnet-5a007000"
+        "ParameterValue": ""
     },
     {
         "ParameterKey": "PublicSubnetID",
-        "ParameterValue": "subnet-301e6e6a"
+        "ParameterValue": ""
     },
     {
         "ParameterKey": "DeploymentDataLocation",
-        "ParameterValue": "mercury-deployment-data/viya3.3/SAS_Viya_deployment_data.zip"
+        "ParameterValue": "mercury-deployment-data/viya3.3/SAS_Viya_deployment_data_8CPU.zip"
     },
     {
         "ParameterKey": "QSS3BucketName",
