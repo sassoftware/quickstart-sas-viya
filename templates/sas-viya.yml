@@ -61,7 +61,7 @@ Metadata:
       SASAdminPass:
         default: SAS Administrator Password
       SASUserPass:
-        default: Password for sasuser01--sasuser10
+        default: Password for default user
       OperatorEmail:
         default: Operator Email
       SSLCertificateARN:
@@ -109,7 +109,7 @@ Parameters:
 
   SASAdminPass:
     Description: >-
-      Password of the SAS Admin User (sasadmin). Must have at least 6 and no more than 255 characters.
+      Password of the SAS Admin Users (sasboot, optionally sasadmin). Must have at least 6 and no more than 255 characters.
     Type: String
     MinLength: '6'
     MaxLength: '255'
@@ -117,12 +117,12 @@ Parameters:
     ConstraintDescription: Password must have at least 6 and no more than 255 characters.
   SASUserPass:
     Description: >-
-      Password of the SAS Users (sasuser01--sasuser10). Must have at least 6 and no more than 255 characters.
+      Password of the default SAS User (sasuser). If left empty, no default users are being created (WARNING: If not set, deployment will require additional setup steps before being usable).
     Type: String
-    MinLength: '6'
+    MinLength: '0'
     MaxLength: '255'
     NoEcho: true
-    ConstraintDescription: Password must have at least 6 and no more than 255 characters.
+    ConstraintDescription: Password cannot be longer than 255 characters.
 
   VPCID:
     Description: ID of an existing VPC with a public and a private subnet in the same Availability Zone.

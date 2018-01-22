@@ -1,7 +1,7 @@
 [
     {
         "ParameterKey": "AvailabilityZone",
-        "ParameterValue": "us-east-1c"
+        "ParameterValue": "us-east-1a"
     },
 
     {
@@ -34,7 +34,7 @@
     },
     {
         "ParameterKey": "SASUserPass",
-        "ParameterValue": "SASViyaUser"
+        "ParameterValue": "SASViyaAdmin"
     },
     {
         "ParameterKey": "OperatorEmail",

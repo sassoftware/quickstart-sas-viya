@@ -25,7 +25,7 @@
     },
     {
         "ParameterKey": "DeploymentDataLocation",
-        "ParameterValue": "mercury-deployment-data/viya3.3/SAS_Viya_deployment_data.zip"
+        "ParameterValue": "mercury-deployment-data/viya3.3/SAS_Viya_deployment_data_4CPU.zip"
     },
     {
         "ParameterKey": "QSS3BucketName",

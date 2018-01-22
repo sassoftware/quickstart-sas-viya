@@ -13,7 +13,6 @@ set -o nounset
 # This is a mustache template.
 # Make sure all the input parms are set
 test -n "{{SASAdminPass}}"
-test -n "{{SASUserPass}}"
 test -n "{{LogGroup}}"
 test -n "{{AWSRegion}}"
 test -n "{{KeyPairName}}"
@@ -352,12 +351,14 @@ pushd sas_viya_playbook
   echo " " >> "$PREDEPLOG"
   echo "$(date) Download and execute Viya Infrastructure Resource Kit (VIRK)" >> "$PREDEPLOG"
   git clone -q https://github.com/sassoftware/virk.git 2>> "$PREDEPLOG"
+  git --git-dir virk/.git checkout viya-3.3 2>> "$PREDEPLOG"
   ansible-playbook virk/playbooks/pre-install-playbook/viya_pre_install_playbook.yml -e 'use_pause=false'
 
-
-  echo " " >> "$PREDEPLOG"
-  echo "$(date) Install and set up OpenLDAP (see deployment-openldap.log)" >> "$PREDEPLOG"
-  install_openldap
+  if [ -n "{{SASUserPass}}" ]; then
+    echo " " >> "$PREDEPLOG"
+    echo "$(date) Install and set up OpenLDAP (see deployment-openldap.log)" >> "$PREDEPLOG"
+    install_openldap
+  fi
 
   #
   # main deployment
@@ -367,7 +368,9 @@ pushd sas_viya_playbook
   echo "$(date) Start Main Deployment (see deployment-main.log)" >> "$PREDEPLOG"
 
   # get identities configuration from openldap setup
-  cp ../openldap/sitedefault.yml roles/consul/files/
+  if [ -n "{{SASUserPass}}" ]; then
+    cp ../openldap/sitedefault.yml roles/consul/files/
+  fi
 
   # set log file for main deployment
   export ANSIBLE_LOG_PATH="$LOGDIR/deployment-main.log"
@@ -378,6 +381,8 @@ pushd sas_viya_playbook
   # main deployment
   try 3 ansible-playbook site.yml
 
+  # reset sasboot
+  ansible-playbook ansible.post.deployment.yml -e "sasboot_pw={{SASAdminPass}}" --tags "sasboot"
 
 popd
 

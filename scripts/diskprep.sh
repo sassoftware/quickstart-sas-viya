@@ -31,6 +31,21 @@ DIR="/opt/sas"
 DEVICE_PATH="/dev/${DRIVE_SCHEME}g"
 mount_drive
 
+# mount the xxxl device to /opt/sas/viya/config/data/cas
+dir="/opt/sas/viya/config/data/cas"
+mkdir -p $dir
+device_path="/dev/${DRIVE_SCHEME}l"
+if [ -b "$device_path" ] ; then
+  # format if needed
+  [ "$(blkid $device_path | grep xfs)" = "" ] && mkfs.xfs $device_path
+  # add to fstab if needed and mount
+  FSTAB="$device_path      $dir   xfs    defaults,nofail        0       2"
+  ! (grep "$FSTAB" /etc/fstab) &&  echo "$FSTAB" | tee -a /etc/fstab
+  umount $dir || true
+  mount $dir
+fi
+
+
 # mount the xxxd device to /sastmp
 DIR="/sastmp"
 DEVICE_PATH="/dev/${DRIVE_SCHEME}d"
@@ -45,10 +60,6 @@ mount_drive
 DIR="/home"
 DEVICE_PATH="/dev/${DRIVE_SCHEME}h"
 mount_drive
-
-
-
-# TODO: optional additional EBS library/caslib
 
 
 # set the ephemeral drive setup as service (so it can run at reboot/restart)
