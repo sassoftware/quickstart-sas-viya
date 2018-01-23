@@ -1,7 +1,7 @@
 [
     {
         "ParameterKey": "AvailabilityZone",
-        "ParameterValue": "us-east-1a"
+        "ParameterValue": "us-east-2a"
     },
 
     {
@@ -26,7 +26,7 @@
     },
     {
         "ParameterKey": "QSS3KeyPrefix",
-        "ParameterValue": "viya33"
+        "ParameterValue": "viya33/"
     },
     {
         "ParameterKey": "SASAdminPass",

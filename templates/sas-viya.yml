@@ -250,9 +250,54 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       Code:
-        S3Bucket: !Ref QSS3BucketName
-        S3Key: !Sub ${QSS3KeyPrefix}lambda/functions.zip
-      Handler: functions.amilookup
+        ZipFile: |
+          var aws = require("aws-sdk");
+          var response = require('cfn-response');
+          // Map instance architectures to an AMI name pattern
+          var archToAMINamePattern = {
+              "AMZNLINUXHVM": "amzn-ami-hvm*x86_64-gp2",
+              "RHEL74HVM": "RHEL-7.4_HVM_GA*-Hourly2-GP2"
+          };
+          exports.amilookup = function(event, context) {
+              console.log("REQUEST RECEIVED:\n" + JSON.stringify(event));
+              // For Delete requests, immediately send a SUCCESS response.
+              if (event.RequestType == "Delete") {
+                  respond.send(event, context, "SUCCESS");
+                  return;
+              }
+              var responseStatus = "FAILED";
+              var responseData = {};
+              var ec2 = new aws.EC2({region: event.ResourceProperties.Region});
+              var describeImagesParams = {
+                  Filters: [{ Name: "name", Values: [archToAMINamePattern[event.ResourceProperties.Architecture]]}],
+                  Owners: [event.ResourceProperties.Architecture == "RHEL74HVM" ? "309956199498" : "amazon"]
+              };
+              // Get AMI IDs with the specified name pattern and owner
+              ec2.describeImages(describeImagesParams, function(err, describeImagesResult) {
+                  if (err) {
+                      responseData = {Error: "DescribeImages call failed"};
+                      console.log(responseData.Error + ":\n", err);
+                  }
+                  else {
+                      var images = describeImagesResult.Images;
+                      // Sort images by name in decscending order. The names contain the AMI version, formatted as YYYY.MM.Ver.
+                      images.sort(function(x, y) { return y.Name.localeCompare(x.Name); });
+                      for (var j = 0; j < images.length; j++) {
+                          if (isBeta(images[j].Name)) continue;
+                          responseStatus = "SUCCESS";
+                          responseData["Id"] = images[j].ImageId;
+                          console.log("IMAGEDETAIL:\n" + JSON.stringify(images[j]));
+                          break;
+                      }
+                  }
+                  response.send(event, context, responseStatus, responseData);
+              });
+          };
+          // Check if the image is a beta or rc image. The Lambda function won't return any of those images.
+          function isBeta(imageName) {
+              return imageName.toLowerCase().indexOf("beta") > -1 || imageName.toLowerCase().indexOf(".rc") > -1;
+          }
+      Handler: index.amilookup
       Runtime: nodejs6.10
       Timeout: 60
       Role: !GetAtt AMIInfoLambdaExecutionRole.Arn
@@ -317,10 +362,79 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       Code:
-        S3Bucket: !Ref QSS3BucketName
-        S3Key: !Sub ${QSS3KeyPrefix}lambda/functions.zip
-      Handler: functions.license
-      Runtime: nodejs6.10
+        ZipFile: |
+          import zipfile
+          import boto3
+          import io
+          import cfnresponse
+          responseData = {}
+          responseStatus = cfnresponse.FAILED
+          s3 = boto3.client('s3')
+          def license(event, context):
+            ddl = event['ResourceProperties']['DeploymentDataLocation']
+            bucket = ddl[:ddl.find('/')]
+            key = ddl[ddl.find('/')+1:]
+            obj = s3.get_object(Bucket=bucket, Key=key)
+            with io.BytesIO(obj["Body"].read()) as tf:
+              # rewind the file
+              tf.seek(0)
+              # Read the file as a zipfile and process the members
+              with zipfile.ZipFile(tf, mode='r') as zipf:
+                for file in zipf.infolist():
+                  # find the license file and extract into temporary file
+                  if (file.filename.startswith('licenses/')):
+                    templicensefile = zipf.extract(file,'/tmp')
+              # wrap lines and extract into array
+              tline = ''
+              lf = []
+              with open(templicensefile) as tlf:
+                for line in tlf:
+                  tline = tline + line
+                  if ';' in line:
+                    lf.append(tline)
+                    tline = ''
+              # find line with cpu for cas product number (e.g. EXPIRE 'PRODNUM1141' '31MAY2018'D / CPU=CPU001;)
+              for row in lf:
+                if 'EXPIRE' in row:
+                  if 'PRODNUM1141' in row:
+                    prodnum = row
+              if prodnum is None:
+                raise ValueError('The CAS product number was not found in the license file.')
+              # get name of cas cpu
+              cascpu = prodnum[prodnum.find('CPU=')+4:prodnum.find(';')]
+              if cascpu is None:
+                raise ValueError('The CASCPU number was not found in the license file.')
+              # get line with CASCPU (e.g.  CPU MODEL=' ' MODNUM=' ' SERIAL='+16' NAME=CPU001;)
+              for row in lf:
+                if "NAME="+cascpu in row:
+                  model = row
+              if model is None:
+                raise ValueError('The CPU detail row for the CAS cpu was not found in the license file.')
+              # extract cpu count
+              cpucount = int(model[model.find('SERIAL=')+9:][:3].replace("'",""))
+              responseData['CPUCount'] = cpucount
+              responseStatus = cfnresponse.SUCCESS
+              if cpucount == 4:
+                responseData["NodeInstanceSize"] = "2xlarge"
+                responseData["NumWorkers"] = 0
+                responseData["CASLibSize"] = 180
+                responseData["CASCacheSize"] = 180
+              elif cpucount <= 8:
+                responseData["NodeInstanceSize"] = "4xlarge"
+                responseData["NumWorkers"] = 0
+                responseData["CASLibSize"] = 360
+                responseData["CASCacheSize"] = 360
+              elif cpucount <= 16:
+                responseData["NodeInstanceSize"] = "8xlarge"
+                responseData["NumWorkers"] = 0
+                responseData["CASLibSize"] = 720
+                responseData["CASCacheSize"] = 720
+              else:
+                responseStatus = "FAILED"
+                print("Invalid Licensed CPU Count: {0}".format(cpucount))
+              cfnresponse.send(event, context, responseStatus, responseData)
+      Handler: index.license
+      Runtime: python2.7
       Timeout: 30
       Role: !GetAtt LicenseLambdaExecutionRole.Arn
   LicenseLambdaExecutionRole:
