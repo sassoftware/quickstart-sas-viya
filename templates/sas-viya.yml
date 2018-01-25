@@ -260,11 +260,6 @@ Resources:
           };
           exports.amilookup = function(event, context) {
               console.log("REQUEST RECEIVED:\n" + JSON.stringify(event));
-              // For Delete requests, immediately send a SUCCESS response.
-              if (event.RequestType == "Delete") {
-                  respond.send(event, context, "SUCCESS");
-                  return;
-              }
               var responseStatus = "FAILED";
               var responseData = {};
               var ec2 = new aws.EC2({region: event.ResourceProperties.Region});
@@ -903,17 +898,8 @@ Resources:
               pip install --upgrade pip &> /dev/null
             - |
               pip install awscli --ignore-installed six &> /dev/null
-            - |
-              function try () {
-                RC=1; count=1; max_count=$1; shift
-                until  [ $count -gt "$max_count" ]
-                do
-                  "$@" && RC=0 && break || let count=count+1
-                done
-                return $RC
-              }
             - >
-              try 2 easy_install
+              easy_install
               https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
             - |
             - 'cfn-init --stack '
@@ -1063,15 +1049,6 @@ Resources:
               pip install --upgrade pip &> /dev/null
             - |
               pip install awscli --ignore-installed six &> /dev/null
-            - |
-              function try () {
-                RC=1; count=1; max_count=$1; shift
-                until  [ $count -gt "$max_count" ]
-                do
-                  "$@" && RC=0 && break || let count=count+1
-                done
-                return $RC
-              }
             - >
               easy_install
               https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
@@ -1223,15 +1200,6 @@ Resources:
               pip install --upgrade pip &> /dev/null
             - |
               pip install awscli --ignore-installed six &> /dev/null
-            - |
-              function try () {
-                RC=1; count=1; max_count=$1; shift
-                until  [ $count -gt "$max_count" ]
-                do
-                  "$@" && RC=0 && break || let count=count+1
-                done
-                return $RC
-              }
             - >
               easy_install
               https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
@@ -1388,17 +1356,8 @@ Resources:
               pip install --upgrade pip &> /dev/null
             - |
               pip install awscli --ignore-installed six &> /dev/null
-            - |
-              function try () {
-                RC=1; count=1; max_count=$1; shift
-                until  [ $count -gt "$max_count" ]
-                do
-                  "$@" && RC=0 && break || let count=count+1
-                done
-                return $RC
-              }
             - >
-              try 2 easy_install
+              easy_install
               https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
             - |
             - 'cfn-init --stack '
@@ -1785,16 +1744,8 @@ Resources:
             - |
               pip install awscli --ignore-installed six &> /dev/null
             - |
-              function try () {
-                RC=1; count=1; max_count=$1; shift
-                until  [ $count -gt "$max_count" ]
-                do
-                  "$@" && RC=0 && break || let count=count+1
-                done
-                return $RC
-              }
             - >
-              try 2 easy_install
+              easy_install
               https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
             - EIP_LIST="
             - !Ref AnsibleControllerEIP
