@@ -77,7 +77,7 @@ create_success_message () {
 
 if [ -z "{{DomainName}}" ]; then
   ID=$(aws cloudformation describe-stack-resources --region "{{AWSRegion}}" --stack-name "{{CloudFormationStack}}" --logical-resource-id ElasticLoadBalancer --query StackResources[*].PhysicalResourceId --output text)
-  DomainName=$(aws elb describe-load-balancers --region us-east-1 --load-balancer-name "$ID" --query LoadBalancerDescriptions[*].DNSName --output text)
+  DomainName=$(aws elb describe-load-balancers --region  "{{AWSRegion}}" --load-balancer-name "$ID" --query LoadBalancerDescriptions[*].DNSName --output text)
 else
   DomainName="{{DomainName}}"
 fi
