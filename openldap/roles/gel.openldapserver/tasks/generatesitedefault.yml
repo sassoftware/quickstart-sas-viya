@@ -1,0 +1,13 @@
+---
+
+- name: create sitedefault.yml
+  template:
+    src: sitedefault.yml.j2
+    dest: "./sitedefault.yml"
+  delegate_to: 127.0.0.1
+
+- name: display sitedefault
+  shell: "cat ./sitedefault.yml"
+  register: sitedefault
+  delegate_to: 127.0.0.1
+- debug: var=sitedefault

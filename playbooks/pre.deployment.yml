@@ -1,0 +1,47 @@
+---
+- hosts: sas-all
+  become: yes
+  become_user: root
+
+  tasks:
+
+  - name: update hostname
+    shell: "hostnamectl set-hostname --static {{inventory_hostname}}.viya.sas"
+
+#  - name: set yum.conf debuglevel
+#    lineinfile:
+#      dest: /etc/yum.conf
+#      regexp: '^debuglevel='
+#      line: 'debuglevel=10'
+#
+#  - name: set yum.conf timeout
+#    lineinfile:
+#      dest: /etc/yum.conf
+#      regexp: '^timeout='
+#      line: 'timeout=60'
+#      insertafter: '^\[main\]'
+#
+#  - name: set yum.conf retries
+#    lineinfile:
+#      dest: /etc/yum.conf
+#      regexp: '^retries='
+#      line: 'retries=0'
+#      insertafter: '^\[main\]'
+#
+
+
+
+- hosts: all, localhost
+  become: yes
+  become_user: root
+
+  tasks:
+
+  - name: Set hosts
+    blockinfile:
+      dest=/etc/hosts
+      block="{{ lookup('file', '/tmp/hostnames.txt') }}"
+      marker="# {mark} ADD HOSTS"
+
+
+
