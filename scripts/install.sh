@@ -1,4 +1,5 @@
 #!/bin/bash
+set -x
 
 # this script is expected to be run by a user with sudo privileges (typically ec2-user)
 

@@ -382,17 +382,20 @@ Resources:
               if cpucount == 4:
                 responseData["NodeInstanceSize"] = "2xlarge"
                 responseData["NumWorkers"] = 0
-                responseData["CASLibSize"] = 180
+                responseData["CASLibSize"] = 500
+                responseData["UserLibSize"] = 500
                 responseData["CASCacheSize"] = 180
               elif cpucount <= 8:
                 responseData["NodeInstanceSize"] = "4xlarge"
                 responseData["NumWorkers"] = 0
-                responseData["CASLibSize"] = 360
+                responseData["CASLibSize"] = 500
+                responseData["UserLibSize"] = 500
                 responseData["CASCacheSize"] = 360
               elif cpucount <= 16:
                 responseData["NodeInstanceSize"] = "8xlarge"
                 responseData["NumWorkers"] = 0
-                responseData["CASLibSize"] = 720
+                responseData["CASLibSize"] = 1000
+                responseData["UserLibSize"] = 1000
                 responseData["CASCacheSize"] = 720
               else:
                 responseStatus = "FAILED"
@@ -1219,7 +1222,12 @@ Resources:
             DeleteOnTermination: true
         - DeviceName: /dev/sdd
           Ebs:
-            VolumeSize: '500'
+            VolumeSize: !GetAtt LicenseInfo.CASCacheSize
+            VolumeType: gp2
+            DeleteOnTermination: true
+        - DeviceName: /dev/sdl
+          Ebs:
+            VolumeSize: !GetAtt LicenseInfo.CASLibSize
             VolumeType: gp2
             DeleteOnTermination: true
       Tags:
