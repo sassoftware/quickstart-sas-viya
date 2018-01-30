@@ -152,7 +152,7 @@ Parameters:
     ConstraintDescription: >-
       Quick Start key prefix can include numbers, lowercase letters, uppercase
       letters, hyphens (-), and forward slash (/).
-    Default: examples/latest/
+    Default: sas/viya/latest/
     Description: >-
       S3 key prefix for the Quick Start assets. Quick Start key prefix can
       include numbers, lowercase letters, uppercase letters, hyphens (-), and
@@ -183,6 +183,63 @@ Parameters:
     Default: ''
 
 
+Mappings:
+  AWSAMIRegionMap:
+    AMI:
+      AMZNLINUXHVM: amzn-ami-hvm-2017.09.1.20180108-x86_64-gp2
+      RHEL74HVM: RHEL-7.4_HVM_GA-20170724-x86_64-1-Hourly2-GP2
+    ap-northeast-1:
+      AMZNLINUXHVM: ami-33c25b55
+      RHEL74HVM: ami-30ef0556
+    ap-northeast-2:
+      AMZNLINUXHVM: ami-d9b616b7
+      RHEL74HVM: ami-0f5a8361
+    ap-south-1:
+      AMZNLINUXHVM: ami-fedb8f91
+      RHEL74HVM: ami-e41b618b
+    ap-southeast-1:
+      AMZNLINUXHVM: ami-889cecf4
+      RHEL74HVM: ami-10bb2373
+    ap-southeast-2:
+      AMZNLINUXHVM: ami-ccab56ae
+      RHEL74HVM: ami-ccecf5af
+    ca-central-1:
+      AMZNLINUXHVM: ami-61f97c05
+      RHEL74HVM: ami-dad866be
+    eu-central-1:
+      AMZNLINUXHVM: ami-0fc85a60
+      RHEL74HVM: ami-d74be5b8
+    eu-west-1:
+      AMZNLINUXHVM: ami-e487179d
+      RHEL74HVM: ami-bb9a6bc2
+    eu-west-2:
+      AMZNLINUXHVM: ami-51809835
+      RHEL74HVM: ami-a1f5e4c5
+    eu-west-3:
+       AMZNLINUXHVM: ami-fe03b483
+       RHEL74HVM: ami-dc13a4a1
+    sa-east-1:
+      AMZNLINUXHVM: ami-1226647e
+      RHEL74HVM: ami-a789ffcb
+    us-east-1:
+      AMZNLINUXHVM: ami-cb9ec1b1
+      RHEL74HVM: ami-c998b6b2
+    us-east-2:
+      AMZNLINUXHVM: ami-caaf84af
+      RHEL74HVM: ami-cfdafaaa
+    us-west-1:
+      AMZNLINUXHVM: ami-95eeeef5
+      RHEL74HVM: ami-66eec506
+    us-west-2:
+      AMZNLINUXHVM: ami-32cf7b4a
+      RHEL74HVM: ami-9fa343e7
+  LinuxAMINameMap:
+    RHEL-7.4-HVM:
+      Code: RHEL74HVM
+    Amazon-Linux-HVM:
+      Code: AMZNLINUXHVM
+
+
 Rules:
   KeyPairsNotEmpty:
     Assertions:
@@ -211,8 +268,27 @@ Rules:
               - PrivateSubnetID
               - AvailabilityZone
         AssertDescription: Public and Private subnet must in the same AZ
-
-
+  DomainNameWithHostedZone:
+    Assertions:
+      - Assert:
+          Fn::Or:
+          - Fn::And:
+            - !Equals
+              - !Ref DomainName
+              - ''
+            - !Equals
+              - !Ref AWSHostedZoneID
+              - ''
+          - Fn::And:
+            - !Not
+              - !Equals
+                - !Ref DomainName
+                - ''
+            - !Not
+              - !Equals
+                - !Ref AWSHostedZoneID
+                - ''
+        AssertDescription: DomainName and AWSHostedZoneID need to be set together
 Conditions:
   GovCloudCondition: !Equals
     - !Ref AWS::Region
@@ -220,7 +296,8 @@ Conditions:
   SNSCondition: !Not
     - !Equals
       - !Ref OperatorEmail
-      - ""
+      - ''
+
   NoDNSEntry:
     Fn::Or:
     - Fn::Equals:
@@ -243,113 +320,6 @@ Conditions:
 
 Resources:
 
-  # Lambda function to retrieve the most recent AMIs
-  # for Amazon Linux (for the Ansible Controller)
-  # and RHEL 7.4 (for the viya/cas nodes)
-  AMIInfoFunction:
-    Type: AWS::Lambda::Function
-    Properties:
-      Code:
-        ZipFile: |
-          var aws = require("aws-sdk");
-          var response = require('cfn-response');
-          // Map instance architectures to an AMI name pattern
-          var archToAMINamePattern = {
-              "AMZNLINUXHVM": "amzn-ami-hvm*x86_64-gp2",
-              "RHEL74HVM": "RHEL-7.4_HVM_GA*-Hourly2-GP2"
-          };
-          exports.amilookup = function(event, context) {
-              console.log("REQUEST RECEIVED:\n" + JSON.stringify(event));
-              var responseStatus = "FAILED";
-              var responseData = {};
-              var ec2 = new aws.EC2({region: event.ResourceProperties.Region});
-              var describeImagesParams = {
-                  Filters: [{ Name: "name", Values: [archToAMINamePattern[event.ResourceProperties.Architecture]]}],
-                  Owners: [event.ResourceProperties.Architecture == "RHEL74HVM" ? "309956199498" : "amazon"]
-              };
-              // Get AMI IDs with the specified name pattern and owner
-              ec2.describeImages(describeImagesParams, function(err, describeImagesResult) {
-                  if (err) {
-                      responseData = {Error: "DescribeImages call failed"};
-                      console.log(responseData.Error + ":\n", err);
-                  }
-                  else {
-                      var images = describeImagesResult.Images;
-                      // Sort images by name in decscending order. The names contain the AMI version, formatted as YYYY.MM.Ver.
-                      images.sort(function(x, y) { return y.Name.localeCompare(x.Name); });
-                      for (var j = 0; j < images.length; j++) {
-                          if (isBeta(images[j].Name)) continue;
-                          responseStatus = "SUCCESS";
-                          responseData["Id"] = images[j].ImageId;
-                          console.log("IMAGEDETAIL:\n" + JSON.stringify(images[j]));
-                          break;
-                      }
-                  }
-                  response.send(event, context, responseStatus, responseData);
-              });
-          };
-          // Check if the image is a beta or rc image. The Lambda function won't return any of those images.
-          function isBeta(imageName) {
-              return imageName.toLowerCase().indexOf("beta") > -1 || imageName.toLowerCase().indexOf(".rc") > -1;
-          }
-      Handler: index.amilookup
-      Runtime: nodejs6.10
-      Timeout: 60
-      Role: !GetAtt AMIInfoLambdaExecutionRole.Arn
-  AMIInfoLambdaExecutionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-        - Effect: Allow
-          Principal:
-            Service:
-            - lambda.amazonaws.com
-          Action:
-          - sts:AssumeRole
-      Path: "/"
-      Policies:
-      - PolicyName: root
-        PolicyDocument:
-          Version: '2012-10-17'
-          Statement:
-          - Effect: Allow
-            Action:
-            - logs:CreateLogStream
-            - logs:PutLogEvents
-            Resource: arn:aws:logs:*:*:*
-          - Effect: Allow
-            Action:
-            - ec2:DescribeImages
-            Resource: "*"
-  # create the log Group for Lambda by Cloudformation to ensure
-  # it isdeleted at termination
-  AMIInfoLambdaFunctionLogGroup:
-    Type: AWS::Logs::LogGroup
-    DependsOn: AMIInfoFunction
-    Properties:
-      LogGroupName: !Join
-        - ""
-        - - /aws/lambda/
-          - !Ref AMIInfoFunction
-      RetentionInDays: 7
-
-  # Custom Property to retrieve latest Amazon Linux AMI
-  AZLXAMIInfo:
-    Type: Custom::AZLXAMIInfo
-    Properties:
-      ServiceToken: !GetAtt AMIInfoFunction.Arn
-      Region: !Ref AWS::Region
-      Architecture: AMZNLINUXHVM
-
-  # Custom Property to retrieve latest RHEL 7.4 AMI
-  RHELAMIInfo:
-    Type: Custom::RHELAMIInfo
-    Properties:
-      ServiceToken: !GetAtt AMIInfoFunction.Arn
-      Region: !Ref AWS::Region
-      Architecture: RHEL74HVM
 
   # Lambda Function that scans the license file for the CAS cpu count
   # and returns instance sizes and counts
@@ -464,10 +434,7 @@ Resources:
   LicenseLambdaFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Join
-        - ""
-        - - /aws/lambda/
-          - !Ref LicenseFunction
+      LogGroupName: !Sub /aws/lambda/${LicenseFunction}
 
   # Custom Property to determine deployment size
   LicenseInfo:
@@ -502,7 +469,10 @@ Resources:
       Threshold: '1'
       AlarmActions:
         - !Sub "arn:aws:automate:${AWS::Region}:ec2:recover"
-        - !If [SNSCondition, !Sub "${SNSTopic}", !Ref "AWS::NoValue"]
+        - !If
+          - SNSCondition
+          - !Ref SNSTopic
+          - !Ref AWS::NoValue
       Dimensions:
       - Name: InstanceId
         Value:
@@ -521,7 +491,10 @@ Resources:
       Threshold: '1'
       AlarmActions:
         - !Sub "arn:aws:automate:${AWS::Region}:ec2:recover"
-        - !If [SNSCondition, !Sub "${SNSTopic}", !Ref "AWS::NoValue"]
+        - !If
+          - SNSCondition
+          - !Ref SNSTopic
+          - !Ref AWS::NoValue
       Dimensions:
       - Name: InstanceId
         Value:
@@ -540,7 +513,10 @@ Resources:
       Threshold: '1'
       AlarmActions:
         - !Sub "arn:aws:automate:${AWS::Region}:ec2:recover"
-        - !If [SNSCondition, !Sub "${SNSTopic}", !Ref "AWS::NoValue"]
+        - !If
+          - SNSCondition
+          - !Ref SNSTopic
+          - !Ref AWS::NoValue
       Dimensions:
       - Name: InstanceId
         Value:
@@ -559,7 +535,10 @@ Resources:
       Threshold: '1'
       AlarmActions:
         - !Sub "arn:aws:automate:${AWS::Region}:ec2:recover"
-        - !If [SNSCondition, !Sub "${SNSTopic}", !Ref "AWS::NoValue"]
+        - !If
+          - SNSCondition
+          - !Ref SNSTopic
+          - !Ref AWS::NoValue
       Dimensions:
       - Name: InstanceId
         Value:
@@ -750,8 +729,7 @@ Resources:
                   - 'logs:PutMetricFilter'
                   - 'logs:CreateLogGroup'
                 Resource: !Sub
-                  - >-
-                    arn:${Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${CloudWatchLogGroup}:*
+                  - arn:${Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${CloudWatchLogGroup}:*
                   - Partition: !If
                       - GovCloudCondition
                       - aws-us-gov
@@ -788,8 +766,7 @@ Resources:
           files:
             /tmp/diskprep.sh:
               source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/diskprep.sh
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/diskprep.sh
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -800,8 +777,7 @@ Resources:
               authentication: S3AccessCreds
             /usr/sbin/disks_ephemeral.sh:
               source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/disks_ephemeral.sh
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/disks_ephemeral.sh
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -812,8 +788,7 @@ Resources:
               authentication: S3AccessCreds
             /tmp/node_setup.sh:
               source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/node_setup.sh
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/node_setup.sh
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -827,8 +802,7 @@ Resources:
                 CloudFormationStack: !Ref AWS::StackName
             /tmp/cloudwatch.conf:
               source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.conf
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.conf
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -849,7 +823,10 @@ Resources:
         cleanup: {}
     Properties:
       KeyName: !Ref KeyPairName
-      ImageId: !GetAtt RHELAMIInfo.Id
+      ImageId: !FindInMap
+         - AWSAMIRegionMap
+         - !Ref AWS::Region
+         - RHEL74HVM
       SubnetId: !Ref PrivateSubnetID
       IamInstanceProfile: !Ref ViyaProfile
       InstanceType: r4.4xlarge
@@ -871,51 +848,24 @@ Resources:
         - !Ref ProxySecurityGroup
       Tags:
         - Key: Name
-          Value: !Join
-            - ' '
-            - - !Ref AWS::StackName
-              - Visual Services
-      UserData: !Base64
-        'Fn::Join':
-          - ''
-          - - |
-              #!/bin/bash
-            - |
-              export PATH=$PATH:/usr/local/bin
-            - |
-              which pip &> /dev/null
-            - |
-              if [ $? -ne 0 ] ; then
-            - |2
-                  echo "PIP NOT INSTALLED"
-            - |2
-                  [ `which yum` ] && $(yum install -y epel-release; yum install -y python-pip) && echo "PIP INSTALLED"
-            - |2
-                  [ `which apt-get` ] && apt-get -y update && apt-get -y install python-pip && echo "PIP INSTALLED"
-            - |
-              fi
-            - |
-              pip install --upgrade pip &> /dev/null
-            - |
-              pip install awscli --ignore-installed six &> /dev/null
-            - >
-              easy_install
-              https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
-            - |
-            - 'cfn-init --stack '
-            - !Ref AWS::StackName
-            - ' --resource VisualServices --configsets quickstart --region '
-            - !Ref AWS::Region
-            - |+
-
-            - |
-              # Signal the status from cfn-init
-            - 'cfn-signal -e $? --stack '
-            - !Ref AWS::StackName
-            - ' --resource VisualServices --region '
-            - !Ref AWS::Region
-            - |+
-
+          Value: !Sub "${AWS::StackName} Visual Services"
+      UserData:
+        Fn::Base64:
+          Fn::Sub: |
+            #!/bin/bash
+            export PATH=$PATH:/usr/local/bin
+            which pip &> /dev/null
+            if [ $? -ne 0 ] ; then
+              echo "PIP NOT INSTALLED"
+              [ `which yum` ] && $(yum install -y epel-release; yum install -y python-pip) && echo "PIP INSTALLED"
+              [ `which apt-get` ] && apt-get -y update && apt-get -y install python-pip && echo "PIP INSTALLED"
+            fi
+            pip install --upgrade pip &> /dev/null
+            pip install awscli --ignore-installed six &> /dev/null
+            easy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
+            cfn-init --stack ${AWS::StackName} --resource VisualServices --configsets quickstart --region ${AWS::Region}
+            # Signal the status from cfn-init
+            cfn-signal -e $? --stack ${AWS::StackName} --resource VisualServices --region ${AWS::Region}
   ProgrammingServices:
     Type: AWS::EC2::Instance
     CreationPolicy:
@@ -939,8 +889,7 @@ Resources:
           files:
             /tmp/diskprep.sh:
               source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/diskprep.sh
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/diskprep.sh
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -951,8 +900,7 @@ Resources:
               authentication: S3AccessCreds
             /usr/sbin/disks_ephemeral.sh:
               source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/disks_ephemeral.sh
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/disks_ephemeral.sh
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -963,8 +911,7 @@ Resources:
               authentication: S3AccessCreds
             /tmp/node_setup.sh:
               source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/node_setup.sh
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/node_setup.sh
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -978,8 +925,7 @@ Resources:
                 CloudFormationStack: !Ref AWS::StackName
             /tmp/cloudwatch.conf:
               source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.conf
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.conf
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -1000,7 +946,10 @@ Resources:
         cleanup: {}
     Properties:
       KeyName: !Ref KeyPairName
-      ImageId: !GetAtt RHELAMIInfo.Id
+      ImageId: !FindInMap
+        - AWSAMIRegionMap
+        - !Ref AWS::Region
+        - RHEL74HVM
       SubnetId: !Ref PrivateSubnetID
       IamInstanceProfile: !Ref ViyaProfile
       InstanceType: r4.2xlarge
@@ -1022,51 +971,24 @@ Resources:
         - !Ref ViyaSecurityGroup
       Tags:
         - Key: Name
-          Value: !Join
-            - ' '
-            - - !Ref AWS::StackName
-              - Programming Services
-      UserData: !Base64
-        'Fn::Join':
-          - ''
-          - - |
-              #!/bin/bash
-            - |
-              export PATH=$PATH:/usr/local/bin
-            - |
-              which pip &> /dev/null
-            - |
-              if [ $? -ne 0 ] ; then
-            - |2
-                  echo "PIP NOT INSTALLED"
-            - |2
-                  [ `which yum` ] && $(yum install -y epel-release; yum install -y python-pip) && echo "PIP INSTALLED"
-            - |2
-                  [ `which apt-get` ] && apt-get -y update && apt-get -y install python-pip && echo "PIP INSTALLED"
-            - |
-              fi
-            - |
-              pip install --upgrade pip &> /dev/null
-            - |
-              pip install awscli --ignore-installed six &> /dev/null
-            - >
-              easy_install
-              https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
-            - |
-            - 'cfn-init --stack '
-            - !Ref AWS::StackName
-            - ' --resource ProgrammingServices --configsets quickstart --region '
-            - !Ref AWS::Region
-            - |+
-
-            - |
-              # Signal the status from cfn-init
-            - 'cfn-signal -e $? --stack '
-            - !Ref AWS::StackName
-            - ' --resource ProgrammingServices --region '
-            - !Ref AWS::Region
-            - |+
-
+          Value: !Sub "${AWS::StackName} Programming Services"
+      UserData:
+        Fn::Base64:
+          Fn::Sub: |
+            #!/bin/bash
+            export PATH=$PATH:/usr/local/bin
+            which pip &> /dev/null
+            if [ $? -ne 0 ] ; then
+              echo "PIP NOT INSTALLED"
+              [ `which yum` ] && $(yum install -y epel-release; yum install -y python-pip) && echo "PIP INSTALLED"
+              [ `which apt-get` ] && apt-get -y update && apt-get -y install python-pip && echo "PIP INSTALLED"
+            fi
+            pip install --upgrade pip &> /dev/null
+            pip install awscli --ignore-installed six &> /dev/null
+            easy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
+            cfn-init --stack ${AWS::StackName} --resource ProgrammingServices --configsets quickstart --region ${AWS::Region}
+            # Signal the status from cfn-init
+            cfn-signal -e $? --stack ${AWS::StackName} --resource ProgrammingServices --region ${AWS::Region}
   StatefulServices:
     Type: AWS::EC2::Instance
     CreationPolicy:
@@ -1090,8 +1012,7 @@ Resources:
           files:
             /tmp/diskprep.sh:
               source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/diskprep.sh
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/diskprep.sh
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -1102,8 +1023,7 @@ Resources:
               authentication: S3AccessCreds
             /usr/sbin/disks_ephemeral.sh:
               source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/disks_ephemeral.sh
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/disks_ephemeral.sh
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -1114,8 +1034,7 @@ Resources:
               authentication: S3AccessCreds
             /tmp/node_setup.sh:
               source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/node_setup.sh
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/node_setup.sh
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -1129,8 +1048,7 @@ Resources:
                 CloudFormationStack: !Ref AWS::StackName
             /tmp/cloudwatch.conf:
               source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.conf
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.conf
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -1151,7 +1069,10 @@ Resources:
         cleanup: {}
     Properties:
       KeyName: !Ref KeyPairName
-      ImageId: !GetAtt RHELAMIInfo.Id
+      ImageId: !FindInMap
+        - AWSAMIRegionMap
+        - !Ref AWS::Region
+        - RHEL74HVM
       SubnetId: !Ref PrivateSubnetID
       IamInstanceProfile: !Ref ViyaProfile
       InstanceType: r4.2xlarge
@@ -1173,50 +1094,25 @@ Resources:
         - !Ref ProxySecurityGroup
       Tags:
         - Key: Name
-          Value: !Join
-            - ' '
-            - - !Ref AWS::StackName
-              - Stateful Services
-      UserData: !Base64
-        'Fn::Join':
-          - ''
-          - - |
-              #!/bin/bash
-            - |
-              export PATH=$PATH:/usr/local/bin
-            - |
-              which pip &> /dev/null
-            - |
-              if [ $? -ne 0 ] ; then
-            - |2
-                  echo "PIP NOT INSTALLED"
-            - |2
-                  [ `which yum` ] && $(yum install -y epel-release; yum install -y python-pip) && echo "PIP INSTALLED"
-            - |2
-                  [ `which apt-get` ] && apt-get -y update && apt-get -y install python-pip && echo "PIP INSTALLED"
-            - |
-              fi
-            - |
-              pip install --upgrade pip &> /dev/null
-            - |
-              pip install awscli --ignore-installed six &> /dev/null
-            - >
-              easy_install
-              https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
-            - |
-            - 'cfn-init --stack '
-            - !Ref AWS::StackName
-            - ' --resource StatefulServices --configsets quickstart --region '
-            - !Ref AWS::Region
-            - |+
+          Value: !Sub "${AWS::StackName} Stateful Services"
+      UserData:
+        Fn::Base64:
+          Fn::Sub: |
+            #!/bin/bash
+            export PATH=$PATH:/usr/local/bin
+            which pip &> /dev/null
+            if [ $? -ne 0 ] ; then
+              echo "PIP NOT INSTALLED"
+              [ `which yum` ] && $(yum install -y epel-release; yum install -y python-pip) && echo "PIP INSTALLED"
+              [ `which apt-get` ] && apt-get -y update && apt-get -y install python-pip && echo "PIP INSTALLED"
+            fi
+            pip install --upgrade pip &> /dev/null
+            pip install awscli --ignore-installed six &> /dev/null
+            easy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
+            cfn-init --stack ${AWS::StackName} --resource StatefulServices --configsets quickstart --region ${AWS::Region}
+            # Signal the status from cfn-init
+            cfn-signal -e $? --stack ${AWS::StackName} --resource StatefulServices --region ${AWS::Region}
 
-            - |
-              # Signal the status from cfn-init
-            - 'cfn-signal -e $? --stack '
-            - !Ref AWS::StackName
-            - ' --resource StatefulServices --region '
-            - !Ref AWS::Region
-            - |+
 
 
   CASController:
@@ -1242,8 +1138,7 @@ Resources:
           files:
             /tmp/diskprep.sh:
               source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/diskprep.sh
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/diskprep.sh
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -1254,8 +1149,7 @@ Resources:
               authentication: S3AccessCreds
             /usr/sbin/disks_ephemeral.sh:
               source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/disks_ephemeral.sh
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/disks_ephemeral.sh
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -1266,8 +1160,7 @@ Resources:
               authentication: S3AccessCreds
             /tmp/node_setup.sh:
               source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/node_setup.sh
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/node_setup.sh
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -1281,8 +1174,7 @@ Resources:
                 CloudFormationStack: !Ref AWS::StackName
             /tmp/cloudwatch.conf:
               source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.conf
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.conf
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -1304,7 +1196,10 @@ Resources:
         cleanup: {}
     Properties:
       KeyName: !Ref KeyPairName
-      ImageId: !GetAtt RHELAMIInfo.Id
+      ImageId: !FindInMap
+        - AWSAMIRegionMap
+        - !Ref AWS::Region
+        - RHEL74HVM
       SubnetId: !Ref PrivateSubnetID
       IamInstanceProfile: !Ref ViyaProfile
       # transform "Nxlarge (N cores)" to "r4.Nxlarge"
@@ -1329,72 +1224,24 @@ Resources:
             DeleteOnTermination: true
       Tags:
         - Key: Name
-          Value: !Join
-            - ' '
-            - - !Ref AWS::StackName
-              - CAS Controller
-      UserData: !Base64
-        'Fn::Join':
-          - ''
-          - - |
-              #!/bin/bash
-            - |
-              export PATH=$PATH:/usr/local/bin
-            - |
-              which pip &> /dev/null
-            - |
-              if [ $? -ne 0 ] ; then
-            - |2
-                  echo "PIP NOT INSTALLED"
-            - |2
-                  [ `which yum` ] && $(yum install -y epel-release; yum install -y python-pip) && echo "PIP INSTALLED"
-            - |2
-                  [ `which apt-get` ] && apt-get -y update && apt-get -y install python-pip && echo "PIP INSTALLED"
-            - |
-              fi
-            - |
-              pip install --upgrade pip &> /dev/null
-            - |
-              pip install awscli --ignore-installed six &> /dev/null
-            - >
-              easy_install
-              https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
-            - |
-            - 'cfn-init --stack '
-            - !Ref AWS::StackName
-            - ' --resource CASController --configsets quickstart --region '
-            - !Ref AWS::Region
-            - |+
-
-            - |
-              # Signal the status from cfn-init
-            - 'cfn-signal -e $? --stack '
-            - !Ref AWS::StackName
-            - ' --resource CASController --region '
-            - !Ref AWS::Region
-            - |+
-
-
-#  WorkerStack:
-#    Type: AWS::CloudFormation::Stack
-#    Properties:
-#      TemplateURL: !Sub "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/sas-viya-workers.yml"
-#      Parameters:
-#        KeyPairName: !Ref KeyPairName
-#        PrivateSubnetID: !Ref PrivateSubnetID
-#        QSS3BucketName: !Ref QSS3BucketName
-#        QSS3KeyPrefix: !Ref QSS3KeyPrefix
-#        AMI: !GetAtt RHELAMIInfo.Id
-#        NodeInstanceSize: !GetAtt LicenseInfo.NodeInstanceSize
-#        NumWorkers: !GetAtt LicenseInfo.NumWorkers
-#        ViyaRole: !Ref ViyaRole
-#        ViyaProfile: !Ref ViyaProfile
-#        ViyaPlacementGroup: !Ref ViyaPlacementGroup
-#        ViyaSecurityGroup: !Ref ViyaSecurityGroup
-#        CloudWatchLogGroup: !Ref CloudWatchLogGroup
-#        SNSTopic: !If [SNSCondition, !Sub "${SNSTopic}", ""]
-#        ParentStack: !Ref AWS::StackName
-
+          Value: !Sub ${AWS::StackName} CAS Controller
+      UserData:
+        Fn::Base64:
+          Fn::Sub: |
+            #!/bin/bash
+            export PATH=$PATH:/usr/local/bin
+            which pip &> /dev/null
+            if [ $? -ne 0 ] ; then
+              echo "PIP NOT INSTALLED"
+              [ `which yum` ] && $(yum install -y epel-release; yum install -y python-pip) && echo "PIP INSTALLED"
+              [ `which apt-get` ] && apt-get -y update && apt-get -y install python-pip && echo "PIP INSTALLED"
+            fi
+            pip install --upgrade pip &> /dev/null
+            pip install awscli --ignore-installed six &> /dev/null
+            easy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
+            cfn-init --stack ${AWS::StackName} --resource CASController --configsets quickstart --region ${AWS::Region}
+            # Signal the status from cfn-init
+            cfn-signal -e $? --stack ${AWS::StackName} --resource CASController --region ${AWS::Region}
 
 
   AnsiblePublicKey:
@@ -1497,8 +1344,7 @@ Resources:
                   - 'logs:PutMetricFilter'
                   - 'logs:CreateLogGroup'
                 Resource: !Sub
-                  - >-
-                    arn:${Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${CloudWatchLogGroup}:*
+                  - arn:${Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${CloudWatchLogGroup}:*
                   - Partition: !If
                       - GovCloudCondition
                       - aws-us-gov
@@ -1549,8 +1395,7 @@ Resources:
           files:
             /tmp/ansiblecontroller_prereqs.sh:
               source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/ansiblecontroller_prereqs.sh
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/ansiblecontroller_prereqs.sh
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -1561,8 +1406,7 @@ Resources:
               authentication: S3AccessCreds
             /tmp/bastion_bootstrap.sh:
               source: !Sub
-                - >-
-                  https://s3.amazonaws.com/quickstart-reference/linux/bastion/latest/scripts/bastion_bootstrap.sh
+                - https://s3.amazonaws.com/quickstart-reference/linux/bastion/latest/scripts/bastion_bootstrap.sh
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -1573,8 +1417,7 @@ Resources:
               authentication: S3AccessCreds
             /tmp/cloudwatch.conf:
               source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.ansiblecontroller.conf
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.ansiblecontroller.conf
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -1599,8 +1442,7 @@ Resources:
           files:
             /tmp/install.sh:
               source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/install.sh
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/install.sh
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -1619,19 +1461,13 @@ Resources:
                 AnsibleControllerIP: !Ref AnsibleControllerEIP
                 NumWorkers: !GetAtt LicenseInfo.NumWorkers
                 CloudFormationStack: !Ref AWS::StackName
-                CloudWatchLogs: !Join
-                  - ''
-                  - - 'https://console.aws.amazon.com/cloudwatch/home?region='
-                    - !Ref AWS::Region
-                    - "#logStream:group="
-                    - !Ref CloudWatchLogGroup
+                CloudWatchLogs: !Sub "https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#logStream:group=${CloudWatchLogGroup}"
                 SSLCertificateARN: !Ref SSLCertificateARN
                 DomainName: !Ref DomainName
 
             /tmp/SAS_Viya_deployment_data.zip:
               source: !Sub
-                - >-
-                  https://${QSS3Region}.amazonaws.com/${DeploymentDataLocation}
+                - https://${QSS3Region}.amazonaws.com/${DeploymentDataLocation}
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -1643,8 +1479,7 @@ Resources:
 
             /tmp/ansible.cfg:
               source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/ansible.cfg
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/ansible.cfg
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -1655,8 +1490,7 @@ Resources:
               authentication: S3AccessCreds
             /tmp/ansible.update.inventory.yml:
               source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/update.inventory.yml
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/update.inventory.yml
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -1667,8 +1501,7 @@ Resources:
               authentication: S3AccessCreds
             /tmp/ansible.pre.deployment.yml:
               source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/pre.deployment.yml
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/pre.deployment.yml
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -1679,8 +1512,7 @@ Resources:
               authentication: S3AccessCreds
             /tmp/ansible.post.deployment.yml:
               source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/post.deployment.yml
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/post.deployment.yml
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -1691,8 +1523,7 @@ Resources:
               authentication: S3AccessCreds
             /tmp/ansible.update.vars.file.yml:
               source: !Sub
-                - >-
-                  https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/update.vars.file.yml
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/update.vars.file.yml
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -1710,62 +1541,27 @@ Resources:
       KeyName: !Ref KeyPairName
       SubnetId: !Ref PublicSubnetID
       IamInstanceProfile: !Ref AnsibleControllerProfile
-      ImageId: !GetAtt AZLXAMIInfo.Id
+      ImageId: !FindInMap
+        - AWSAMIRegionMap
+        - !Ref AWS::Region
+        - AMZNLINUXHVM
       SecurityGroupIds:
         - !Ref AnsibleControllerSecurityGroup
       InstanceType: t2.small
       Tags:
         - Key: Name
-          Value: !Join
-            - ' '
-            - - !Ref AWS::StackName
-              - Ansible Controller
-      UserData: !Base64
-        'Fn::Join':
-          - ''
-          - - |
-              #!/bin/bash
-            - |
-              export PATH=$PATH:/usr/local/bin
-            - |
-              which pip &> /dev/null
-            - |
-              if [ $? -ne 0 ] ; then
-            - |2
-                  echo "PIP NOT INSTALLED"
-            - |2
-                  [ `which yum` ] && $(yum install -y epel-release; yum install -y python-pip) && echo "PIP INSTALLED"
-            - |2
-                  [ `which apt-get` ] && apt-get -y update && apt-get -y install python-pip && echo "PIP INSTALLED"
-            - |
-              fi
-            - |
-              pip install --upgrade pip &> /dev/null
-            - |
-              pip install awscli --ignore-installed six &> /dev/null
-            - |
-            - >
-              easy_install
-              https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
-            - EIP_LIST="
-            - !Ref AnsibleControllerEIP
-            - |
-              "
-            - CLOUDWATCHGROUP=
-            - !Ref CloudWatchLogGroup
-            - |+
-
-            - 'cfn-init -v --stack '
-            - !Ref AWS::StackName
-            - ' --resource AnsibleController --configsets quickstart --region '
-            - !Ref AWS::Region
-            - |+
-
-            - 'cfn-signal -e $? --stack '
-            - !Ref AWS::StackName
-            - ' --resource AnsibleController --region '
-            - !Ref AWS::Region
-            - |+
+          Value: !Sub "${AWS::StackName} Ansible Controller"
+      UserData:
+        Fn::Base64:
+          Fn::Sub: |
+            #!/bin/bash
+            export PATH=$PATH:/usr/local/bin:/opt/aws/bin
+            pip install awscli --ignore-installed six &> /dev/null
+            EIP_LIST=${AnsibleControllerEIP}
+            CLOUDWATCHGROUP=${CloudWatchLogGroup}
+            cfn-init --stack ${AWS::StackName} --resource AnsibleController --configsets quickstart --region ${AWS::Region}
+            # Signal the status from cfn-init
+            cfn-signal -e $? --stack ${AWS::StackName} --resource AnsibleController --region ${AWS::Region}
 
 Outputs:
   SASHome:
