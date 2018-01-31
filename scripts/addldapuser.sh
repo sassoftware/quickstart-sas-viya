@@ -2,11 +2,19 @@
 
 # add user to default openLDAP server
 # execute this script from the ansible controller
+# invoke to with:
+# ./addtestusers.sh newuserid newuserpw adminpw
+
+# to delete a user (change "newuserid" to the userid you want to delete):
+# ssh stateful ldapdelete -W -D "cn=admin,dc=sasviya,dc=com" "uid=newuserid,ou=users,dc=sasviya,dc=com"
 
 ##### set parms
-USER=testuser
-USERPW=testuserpw
-ADMINPW=adminadmin
+USER=${1:-testuser}
+USERPW=${2:-testuserpw}
+ADMINPW=${3:-adminadmin}
+
+TOPUID=$(ssh -o StrictHostKeyChecking=no  stateful ldapsearch -x -h localhost -b "dc=sasviya,dc=com" | grep uidNumber | cut -f2 -d ' ' | sort -n | tail -n1)
+let NEWUID=(TOPUID+1)
 
 #
 # add user/set pw
@@ -21,7 +29,7 @@ objectClass: inetOrgPerson
 objectClass: organizationalPerson
 objectClass: posixAccount
 loginShell: /bin/bash
-uidNumber: 100013
+uidNumber: $NEWUID
 gidNumber: 100001
 homeDirectory: /home/$USER
 mail: $USER@stateful.viya.sas
@@ -29,11 +37,11 @@ displayName: $USER User
 EOF
 
 scp /tmp/adduser.ldif stateful:/tmp/adduser.ldif
-ssh stateful ldapadd    -x -h localhost -D "cn=admin,dc=sasviya,dc=com" -w $ADMINPW -f /tmp/adduser.ldif
+ssh -o StrictHostKeyChecking=no  stateful ldapadd    -x -h localhost -D "cn=admin,dc=sasviya,dc=com" -w $ADMINPW -f /tmp/adduser.ldif
 
-ssh stateful ldappasswd -s $USERPW -x -w $ADMINPW -D "cn=admin,dc=sasviya,dc=com" "uid=$USER,ou=users,dc=sasviya,dc=com"
+ssh -o StrictHostKeyChecking=no  stateful ldappasswd -s $USERPW -x -w $ADMINPW -D "cn=admin,dc=sasviya,dc=com" "uid=$USER,ou=users,dc=sasviya,dc=com"
 
-# 
+#
 # add user to sasusers group
 #
 cat << EOF > /tmp/addtogroup.ldif
@@ -46,15 +54,14 @@ add: member
 member: uid=$USER,ou=users,dc=sasviya,dc=com
 EOF
 
-scp /tmp/addtogroup.ldif stateful:/tmp/addtogropu.ldif
-ssh stateful ldapadd -x -h localhost -D "cn=admin,dc=sasviya,dc=com" -w $ADMINPW -f /tmp/addtogroup.ldif
+scp /tmp/addtogroup.ldif stateful:/tmp/addtogroup.ldif
+ssh -o StrictHostKeyChecking=no  stateful ldapadd -x -h localhost -D "cn=admin,dc=sasviya,dc=com" -w $ADMINPW -f /tmp/addtogroup.ldif
 
 
 #
 # add user home dir on programming  host
 #
-ssh prog sudo mkdir -p /home/$USER
-ssh prog sudo chown $USER:sasusers /home/$USER
+ssh -o StrictHostKeyChecking=no  prog sudo mkdir -p /home/$USER
+ssh -o StrictHostKeyChecking=no  prog sudo chown $USER:sasusers /home/$USER
 
-
-
+      
