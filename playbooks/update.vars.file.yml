@@ -37,6 +37,22 @@
       regexp:  'STUDIO_CONFIGURATION:\n  init:'
       replace: 'STUDIO_CONFIGURATION:\n  init:\n    webdms.showSystemRoot: false'
 
+  - name: set workspaceserver settings
+    replace:
+      dest: vars.yml
+      regexp: '#FOUNDATION_CONFIGURATION:'
+      replace: 'FOUNDATION_CONFIGURATION:'
+
+  - name: set redshift access forwork spaceserver
+    blockinfile:
+      dest: vars.yml
+      marker: '#{mark} add ws access to redshift'
+      insertafter: '^FOUNDATION_CONFIGURATION:'
+      block: |2
+          1: ODBCINI=/opt/sas/spre/home/lib64/accessclients/odbc.ini
+          2: ODBCINST=/opt/sas/spre/home/lib64/accessclients/odbcinst.ini
+          3: ODBCHOME=/opt/sas/spre/home/lib64/accessclients
+          4: LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$ODBCHOME/lib
 
   - name: set CAS Settings
     replace:
