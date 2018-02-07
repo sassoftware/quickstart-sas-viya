@@ -54,22 +54,27 @@ Parameters:
 
   DeploymentDataLocation:
     AllowedPattern: >-
-      ^([-a-zA-Z0-9@:%_\+.~#?&//=]*)$
+      ^([-a-zA-Z0-9@:%_\+.~#?&//=]*)\.zip$
     Description: >-
       S3 location of the Software Order Confirmation e-mail attachment.
       Example: mysasbucket/viya_deployment_data/SAS_Viya_deployment_data.zip
     Type: String
-    ConstraintDescription: must be a valid S3 bucket location, e.g. mysasbucket/viya_deployment_data/SAS_Viya_deployment_data.zip
+    MinLength: '1'
+    ConstraintDescription: must be a zip file in a valid S3 bucket location, e.g. mysasbucket/viya_deployment_data/SAS_Viya_deployment_data.zip
 
   KeyPairName:
     Description: >-
       Name of an existing EC2 key pair. This will allow you to access the Ansible Controller after it launches.
     Type: 'AWS::EC2::KeyPair::KeyName'
+    MinLength: '1'
+    ConstraintDescription: must be the name of an existing AWS Key Pair in the current AWS region
 
   AvailabilityZone:
     Description: The Availability Zone for the public and private subnet.
     Type: AWS::EC2::AvailabilityZone::Name
-    ConstraintDescription: must be the name of an AWS Availability Zone
+    MinLength: '10'
+    MaxLength: '10'
+    ConstraintDescription: must be the name of an AWS Availability Zone in the current AWS region
 
   WebIngressLocation:
     Description: >-
