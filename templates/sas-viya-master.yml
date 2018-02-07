@@ -73,7 +73,6 @@ Parameters:
     Description: The Availability Zone for the public and private subnet.
     Type: AWS::EC2::AvailabilityZone::Name
     MinLength: '10'
-    MaxLength: '10'
     ConstraintDescription: must be the name of an AWS Availability Zone in the current AWS region
 
   WebIngressLocation:

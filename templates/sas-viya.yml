@@ -202,49 +202,49 @@ Mappings:
       RHEL74HVM: RHEL-7.4_HVM_GA-20170724-x86_64-1-Hourly2-GP2
     ap-northeast-1:
       AMZNLINUXHVM: ami-33c25b55
-      RHEL74HVM: ami-30ef0556
+      RHEL74HVM: ami-36f09350
     ap-northeast-2:
       AMZNLINUXHVM: ami-d9b616b7
-      RHEL74HVM: ami-0f5a8361
+      RHEL74HVM: ami-90a201fe
     ap-south-1:
       AMZNLINUXHVM: ami-fedb8f91
-      RHEL74HVM: ami-e41b618b
+      RHEL74HVM: ami-5c2f7e33
     ap-southeast-1:
       AMZNLINUXHVM: ami-889cecf4
-      RHEL74HVM: ami-10bb2373
+      RHEL74HVM: ami-8d90e9f1
     ap-southeast-2:
       AMZNLINUXHVM: ami-ccab56ae
-      RHEL74HVM: ami-ccecf5af
+      RHEL74HVM: ami-e1996783
     ca-central-1:
       AMZNLINUXHVM: ami-61f97c05
-      RHEL74HVM: ami-dad866be
+      RHEL74HVM: ami-71018415
     eu-central-1:
       AMZNLINUXHVM: ami-0fc85a60
-      RHEL74HVM: ami-d74be5b8
+      RHEL74HVM: ami-8a21bfe5
     eu-west-1:
       AMZNLINUXHVM: ami-e487179d
-      RHEL74HVM: ami-bb9a6bc2
+      RHEL74HVM: ami-ccb7d2b5
     eu-west-2:
       AMZNLINUXHVM: ami-51809835
-      RHEL74HVM: ami-a1f5e4c5
+      RHEL74HVM: ami-b4b3a8d0
     eu-west-3:
        AMZNLINUXHVM: ami-fe03b483
-       RHEL74HVM: ami-dc13a4a1
+       RHEL74HVM: ami-66d0661b
     sa-east-1:
       AMZNLINUXHVM: ami-1226647e
-      RHEL74HVM: ami-a789ffcb
+      RHEL74HVM: ami-1a064a76
     us-east-1:
       AMZNLINUXHVM: ami-cb9ec1b1
-      RHEL74HVM: ami-c998b6b2
+      RHEL74HVM: ami-76a3970c
     us-east-2:
       AMZNLINUXHVM: ami-caaf84af
-      RHEL74HVM: ami-cfdafaaa
+      RHEL74HVM: ami-cebe94ab
     us-west-1:
       AMZNLINUXHVM: ami-95eeeef5
-      RHEL74HVM: ami-66eec506
+      RHEL74HVM: ami-c8020fa8
     us-west-2:
       AMZNLINUXHVM: ami-32cf7b4a
-      RHEL74HVM: ami-9fa343e7
+      RHEL74HVM: ami-1607ba6e
   LinuxAMINameMap:
     RHEL-7.4-HVM:
       Code: RHEL74HVM
