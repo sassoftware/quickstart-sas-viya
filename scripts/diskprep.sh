@@ -10,10 +10,31 @@ else
   DRIVE_SCHEME='sd'
 fi
 
+mount_drive () {
+
+  if [ -b "$DEVICE_PATH" ] ; then
+    # create if needed
+    mkdir -p $DIR
+    # format if needed
+    [ "$(blkid $DEVICE_PATH | grep xfs)" = "" ] && mkfs.xfs $DEVICE_PATH
+    # add to fstab if needed and mount
+    FSTAB="$DEVICE_PATH      $DIR   xfs    defaults,nofail        0       2"
+    ! (grep "$FSTAB" /etc/fstab) &&  echo "$FSTAB" | tee -a /etc/fstab
+    umount $DIR || true
+    mount $DIR
+  fi
+
+}
+
 # mount the xxxg device to /opt/sas
-dir="/opt/sas"
+DIR="/opt/sas"
+DEVICE_PATH="/dev/${DRIVE_SCHEME}g"
+mount_drive
+
+# mount the xxxl device to /opt/sas/viya/config/data/cas
+dir="/opt/sas/viya/config/data/cas"
 mkdir -p $dir
-device_path="/dev/${DRIVE_SCHEME}g"
+device_path="/dev/${DRIVE_SCHEME}l"
 if [ -b "$device_path" ] ; then
   # format if needed
   [ "$(blkid $device_path | grep xfs)" = "" ] && mkfs.xfs $device_path
@@ -23,24 +44,22 @@ if [ -b "$device_path" ] ; then
   umount $dir || true
   mount $dir
 fi
+
 
 # mount the xxxd device to /sastmp
-dir="/sastmp"
-mkdir -p $dir
-device_path="/dev/${DRIVE_SCHEME}d"
-if [ -b "$device_path" ] ; then
-  # format if needed
-  [ "$(blkid $device_path | grep xfs)" = "" ] && mkfs.xfs $device_path
-  # add to fstab if needed and mount
-  FSTAB="$device_path      $dir   xfs    defaults,nofail        0       2"
-  ! (grep "$FSTAB" /etc/fstab) &&  echo "$FSTAB" | tee -a /etc/fstab
-  umount $dir || true
-  mount $dir
-fi
+DIR="/sastmp"
+DEVICE_PATH="/dev/${DRIVE_SCHEME}d"
+mount_drive
 
+# mount the xxxl device to /opt/sas/viya/config/data/cas (on the controller)
+DIR="/opt/sas/viya/config/data/cas"
+DEVICE_PATH="/dev/${DRIVE_SCHEME}l"
+mount_drive
 
-
-# TODO: optional additional EBS library/caslib
+# mount the xxxh device to /home (on the prog node)
+DIR="/home"
+DEVICE_PATH="/dev/${DRIVE_SCHEME}h"
+mount_drive
 
 
 # set the ephemeral drive setup as service (so it can run at reboot/restart)

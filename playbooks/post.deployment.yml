@@ -1,38 +1,26 @@
 ---
-- hosts: sas-all
+- hosts: visual
   become: yes
-
-  vars:
+  become_user: sas
 
   tasks:
 
-  - name: display the status of each machine
-    shell: "/etc/init.d/sas-viya-all-services status"
-    register: status_check
+  - name: Reset the sasboot password
+    shell: |
+      export host=localhost
+      export code=$(ls -tr /var/log/sas/viya/saslogon/default/sas-saslogon_* | tail -n1 | grep '.log$' | xargs grep 'sasboot' | cut -d'=' -f2)
+      # make the first request, this expands the link
+      curl http://$host/SASLogon/reset_password?code=$code -c cookies -o output
+      # get a few things out of the output to use in the next request
+      export CSRF_TOKEN=$(grep 'name="_csrf"' output | cut -f 6 -d '"')
+      export NEW_CODE=$(grep 'name="code"' output | cut -f 6 -d '"')
+      # make the second request with the password and other information
+      curl -b cookies http://$host/SASLogon/reset_password.do -H "Content-Type: application/x-www-form-urlencoded" -d "code=${NEW_CODE}&email=none&password={{sasboot_pw}}&password_confirmation={{sasboot_pw}}&_csrf=${CSRF_TOKEN}"
+      exit 0
+    args:
+      executable: /bin/bash
     tags:
-      - postdep
-      - status_check
-
-  - name: Display the status
-    debug: var=status_check.stdout_lines
-    tags:
-      - postdep
-      - status_check
-
-
-  - name: capture memory consumption by microservice
-    shell: "ps -e -orss=,args= | grep java | grep -v grep | sort -b -k1,1n | awk '{print $1/1024 \",\"  $NF}'"
-    register: mem_cons
-    tags:
-      - postdep
-      - mem
-
-  - name: Display the result
-    debug: var=mem_cons.stdout_lines
-    tags:
-      - postdep
-      - mem
-
+      - sasboot
 
 
 
