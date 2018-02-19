@@ -45,7 +45,7 @@ Metadata:
       SASAdminPass:
         default: SAS Administrator Password
       SASUserPass:
-        default: Password for sasuser01--sasuser10
+        default: Password for default user
       OperatorEmail:
         default: Operator Email
 
@@ -54,22 +54,26 @@ Parameters:
 
   DeploymentDataLocation:
     AllowedPattern: >-
-      ^([-a-zA-Z0-9@:%_\+.~#?&//=]*)$
+      ^([-a-zA-Z0-9@:%_\+.~#?&//=]*)\.zip$
     Description: >-
       S3 location of the Software Order Confirmation e-mail attachment.
       Example: mysasbucket/viya_deployment_data/SAS_Viya_deployment_data.zip
     Type: String
-    ConstraintDescription: must be a valid S3 bucket location, e.g. mysasbucket/viya_deployment_data/SAS_Viya_deployment_data.zip
+    MinLength: '1'
+    ConstraintDescription: must be a zip file in a valid S3 bucket location, e.g. mysasbucket/viya_deployment_data/SAS_Viya_deployment_data.zip
 
   KeyPairName:
     Description: >-
       Name of an existing EC2 key pair. This will allow you to access the Ansible Controller after it launches.
     Type: 'AWS::EC2::KeyPair::KeyName'
+    MinLength: '1'
+    ConstraintDescription: must be the name of an existing AWS Key Pair in the current AWS region
 
   AvailabilityZone:
     Description: The Availability Zone for the public and private subnet.
     Type: AWS::EC2::AvailabilityZone::Name
-    ConstraintDescription: must be the name of an AWS Availability Zone
+    MinLength: '10'
+    ConstraintDescription: must be the name of an AWS Availability Zone in the current AWS region
 
   WebIngressLocation:
     Description: >-
@@ -91,7 +95,7 @@ Parameters:
 
   SASAdminPass:
     Description: >-
-      Password of the Admin User (sasadmin). Must have at least 6 and no more than 255 characters.
+      Password of the SAS Admin Users (sasboot, optionally sasadmin). Must have at least 6 and no more than 255 characters.
     Type: String
     MinLength: '6'
     MaxLength: '255'
@@ -99,12 +103,12 @@ Parameters:
     ConstraintDescription: Password must have at least 6 and no more than 255 characters.
   SASUserPass:
     Description: >-
-      Password of the SAS Users (sasuser01--sasuser10). Must have at least 6 and no more than 255 characters.
+      Password of the default SAS User (sasuser). If left empty, no default users are being created (WARNING: If not set, deployment will require additional setup steps before being usable).
     Type: String
-    MinLength: '6'
+    MinLength: '0'
     MaxLength: '255'
     NoEcho: true
-    ConstraintDescription: Password must have at least 6 and no more than 255 characters.
+    ConstraintDescription: Password cannot be longer than 255 characters.
 
   QSS3BucketName:
     AllowedPattern: '^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$'
@@ -122,7 +126,7 @@ Parameters:
     ConstraintDescription: >-
       Quick Start key prefix can include numbers, lowercase letters, uppercase
       letters, hyphens (-), and forward slash (/).
-    Default: examples/latest/
+    Default: sas/viya/latest/
     Description: >-
       S3 key prefix for the Quick Start assets. Quick Start key prefix can
       include numbers, lowercase letters, uppercase letters, hyphens (-), and
@@ -209,7 +213,7 @@ Resources:
         Value: Public subnet
       - Key: Network
         Value: Public
-      - Key: SASViyaStacl
+      - Key: SASViyaStack
         Value: !Ref AWS::StackName
       MapPublicIpOnLaunch: true
 
