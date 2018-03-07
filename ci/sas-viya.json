@@ -1,0 +1,51 @@
+[
+    {
+        "ParameterKey": "VPCID",
+        "ParameterValue": "vpc-19500560"
+    },
+    {
+        "ParameterKey": "AdminIngressLocation",
+        "ParameterValue": "149.173.0.0/16"
+    },
+    {
+        "ParameterKey": "WebIngressLocation",
+        "ParameterValue": "149.173.0.0/16"
+    },
+    {
+        "ParameterKey": "KeyPairName",
+        "ParameterValue": ""
+    },
+    {
+        "ParameterKey": "PrivateSubnetID",
+        "ParameterValue": "subnet-5a007000"
+    },
+    {
+        "ParameterKey": "PublicSubnetID",
+        "ParameterValue": "subnet-301e6e6a"
+    },
+    {
+        "ParameterKey": "DeploymentDataLocation",
+        "ParameterValue": "mercury-deployment-data/viya3.3/SAS_Viya_deployment_data_4CPU.zip"
+    },
+    {
+        "ParameterKey": "QSS3BucketName",
+        "ParameterValue": "mercury-playpen"
+    },
+    {
+        "ParameterKey": "QSS3KeyPrefix",
+        "ParameterValue": "viya33/"
+    },
+    {
+        "ParameterKey": "SASAdminPass",
+        "ParameterValue": "SASViyaAdmin"
+    },
+    {
+        "ParameterKey": "SASUserPass",
+        "ParameterValue": "SASViyaUser"
+    },
+    {
+        "ParameterKey": "OperatorEmail",
+        "ParameterValue": ""
+    }
+]
+

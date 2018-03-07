@@ -1,0 +1,44 @@
+[
+    {
+        "ParameterKey": "AvailabilityZone",
+        "ParameterValue": "us-east-1a"
+    },
+
+    {
+        "ParameterKey": "AdminIngressLocation",
+        "ParameterValue": "149.173.0.0/16"
+    },
+    {
+        "ParameterKey": "WebIngressLocation",
+        "ParameterValue": "149.173.0.0/16"
+    },
+    {
+        "ParameterKey": "KeyPairName",
+        "ParameterValue": ""
+    },
+    {
+        "ParameterKey": "DeploymentDataLocation",
+        "ParameterValue": "mercury-deployment-data/viya3.3/SAS_Viya_deployment_data_4CPU.zip"
+    },
+    {
+        "ParameterKey": "QSS3BucketName",
+        "ParameterValue": "mercury-playpen"
+    },
+    {
+        "ParameterKey": "QSS3KeyPrefix",
+        "ParameterValue": "viya33/"
+    },
+    {
+        "ParameterKey": "SASAdminPass",
+        "ParameterValue": "SASViyaAdmin"
+    },
+    {
+        "ParameterKey": "SASUserPass",
+        "ParameterValue": "SASViyaAdmin"
+    },
+    {
+        "ParameterKey": "OperatorEmail",
+        "ParameterValue": ""
+    }
+
+]

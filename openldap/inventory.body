@@ -1,0 +1,14 @@
+
+# this host group should have a single machine in it.
+# this will be our openldap server
+[openldapserver]
+
+# this host group can have one or more machines in it
+# this/these servers will be configured to authenticate against the openldap server
+# you may or may not want the same host here as in the openldapserver group
+[openldapclients]
+
+[openldapall:children]
+openldapserver
+openldapclients
+
