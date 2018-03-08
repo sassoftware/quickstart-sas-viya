@@ -1391,6 +1391,7 @@ Resources:
             Statement:
               - Action:
                   - "cloudformation:DescribeStackResources"
+                  - "cloudformation:DescribeStacks"
                 Resource:
                   - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}*/*"
                 Effect: Allow

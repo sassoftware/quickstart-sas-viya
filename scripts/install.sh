@@ -125,11 +125,15 @@ if [ -n "${CASWorker3IP}" ]; then echo -e "       CAS Worker 3:\n         worker
 
 create_failure_message ( ) {
 
+STACKID=$(aws --no-paginate --region "{{AWSRegion}}" cloudformation describe-stacks --stack-name "{{CloudFormationStack}}" --query Stacks[*].StackId --output text)
+
+
 cat <<EOF > "$MSGDIR/sns_failure_message.txt"
 
    SAS Viya Deployment for Stack "{{CloudFormationStack}}" failed with RC=$1.
 
-   Check the deployment logs at {{CloudWatchLogs}}.
+   Check the Stack Events at https://console.aws.amazon.com/cloudformation/home?region={{AWSRegion}}#/stacks?filter=active&tab=events&stackId=${STACKID}
+   and the deployment logs at {{CloudWatchLogs}}.
 
 EOF
 
@@ -232,6 +236,54 @@ EOF
   fi
 }
 
+install_openldap () {
+
+  # list of files created with:
+  # find openldap -type f | tail -n+1 | grep -v files.txt > openldap/files.txt
+
+  # pull down openLDAP files
+  pushd ~
+    while read file; do
+      aws s3 cp s3://{{S3FileRoot}}$file $file
+    done </tmp/openldapfiles.txt
+  popd
+
+  # set up OpenLDAP
+  pushd ~/openldap
+
+    # set log file
+    export ANSIBLE_LOG_PATH=$LOGDIR/deployment-openldap.log
+
+    # add hosts
+    ansible-playbook update.inventory.yml
+
+    # openldap and sssd setup
+    USERPASS=$(echo -n '{{{SASUserPass}}}' | base64)
+    ADMINPASS=$(echo -n '{{{SASAdminPass}}}' | base64)
+    ansible-playbook openldapsetup.yml -e "OLCROOTPW='$ADMINPASS' OLCUSERPW='$USERPASS'"
+
+  popd
+}
+
+
+# sometimes there are ssh connection errors (53) during the install
+# this function allows to retry N times
+function try () {
+  # allow up to N attempts of a command
+  # syntax: try N [command]
+  RC=1; count=1; max_count=$1; shift
+  until  [ $count -gt "$max_count" ]
+  do
+    "$@" && RC=0 && break || let count=count+1
+  done
+  return $RC
+}
+
+
+#
+# pre-deployment steps
+#
+
 # create a key and make available via SSM parameter store
 echo -e y | ssh-keygen -t rsa -q -f ~/.ssh/id_rsa -N ""
 
@@ -289,36 +341,6 @@ if [[ "{{NumWorkers}}" -gt "0" ]]; then
 fi
 
 
-if [ -n "{{SNSTopic}}" ]; then
-
-  # create and send start email
-
-  create_start_message
-  SUBJECT="Starting SAS Viya Deployment {{CloudFormationStack}}"
-  check_subject_length
-
-  aws --region "{{AWSRegion}}" sns publish --topic-arn "{{SNSTopic}}" --subject "$SUBJECT" \
-      --message "file://$MSGDIR/sns_start_message.txt"
-
-fi
-
-
-# sometimes there are ssh connection errors (53) during the install
-# this function allows to retry N times
-function try () {
-  # allow up to N attempts of a command
-  # syntax: try N [command]
-  RC=1; count=1; max_count=$1; shift
-  until  [ $count -gt "$max_count" ]
-  do
-    "$@" && RC=0 && break || let count=count+1
-  done
-  return $RC
-}
-
-
-
-
 # prepare host list for ansible inventory.ini file
 {
   echo visual ansible_host="$VisualServicesIP"
@@ -342,36 +364,36 @@ function try () {
 } > /tmp/hostnames.txt
 
 
-install_openldap () {
-
-  # list of files created with:
-  # find openldap -type f | tail -n+1 | grep -v files.txt > openldap/files.txt
-
-  # pull down openLDAP files
-  pushd ~
-    while read file; do
-      aws s3 cp s3://{{S3FileRoot}}$file $file
-    done </tmp/openldapfiles.txt
-  popd
-
-  # set up OpenLDAP
-  pushd ~/openldap
-
-    # set log file
-    export ANSIBLE_LOG_PATH=$LOGDIR/deployment-openldap.log
-
-    # add hosts
-    ansible-playbook update.inventory.yml
-
-    # openldap and sssd setup
-    USERPASS=$(echo -n '{{{SASUserPass}}}' | base64)
-    ADMINPASS=$(echo -n '{{{SASAdminPass}}}' | base64)
-    ansible-playbook openldapsetup.yml -e "OLCROOTPW='$ADMINPASS' OLCUSERPW='$USERPASS'"
-
-  popd
+# before we start make sure the stack is still good. It could have failed in resources that are created post-VM (especially the ELB)
+check_stack_status () {
+  STACK_STATUS=$(aws --no-paginate --region "{{AWSRegion}}" cloudformation describe-stacks --stack-name "{{CloudFormationStack}}"  --query Stacks[*].StackStatus --output text)
+  # fail script if stack creation failed
+  [[ "$STACK_STATUS" != "CREATE_FAILED" ]]
 }
+# make sure the ELB has been created
+ELBNAME=""
+while [[ "$ELBNAME"  == "" ]]; do
+  ELBNAME=$(aws --no-paginate --region "{{AWSRegion}}" cloudformation describe-stack-resources --stack-name "{{CloudFormationStack}}" --logical-resource-id ElasticLoadBalancer --query StackResources[*].PhysicalResourceId --output text)
+  check_stack_status
+  sleep 3
+done
 
+#
+# Beging Viya software installation
+#
 
+if [ -n "{{SNSTopic}}" ]; then
+
+  # create and send start email
+
+  create_start_message
+  SUBJECT="Starting SAS Viya Deployment {{CloudFormationStack}}"
+  check_subject_length
+
+  aws --region "{{AWSRegion}}" sns publish --topic-arn "{{SNSTopic}}" --subject "$SUBJECT" \
+      --message "file://$MSGDIR/sns_start_message.txt"
+
+fi
 
 # set log file for pre deployment steps
 export CMDLOG="$LOGDIR/deployment-commands.log"
