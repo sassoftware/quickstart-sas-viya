@@ -199,53 +199,52 @@ Parameters:
 Mappings:
   AWSAMIRegionMap:
     AMI:
-      AMZNLINUXHVM: amzn-ami-hvm-2017.09.1.20180108-x86_64-gp2
+      AMZNLINUXHVM: amzn-ami-hvm-2017.09.1.20180115-x86_64-gp2
       RHEL74HVM: RHEL-7.4_HVM-20180122-x86_64-1-Hourly2-GP2
     ap-northeast-1:
-      AMZNLINUXHVM: ami-33c25b55
+      AMZNLINUXHVM: ami-ceafcba8
       RHEL74HVM: ami-36f09350
     ap-northeast-2:
-      AMZNLINUXHVM: ami-d9b616b7
+      AMZNLINUXHVM: ami-863090e8
       RHEL74HVM: ami-90a201fe
     ap-south-1:
-    ap-south-1:
-      AMZNLINUXHVM: ami-fedb8f91
+      AMZNLINUXHVM: ami-531a4c3c
       RHEL74HVM: ami-5c2f7e33
     ap-southeast-1:
-      AMZNLINUXHVM: ami-889cecf4
+      AMZNLINUXHVM: ami-68097514
       RHEL74HVM: ami-8d90e9f1
     ap-southeast-2:
-      AMZNLINUXHVM: ami-ccab56ae
+      AMZNLINUXHVM: ami-942dd1f6
       RHEL74HVM: ami-e1996783
     ca-central-1:
-      AMZNLINUXHVM: ami-61f97c05
+      AMZNLINUXHVM: ami-a954d1cd
       RHEL74HVM: ami-71018415
     eu-central-1:
-      AMZNLINUXHVM: ami-0fc85a60
+      AMZNLINUXHVM: ami-5652ce39
       RHEL74HVM: ami-8a21bfe5
     eu-west-1:
-      AMZNLINUXHVM: ami-e487179d
+      AMZNLINUXHVM: ami-d834aba1
       RHEL74HVM: ami-ccb7d2b5
     eu-west-2:
-      AMZNLINUXHVM: ami-51809835
+      AMZNLINUXHVM: ami-403e2524
       RHEL74HVM: ami-b4b3a8d0
     eu-west-3:
-       AMZNLINUXHVM: ami-fe03b483
-       RHEL74HVM: ami-66d0661b
+      AMZNLINUXHVM: ami-8ee056f3
+      RHEL74HVM: ami-66d0661b
     sa-east-1:
-      AMZNLINUXHVM: ami-1226647e
+      AMZNLINUXHVM: ami-84175ae8
       RHEL74HVM: ami-1a064a76
     us-east-1:
-      AMZNLINUXHVM: ami-cb9ec1b1
+      AMZNLINUXHVM: ami-97785bed
       RHEL74HVM: ami-76a3970c
     us-east-2:
-      AMZNLINUXHVM: ami-caaf84af
+      AMZNLINUXHVM: ami-f63b1193
       RHEL74HVM: ami-cebe94ab
     us-west-1:
-      AMZNLINUXHVM: ami-95eeeef5
+      AMZNLINUXHVM: ami-824c4ee2
       RHEL74HVM: ami-c8020fa8
     us-west-2:
-      AMZNLINUXHVM: ami-32cf7b4a
+      AMZNLINUXHVM: ami-f2d3638a
       RHEL74HVM: ami-1607ba6e
   LinuxAMINameMap:
     RHEL-7.4-HVM:
