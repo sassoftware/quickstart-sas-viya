@@ -1571,6 +1571,11 @@ Resources:
     Type: AWS::EC2::EIP
     Properties:
       Domain: vpc
+  IPAssoc:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      InstanceId: !Ref AnsibleController
+      EIP: !Ref AnsibleControllerEIP
   AnsibleController:
     Type: AWS::EC2::Instance
     CreationPolicy:
@@ -1767,7 +1772,6 @@ Resources:
             #!/bin/bash
             export PATH=$PATH:/usr/local/bin:/opt/aws/bin
             pip install awscli --ignore-installed six &> /dev/null
-            EIP_LIST=${AnsibleControllerEIP}
             CLOUDWATCHGROUP=${CloudWatchLogGroup}
             cfn-init --stack ${AWS::StackName} --resource AnsibleController --configsets quickstart --region ${AWS::Region}
             # Signal the status from cfn-init
