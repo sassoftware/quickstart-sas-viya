@@ -21,7 +21,6 @@
       - restart
 
 
-
   - name: Reset the sasboot password
     shell: |
       export HOST=localhost
@@ -46,6 +45,18 @@
       - sasboot
       - restart
 
+- hosts: sas-all
+  become: yes
+  become_user: root
+
+  tasks:
+  - name: re-own /backups directory
+    become: yes
+    become_user: root
+    shell: |
+       chown sas:sas /backups
+    tags:
+      - backups
 
 
 

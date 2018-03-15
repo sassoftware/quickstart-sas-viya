@@ -469,7 +469,7 @@ pushd sas_viya_playbook
   export ANSIBLE_LOG_PATH="$LOGDIR/deployment-main.log"
 
   # update vars file
-  ansible-playbook ansible.update.vars.file.yml
+  ansible-playbook ansible.update.config.yml
 
 
   # main deployment
@@ -487,7 +487,7 @@ pushd sas_viya_playbook
   export ANSIBLE_LOG_PATH="$LOGDIR/deployment-post.log"
 
   ADMINPASS=$(echo -n '{{{SASAdminPass}}}' | base64) # use triple mustache to avoid url encoding
-  ansible-playbook ansible.post.deployment.yml -e "sasboot_pw='$ADMINPASS'" --tags "sasboot"
+  ansible-playbook ansible.post.deployment.yml -e "sasboot_pw='$ADMINPASS'" --tags "sasboot, backups"
 
 popd
 

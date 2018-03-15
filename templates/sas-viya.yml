@@ -333,6 +333,29 @@ Conditions:
 
 Resources:
 
+  BackupRestoreFS:
+    Type: "AWS::EFS::FileSystem"
+
+  MountTarget:
+    Type: AWS::EFS::MountTarget
+    Properties:
+      FileSystemId:
+        Ref: BackupRestoreFS
+      SubnetId:
+        Ref: PrivateSubnetID
+      SecurityGroups:
+        - Ref: MountTargetSecurityGroup
+
+  MountTargetSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: Security group for mount target
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '2049'
+        ToPort: '2049'
+        SourceSecurityGroupId: !Ref ViyaSecurityGroup
 
   # Lambda Function that scans the license file for the CAS cpu count
   # and returns instance sizes and counts
@@ -884,8 +907,7 @@ Resources:
         configSets:
           quickstart:
             - install
-            - configure
-            - cleanup
+            - efs
         install:
           files:
             /tmp/diskprep.sh:
@@ -943,8 +965,17 @@ Resources:
               command: /tmp/diskprep.sh
             02-setup:
               command: /tmp/node_setup.sh
-        configure: {}
-        cleanup: {}
+        efs:
+          commands:
+            01-createdir:
+              command: |-
+                mkdir /backups
+            02-mount:
+              command: !Sub |-
+                yum -y install nfs-utils
+                MOUNT="${BackupRestoreFS}.efs.${AWS::Region}.amazonaws.com:/ /backups nfs4 nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 0 0"
+                grep -q "$MOUNT" /etc/fstab || echo "$MOUNT" >> /etc/fstab
+                mount /backups
     Properties:
       KeyName: !Ref KeyPairName
       ImageId: !FindInMap
@@ -1007,8 +1038,7 @@ Resources:
         configSets:
           quickstart:
             - install
-            - configure
-            - cleanup
+            - efs
         install:
           files:
             /tmp/diskprep.sh:
@@ -1066,8 +1096,17 @@ Resources:
               command: /tmp/diskprep.sh
             02-setup:
               command: /tmp/node_setup.sh
-        configure: {}
-        cleanup: {}
+        efs:
+          commands:
+            01-createdir:
+              command: |-
+                mkdir /backups
+            02-mount:
+              command: !Sub |-
+                yum -y install nfs-utils
+                MOUNT="${BackupRestoreFS}.efs.${AWS::Region}.amazonaws.com:/ /backups nfs4 nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 0 0"
+                grep -q "$MOUNT" /etc/fstab || echo "$MOUNT" >> /etc/fstab
+                mount /backups
     Properties:
       KeyName: !Ref KeyPairName
       ImageId: !FindInMap
@@ -1130,8 +1169,7 @@ Resources:
         configSets:
           quickstart:
             - install
-            - configure
-            - cleanup
+            - efs
         install:
           files:
             /tmp/diskprep.sh:
@@ -1189,8 +1227,17 @@ Resources:
               command: /tmp/diskprep.sh
             02-setup:
               command: /tmp/node_setup.sh
-        configure: {}
-        cleanup: {}
+        efs:
+          commands:
+            01-createdir:
+              command: |-
+                mkdir /backups
+            02-mount:
+              command: !Sub |-
+                yum -y install nfs-utils
+                MOUNT="${BackupRestoreFS}.efs.${AWS::Region}.amazonaws.com:/ /backups nfs4 nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 0 0"
+                grep -q "$MOUNT" /etc/fstab || echo "$MOUNT" >> /etc/fstab
+                mount /backups
     Properties:
       KeyName: !Ref KeyPairName
       ImageId: !FindInMap
@@ -1256,8 +1303,7 @@ Resources:
         configSets:
           quickstart:
             - install
-            - configure
-            - cleanup
+            - efs
         install:
           files:
             /tmp/diskprep.sh:
@@ -1316,8 +1362,19 @@ Resources:
               command: /tmp/diskprep.sh
             02-setup:
               command: /tmp/node_setup.sh
-        configure: {}
-        cleanup: {}
+        efs:
+          commands:
+            01-createdir:
+              command: |-
+                mkdir /backups
+            02-mount:
+              command: !Sub |-
+                yum -y install nfs-utils
+                MOUNT="${BackupRestoreFS}.efs.${AWS::Region}.amazonaws.com:/ /backups nfs4 nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 0 0"
+                grep -q "$MOUNT" /etc/fstab || echo "$MOUNT" >> /etc/fstab
+                mount /backups
+
+
     Properties:
       KeyName: !Ref KeyPairName
       ImageId: !FindInMap
@@ -1665,9 +1722,9 @@ Resources:
               owner: ec2-user
               group: ec2-user
               authentication: S3AccessCreds
-            /tmp/ansible.update.vars.file.yml:
+            /tmp/ansible.update.config.yml:
               source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/update.vars.file.yml
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/update.config.yml
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
