@@ -45,18 +45,42 @@
       - sasboot
       - restart
 
+
+- hosts: stateful
+  become: yes
+  become_user: root
+
+  tasks:
+  - name: set up sharedVault
+    become: yes
+    become_user: root
+    shell: |
+      mkdir -p /opt/sas/backups
+      chown sas:sas /opt/sas/backups
+      yum -y install nfs-utils
+      systemctl start nfs
+      systemctl enable nfs
+      echo "/opt/sas/backups *(rw,sync)" > /etc/exports
+      exportfs -a
+      chown sas:sas /opt/sas/backups
+    tags:
+      - backups
+
 - hosts: sas-all
   become: yes
   become_user: root
 
   tasks:
-  - name: re-own /backups directory
-    become: yes
-    become_user: root
+  - name: create and mount /backups directory
     shell: |
-       chown sas:sas /backups
+      yum -y install nfs-utils autofs
+      echo "/- /etc/auto.backups" > /etc/auto.master
+      echo "/backups -rw,soft,uid=$(id sas -u),gid=$(id sas -g) stateful.viya.sas:/opt/sas/backups" > /etc/auto.backups
+      systemctl start autofs
+      systemctl enable autofs
     tags:
       - backups
+
 
 
 
