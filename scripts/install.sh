@@ -30,6 +30,11 @@ CASWorker2IP=
 CASWorker3IP=
 DomainName=
 
+# use triple mustache to avoid url encoding
+USERPASS=$(echo -n '{{{SASUserPass}}}' | base64)
+ADMINPASS=$(echo -n '{{{SASAdminPass}}}' | base64)
+
+
 
 # prepare directories for logs and messages
 export LOGDIR=$HOME/deployment-logs
@@ -258,8 +263,6 @@ install_openldap () {
     ansible-playbook update.inventory.yml
 
     # openldap and sssd setup
-    USERPASS=$(echo -n '{{{SASUserPass}}}' | base64)
-    ADMINPASS=$(echo -n '{{{SASAdminPass}}}' | base64)
     ansible-playbook openldapsetup.yml -e "OLCROOTPW='$ADMINPASS' OLCUSERPW='$USERPASS'"
 
   popd
@@ -447,7 +450,7 @@ pushd sas_viya_playbook
   git --git-dir virk/.git checkout viya-3.3 2>> "$CMDLOG"
   ansible-playbook virk/playbooks/pre-install-playbook/viya_pre_install_playbook.yml -e 'use_pause=false'
 
-  if [ -n "{{SASUserPass}}" ]; then
+  if [ -n "$USERPASS" ]; then
     echo " " >> "$CMDLOG"
     echo "$(date) Install and set up OpenLDAP (see deployment-openldap.log)" >> "$CMDLOG"
     install_openldap
@@ -461,7 +464,7 @@ pushd sas_viya_playbook
   echo "$(date) Start Main Deployment (see deployment-main.log)" >> "$CMDLOG"
 
   # get identities configuration from openldap setup
-  if [ -n "{{SASUserPass}}" ]; then
+  if [ -n "$USERPASS" ]; then
     cp ../openldap/sitedefault.yml roles/consul/files/
   fi
 
@@ -486,7 +489,6 @@ pushd sas_viya_playbook
   # set log file for post deployment steps  # set log file for pre deployment steps
   export ANSIBLE_LOG_PATH="$LOGDIR/deployment-post.log"
 
-  ADMINPASS=$(echo -n '{{{SASAdminPass}}}' | base64) # use triple mustache to avoid url encoding
   ansible-playbook ansible.post.deployment.yml -e "sasboot_pw='$ADMINPASS'" --tags "sasboot, backups"
 
 popd
