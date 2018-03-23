@@ -381,6 +381,11 @@ while [[ "$ELBNAME"  == "" ]]; do
   sleep 3
 done
 
+# make sure the Hosted Zone is good
+if [ -n "{{HostedZoneID}}" ]; then
+ # this fails the script if the HostedZoneID is invalid
+ aws --no-paginate --region "{{AWSRegion}}" route53 get-hosted-zone --id {{HostedZoneID}}
+fi
 #
 # Beging Viya software installation
 #

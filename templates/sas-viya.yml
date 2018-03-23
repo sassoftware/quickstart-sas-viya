@@ -1465,6 +1465,15 @@ Resources:
             Version: 2012-10-17
             Statement:
               - Action:
+                  - 'route53:GetHostedZone'
+                Resource:
+                  - '*'
+                Effect: Allow
+          PolicyName: ansiblecontroller-route53-policy
+        - PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Action:
                   - 'logs:CreateLogStream'
                   - 'logs:GetLogEvents'
                   - 'logs:PutLogEvents'
@@ -1599,6 +1608,7 @@ Resources:
                 CloudWatchLogs: !Sub "https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#logStream:group=${CloudWatchLogGroup}"
                 SSLCertificateARN: !Ref SSLCertificateARN
                 DomainName: !Ref DomainName
+                HostedZoneID: !If [HasDNSEntry, !Ref AWSHostedZoneID, ""]
                 S3FileRoot: !Sub "${QSS3BucketName}/${QSS3KeyPrefix}"
 
             /tmp/SAS_Viya_deployment_data.zip:
