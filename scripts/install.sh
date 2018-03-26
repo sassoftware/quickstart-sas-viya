@@ -394,7 +394,7 @@ touch "$CMDLOG"
 # make sure the Hosted Zone is good
 if [ -n "{{HostedZoneID}}" ]; then
  # this fails the script if the HostedZoneID is invalid
- FAILMSG="ERROR: Hosted Zone {{HostedZoneID}} does not exist the current AWS account."
+ FAILMSG="ERROR: Hosted Zone {{HostedZoneID}} does not exist in the current AWS account."
  aws --no-paginate --region "{{AWSRegion}}" route53 get-hosted-zone --id {{HostedZoneID}}
  FAILMSG=
 
