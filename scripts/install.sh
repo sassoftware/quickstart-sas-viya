@@ -29,6 +29,7 @@ CASWorker1IP=
 CASWorker2IP=
 CASWorker3IP=
 DomainName=
+FAILMSG=
 
 # use triple mustache to avoid url encoding
 USERPASS=$(echo -n '{{{SASUserPass}}}' | base64)
@@ -132,15 +133,20 @@ create_failure_message ( ) {
 
 STACKID=$(aws --no-paginate --region "{{AWSRegion}}" cloudformation describe-stacks --stack-name "{{CloudFormationStack}}" --query Stacks[*].StackId --output text)
 
-
 cat <<EOF > "$MSGDIR/sns_failure_message.txt"
 
    SAS Viya Deployment for Stack "{{CloudFormationStack}}" failed with RC=$1.
+
+   ${FAILMSG}
 
    Check the Stack Events at https://console.aws.amazon.com/cloudformation/home?region={{AWSRegion}}#/stacks?filter=active&tab=events&stackId=${STACKID}
    and the deployment logs at {{CloudWatchLogs}}.
 
 EOF
+
+if [ -n "$FAILMSG" ]; then
+  echo "$FAILMSG" >> $CMDLOG
+fi
 
 }
 
@@ -381,11 +387,25 @@ while [[ "$ELBNAME"  == "" ]]; do
   sleep 3
 done
 
+# set log file for pre deployment steps
+export CMDLOG="$LOGDIR/deployment-commands.log"
+touch "$CMDLOG"
+
 # make sure the Hosted Zone is good
 if [ -n "{{HostedZoneID}}" ]; then
  # this fails the script if the HostedZoneID is invalid
+ FAILMSG="ERROR: Hosted Zone {{HostedZoneID}} does not exist the current AWS account."
  aws --no-paginate --region "{{AWSRegion}}" route53 get-hosted-zone --id {{HostedZoneID}}
+ FAILMSG=
+
+ # compare DNS entry used in the hosted zone with the given DNSName
+ HZDNS=$(aws --no-paginate --region "{{AWSRegion}}" route53 list-resource-record-sets --hosted-zone-id {{HostedZoneID}} --query 'ResourceRecordSets[?Type==`NS`].Name' --output text)
+ # fail the script if the specified DomainName does not match the hosted zone
+ FAILMSG="ERROR: Value for DomainName=\"{{DomainName}}\" does not match domain \"${HZDNS:0:-1}\" in Hosted Zone {{HostedZoneID}}"
+ [[ "$HZDNS" == "{{DomainName}}." ]]
+ FAILMSG=
 fi
+
 #
 # Beging Viya software installation
 #
@@ -403,9 +423,6 @@ if [ -n "{{SNSTopic}}" ]; then
 
 fi
 
-# set log file for pre deployment steps
-export CMDLOG="$LOGDIR/deployment-commands.log"
-touch "$CMDLOG"
 
 configure_self_signed_cert
 

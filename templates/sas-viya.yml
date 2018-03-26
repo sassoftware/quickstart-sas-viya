@@ -1466,6 +1466,7 @@ Resources:
             Statement:
               - Action:
                   - 'route53:GetHostedZone'
+                  - 'route53:ListResourceRecordSets'
                 Resource:
                   - '*'
                 Effect: Allow
