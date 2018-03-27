@@ -80,19 +80,6 @@ if [ -n "${CASWorker3IP}" ]; then echo -e "       CAS Worker 3:\n         worker
 
 create_success_message () {
 
-if [ -z "{{DomainName}}" ]; then
-  ID=$(aws --no-paginate --region "{{AWSRegion}}" cloudformation describe-stack-resources --stack-name "{{CloudFormationStack}}" --logical-resource-id ElasticLoadBalancer --query StackResources[*].PhysicalResourceId --output text)
-  DomainName=$(aws --no-paginate --region "{{AWSRegion}}" elb describe-load-balancers --load-balancer-name "$ID" --query LoadBalancerDescriptions[*].DNSName --output text)
-else
-  DomainName="{{DomainName}}"
-fi
-
-PROTOCOL="https://"
-SASHome="${PROTOCOL}${DomainName}/SASHome"
-SASStudio="${PROTOCOL}${DomainName}/SASStudio"
-
-
-
 OUTFILE="$MSGDIR/sns_success_message.txt"
 cat <<EOF > "$OUTFILE"
 
@@ -410,6 +397,20 @@ fi
 # Beging Viya software installation
 #
 
+if [ -z "{{DomainName}}" ]; then
+  ID=$(aws --no-paginate --region "{{AWSRegion}}" cloudformation describe-stack-resources --stack-name "{{CloudFormationStack}}" --logical-resource-id ElasticLoadBalancer --query StackResources[*].PhysicalResourceId --output text)
+  DomainName=$(aws --no-paginate --region "{{AWSRegion}}" elb describe-load-balancers --load-balancer-name "$ID" --query LoadBalancerDescriptions[*].DNSName --output text)
+else
+  DomainName="{{DomainName}}"
+fi
+
+PROTOCOL="https://"
+SASHome="${PROTOCOL}${DomainName}/SASHome"
+SASStudio="${PROTOCOL}${DomainName}/SASStudio"
+
+
+
+
 if [ -n "{{SNSTopic}}" ]; then
 
   # create and send start email
@@ -511,7 +512,7 @@ pushd sas_viya_playbook
   # set log file for post deployment steps  # set log file for pre deployment steps
   export ANSIBLE_LOG_PATH="$LOGDIR/deployment-post.log"
 
-  ansible-playbook ansible.post.deployment.yml -e "sasboot_pw='$ADMINPASS'" --tags "sasboot, backups"
+  ansible-playbook ansible.post.deployment.yml -e "sasboot_pw='$ADMINPASS'" -e "cas_virtual_host='$DomainName'" --tags "sasboot, backups, cas"
 
 popd
 

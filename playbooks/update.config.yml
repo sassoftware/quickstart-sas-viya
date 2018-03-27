@@ -15,6 +15,13 @@
       regexp: "CAS_DISK_CACHE:" 
       line: "     CAS_DISK_CACHE: /sastmp/cascache"
 
+#  - name: add CAS UI path
+#    lineinfile:
+#      dest: vars.yml
+#      insertafter: "CAS_DISK_CACHE:.*"
+#      line: "     CAS_VIRTUAL_HOST: {{cas_virtual_host}}"
+
+
   - name: change saswork location
     blockinfile:
       dest: vars.yml
