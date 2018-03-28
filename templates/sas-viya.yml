@@ -1511,11 +1511,6 @@ Resources:
     Type: AWS::EC2::EIP
     Properties:
       Domain: vpc
-  IPAssoc:
-    Type: AWS::EC2::EIPAssociation
-    Properties:
-      InstanceId: !Ref AnsibleController
-      EIP: !Ref AnsibleControllerEIP
   AnsibleController:
     Type: AWS::EC2::Instance
     CreationPolicy:
@@ -1725,6 +1720,7 @@ Resources:
             # install latest cfn bootstrap utilities
             easy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
             CLOUDWATCHGROUP=${CloudWatchLogGroup}
+            EIP_LIST=${AnsibleControllerEIP}
             cfn-init --stack ${AWS::StackName} --resource AnsibleController --configsets quickstart --region ${AWS::Region}
             # Signal the status from cfn-init
             cfn-signal -e $? --stack ${AWS::StackName} --resource AnsibleController --region ${AWS::Region}
