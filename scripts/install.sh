@@ -32,6 +32,7 @@ DomainName=
 FAILMSG=
 ControllerNodeSize={{ControllerNodeSize}}
 
+
 # use triple mustache to avoid url encoding
 USERPASS=$(echo -n '{{{SASUserPass}}}' | base64)
 ADMINPASS=$(echo -n '{{{SASAdminPass}}}' | base64)
@@ -222,7 +223,6 @@ seed_known_hosts_file () {
 
 }
 
-
 configure_self_signed_cert () {
 
   # reconfigure ELB to use self-signed cert
@@ -408,7 +408,6 @@ if [[ "{{NumWorkers}}" -gt "0" ]]; then
 
 fi
 
-
 # prepare host list for ansible inventory.ini file
 {
   echo visual ansible_host="$VisualServicesIP"
@@ -431,10 +430,10 @@ fi
   if [ -n "${CASWorker3IP}" ]; then echo "${CASWorker3IP} worker3.viya.sas worker3"; fi
 } > /tmp/hostnames.txt
 
-
 # update hosts list on ansible controller
 cat /tmp/hostnames.txt | sudo tee -a /etc/hosts
 seed_known_hosts_file
+
 
 # before we start make sure the stack is still good. It could have failed in resources that are created post-VM (especially the ELB)
 check_stack_status () {
@@ -477,9 +476,13 @@ else
 fi
 
 PROTOCOL="https://"
-SASHome="${PROTOCOL}${DomainName}/SASHome"
-SASStudio="${PROTOCOL}${DomainName}/SASStudio"
-
+if [ "{{ViyaVersion}}" = "3.4" ];then
+    SASHome="${PROTOCOL}${DomainName}/SASDrive"
+    SASStudio="${PROTOCOL}${DomainName}/SASStudioV"
+else
+    SASHome="${PROTOCOL}${DomainName}/SASHome"
+    SASStudio="${PROTOCOL}${DomainName}/SASStudio"
+fi
 
 
 
@@ -531,7 +534,6 @@ elif [ ! -z "{{DeploymentMirror}}" ]; then
   exit 1
 fi
 
-
 # set mirror repository, if given
 MIRROROPT=
 if [ -n "$MIRRORURL" ]; then
@@ -539,11 +541,29 @@ if [ -n "$MIRRORURL" ]; then
   echo "Using mirror repository $MIRRORURL" >> "$CMDLOG"
 fi
 
+
+echo "Deploying Viya Version {{ViyaVersion}}" >> "$CMDLOG"
+
 # get sas-orchestration cli
 echo "$(date) Download and extract sas-orchestration cli" >> "$CMDLOG"
-curl -Os https://support.sas.com/installation/viya/sas-orchestration-cli/lax/sas-orchestration.tgz 2>> "$CMDLOG"
-tar xf sas-orchestration.tgz 2>> "$CMDLOG"
-rm sas-orchestration.tgz
+
+if [ "{{ViyaVersion}}" = "3.4" ]; then
+#   aws s3 cp s3://mercury-deployment-data/viya3.4/sas-orchestration-cli.rpm sas-orchestration-cli.rpm 2>> "$CMDLOG"
+#   sudo yum -y install sas-orchestration-cli.rpm 2>> "$CMDLOG"
+#   rm sas-orchestration-cli.rpm
+#   ORCHCLIPREFIX=/opt/sas/viya/home/bin
+
+   curl -Os https://support.sas.com/installation/viya/34/sas-orchestration-cli/lax/sas-orchestration-linux.tgz 2>> "$CMDLOG"
+   tar xf sas-orchestration-linux.tgz 2>> "$CMDLOG"
+   rm sas-orchestration-linux.tgz
+   ORCHCLIPREFIX=.
+else
+   curl -Os https://support.sas.com/installation/viya/sas-orchestration-cli/lax/sas-orchestration.tgz 2>> "$CMDLOG"
+   tar xf sas-orchestration.tgz 2>> "$CMDLOG"
+   rm sas-orchestration.tgz
+   ORCHCLIPREFIX=.
+fi
+
 
 # get sas license data file
 echo " " >> "$CMDLOG"
@@ -553,7 +573,7 @@ aws s3 cp s3://{{DeploymentDataLocation}} ~/deployment-data/SAS_Viya_deployment_
 # build playbook
 echo " " >> "$CMDLOG"
 echo "$(date) Build ansible playbook tar file" >> "$CMDLOG"
-./sas-orchestration build --input  ~/deployment-data/SAS_Viya_deployment_data.zip $MIRROROPT 2>> "$CMDLOG"
+$ORCHCLIPREFIX/sas-orchestration build --input  ~/deployment-data/SAS_Viya_deployment_data.zip $MIRROROPT 2>> "$CMDLOG"
 
 # untar playbook
 echo " " >> "$CMDLOG"
@@ -575,7 +595,7 @@ pushd sas_viya_playbook
   echo "$(date) Download and execute Viya Infrastructure Resource Kit (VIRK)" >> "$CMDLOG"
   git clone -q https://github.com/sassoftware/virk.git 2>> "$CMDLOG"
   pushd virk
-    git checkout viya-3.3 2>> "$CMDLOG"
+    git checkout viya-{{ViyaVersion}} 2>> "$CMDLOG"
   popd
   ansible-playbook virk/playbooks/pre-install-playbook/viya_pre_install_playbook.yml --skip-tags skipmemfail,skipcoresfail,skipstoragefail,skipnicssfail,bandwidth -e 'use_pause=false'
 
@@ -603,7 +623,6 @@ pushd sas_viya_playbook
   # update vars file
   ansible-playbook ansible.update.config.yml -e "sasboot_pw='$ADMINPASS'"
 
-
   # main deployment
   try 3 ansible-playbook site.yml
 
@@ -611,7 +630,6 @@ pushd sas_viya_playbook
   # post deployment
   #
 
-  # reset sasboot
   echo " " >> "$CMDLOG"
   echo "$(date) Post deployment steps (see deployment-post.log)" >> "$CMDLOG"
 
@@ -624,4 +642,5 @@ pushd sas_viya_playbook
                                                 --tags "backups, cas, cloudwatch"
 
 popd
+
 

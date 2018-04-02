@@ -222,7 +222,6 @@ Parameters:
     Type: String
     Default: ''
 
-
 Mappings:
   AWSAMIRegionMap:
     AMI:
@@ -406,10 +405,17 @@ Resources:
               send(event, context, rS, rD, reason)
             with io.BytesIO(obj["Body"].read()) as tf:
               tf.seek(0)
+              rD['ViyaVersion'] = '3.3'
+              rD['SASHomePath'] = '/SASHome'
+              rD['SASStudioPath'] = '/SASStudio'
               with zipfile.ZipFile(tf, mode='r') as zipf:
                 for file in zipf.infolist():
-                  if (file.filename.startswith('licenses/')):
+                  if (file.filename.endswith('Linux_x86-64.txt')):
                     templicensefile = zipf.extract(file,'/tmp')
+                  if (file.filename.endswith('.jwt')):
+                    rD['ViyaVersion'] = '3.4'
+                    rD['SASHomePath'] = '/SASDrive'
+                    rD['SASStudioPath'] = '/SASStudioV'
               tline = ''
               lf = []
               with open(templicensefile) as tlf:
@@ -433,15 +439,20 @@ Resources:
               if model is None:
                 raise ValueError('The CPU detail row for the CAS cpu was not found in the license file.')
               cpucount = int(model[model.find('SERIAL=')+9:][:3].replace("'",""))
+              if cpucount == 999:
+                cpucount = int(4)
+                if ddl.find("Core") > 0:
+                  cpucount = int(ddl[ddl.find("Core")-2:ddl.find("Core")].strip('_'))
               rD['CPUCount'] = cpucount
               rS = SUCCESS
 
             rD["NumWorkers"] = 0
             rD["CASLibSize"] = 500
             rD["UserLibSize"] = 500
+            rD["NodeInstanceSize"] = "2xlarge"
+            rD["CASCacheSize"] = 180
             if cpucount == 4:
-              rD["NodeInstanceSize"] = "2xlarge"
-              rD["CASCacheSize"] = 180
+              pass
             elif cpucount <= 8:
               rD["NodeInstanceSize"] = "4xlarge"
               rD["CASCacheSize"] = 360
@@ -836,6 +847,7 @@ Resources:
           FromPort: '-1'
           ToPort: '-1'
           CidrIp: !Ref AdminIngressLocation
+
 
   ViyaSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -1442,14 +1454,14 @@ Resources:
             Statement:
               - Action:
                   - 's3:ListBucket'
-                  - 's3:ListObjects'
                 Resource:
-                  - !Sub 'arn:aws:s3:::${QSS3BucketName}*'
+                  - !Sub 'arn:aws:s3:::${QSS3BucketName}'
                 Effect: Allow
               - Action:
                   - 's3:GetObject'
                 Resource:
                   - !Sub 'arn:aws:s3:::${QSS3BucketName}/*'
+
                 Effect: Allow
           PolicyName: aws-quick-start-s3-policy
         - PolicyDocument:
@@ -1668,6 +1680,7 @@ Resources:
                 DeploymentDataLocation: !Ref DeploymentDataLocation
                 RAIDScript: !Sub ${QSS3BucketName}/${QSS3KeyPrefix}scripts/disks_ephemeral.sh
                 DeploymentMirror: !Ref DeploymentMirror
+                ViyaVersion: !GetAtt LicenseInfo.ViyaVersion
 
             /home/ec2-user/deployment-scripts/create.mirror.yml:
               source: !Sub
@@ -1716,8 +1729,6 @@ Resources:
                 SASAdminPass: !Ref SASAdminPass
                 RAIDScript: !Sub ${QSS3BucketName}/${QSS3KeyPrefix}scripts/disks_ephemeral.sh
 
-
-
             /tmp/ansible.cfg:
               source: !Sub
                 - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/ansible.cfg
@@ -1731,11 +1742,12 @@ Resources:
               authentication: S3AccessCreds
             /tmp/ansible.update.inventory.yml:
               source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/update.inventory.yml
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/update.inventory.${ViyaVersion}.yml
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
                     - s3
+                  ViyaVersion: !GetAtt LicenseInfo.ViyaVersion
               mode: '000444'
               owner: ec2-user
               group: ec2-user
@@ -1836,7 +1848,7 @@ Outputs:
           - !GetAtt
             - ElasticLoadBalancer
             - DNSName
-        - '/SASHome'
+        - !GetAtt LicenseInfo.SASHomePath
   SASStudio:
     Description: SAS Studio
     Value: !Join
@@ -1848,7 +1860,7 @@ Outputs:
           - !GetAtt
             - ElasticLoadBalancer
             - DNSName
-        - '/SASStudio'
+        - !GetAtt LicenseInfo.SASStudioPath
   AnsibleControllerIP:
     Description: Ansible Controller IP address
     Value: !Ref AnsibleControllerEIP
