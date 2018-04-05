@@ -1713,6 +1713,11 @@ Resources:
             #!/bin/bash
             export PATH=$PATH:/usr/local/bin:/opt/aws/bin
             pip install awscli --ignore-installed six &> /dev/null
+            # remove pre-installed cfn bootstrap utilities
+            yum -y remove aws-cfn-bootstrap
+            hash -d /opt/aws/bin/cfn-init
+            # install latest cfn bootstrap utilities
+            easy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
             CLOUDWATCHGROUP=${CloudWatchLogGroup}
             cfn-init --stack ${AWS::StackName} --resource AnsibleController --configsets quickstart --region ${AWS::Region}
             # Signal the status from cfn-init
