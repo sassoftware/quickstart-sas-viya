@@ -29,7 +29,7 @@ Metadata:
         - AWSHostedZoneID
         - SSLCertificateARN
     - Label:
-        default: AWS Quick Start Configuration
+        default: AWS Quick Start Source Location
       Parameters:
         - QSS3BucketName
         - QSS3KeyPrefix
@@ -130,9 +130,10 @@ Parameters:
       letters, and hyphens (-). It cannot start or end with a hyphen (-).
     Default: quickstart-reference
     Description: >-
-      S3 bucket name for the Quick Start assets. This string can include
-      numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot
-      start or end with a hyphen (-).
+      S3 bucket name for the Quick Start assets.
+      Only change this value if you customize or extend the Quick Start for your own use.
+      This string can include numbers, lowercase letters, uppercase letters, and hyphens (-).
+      It cannot start or end with a hyphen (-).
     Type: String
   QSS3KeyPrefix:
     AllowedPattern: '^[0-9a-zA-Z-/]*[/]$'
@@ -141,9 +142,10 @@ Parameters:
       letters, hyphens (-), and forward slash (/) and must terminate in a forward slash.
     Default: sas/viya/latest/
     Description: >-
-      S3 key prefix for the Quick Start assets. Quick Start key prefix can
-      include numbers, lowercase letters, uppercase letters, hyphens (-), and
-      forward slash (/) and must terminate in a forward slash.
+      S3 key prefix for the Quick Start assets.
+      Only change this value if you customize or extend the Quick Start for your own use.
+      Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-),
+      and forward slash (/) and must terminate in a forward slash.
     Type: String
 
   OperatorEmail:
