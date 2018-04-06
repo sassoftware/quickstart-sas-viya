@@ -152,3 +152,8 @@
                  sas.reportrenderer.properties:
                      custom:
                          baseUrl: http://visual.viya.sas
+
+  - name: set sitedefault permissions
+    file:
+      path: roles/consul/files/sitedefault.yml
+      mode: 0600

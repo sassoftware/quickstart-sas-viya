@@ -1,15 +1,15 @@
 [
     {
         "ParameterKey": "VPCID",
-        "ParameterValue": "vpc-19500560"
+        "ParameterValue": ""
     },
     {
         "ParameterKey": "AdminIngressLocation",
-        "ParameterValue": "149.173.0.0/16"
+        "ParameterValue": ""
     },
     {
         "ParameterKey": "WebIngressLocation",
-        "ParameterValue": "149.173.0.0/16"
+        "ParameterValue": ""
     },
     {
         "ParameterKey": "KeyPairName",
@@ -17,31 +17,31 @@
     },
     {
         "ParameterKey": "PrivateSubnetID",
-        "ParameterValue": "subnet-5a007000"
+        "ParameterValue": ""
     },
     {
         "ParameterKey": "PublicSubnetID",
-        "ParameterValue": "subnet-301e6e6a"
+        "ParameterValue": ""
     },
     {
         "ParameterKey": "DeploymentDataLocation",
-        "ParameterValue": "mercury-deployment-data/viya3.3/SAS_Viya_deployment_data_4CPU.zip"
+        "ParameterValue": ""
     },
     {
         "ParameterKey": "QSS3BucketName",
-        "ParameterValue": "mercury-playpen"
+        "ParameterValue": "quickstart-reference"
     },
     {
         "ParameterKey": "QSS3KeyPrefix",
-        "ParameterValue": "viya33/"
+        "ParameterValue": "sas/viya/latest/"
     },
     {
         "ParameterKey": "SASAdminPass",
-        "ParameterValue": "SASViyaAdmin"
+        "ParameterValue": ""
     },
     {
         "ParameterKey": "SASUserPass",
-        "ParameterValue": "SASViyaUser"
+        "ParameterValue": ""
     },
     {
         "ParameterKey": "OperatorEmail",
@@ -49,15 +49,15 @@
     },
         {
         "ParameterKey": "AWSHostedZoneID",
-        "ParameterValue": "Z2BP7UMCNDE5Z9"
+        "ParameterValue": ""
     },
     {
         "ParameterKey": "DomainName",
-        "ParameterValue": "viyatest.com"
+        "ParameterValue": ""
     },
     {
         "ParameterKey": "SSLCertificateARN",
-        "ParameterValue": "arn:aws:acm:us-east-1:869791842936:certificate/42ef3680-be89-4c80-ae5b-ed12309a2594"
+        "ParameterValue": ""
     }
 
 

@@ -1594,7 +1594,7 @@ Resources:
                     - GovCloudCondition
                     - s3-us-gov-west-1
                     - s3
-              mode: '000550'
+              mode: '000500'
               owner: ec2-user
               group: ec2-user
               authentication: S3AccessCreds
