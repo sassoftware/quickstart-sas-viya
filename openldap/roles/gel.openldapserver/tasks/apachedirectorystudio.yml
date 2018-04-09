@@ -11,4 +11,4 @@
 - debug: var=getjava
 
 - debug: msg="to launch Apache Directory Studio -> ./ApacheDirectoryStudio"
-- debug: msg="You should be able to connect using the Manager credentials {{OLCROOTDN}} with password {{OLCROOTPW}}"
+- debug: msg="You should be able to connect using the Manager credentials {{OLCROOTDN}} with password {{OLCROOTPW | b64decode }}"

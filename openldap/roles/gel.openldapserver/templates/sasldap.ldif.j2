@@ -6,7 +6,7 @@ objectClass: top
 objectclass: inetorgperson
 objectClass: organizationalPerson
 objectClass: person
-userPassword: {{OLCROOTPW}}
+userPassword: {{OLCROOTPW | b64decode }}
 mail: sasldap@none.sas.com
 l: {{CERT_L}}
 o: {{CERT_O}}

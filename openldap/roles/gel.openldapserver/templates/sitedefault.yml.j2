@@ -5,7 +5,7 @@ config:
              port: '389'
              url: 'ldap://${sas.identities.providers.ldap.connection.host}:${sas.identities.providers.ldap.connection.port}'
              userDN: 'uid=sasldap,ou=users,{{OLCSUFFIX}}'
-             password: '{{OLCROOTPW}}'
+             password: '{{OLCROOTPW | b64decode }}'
          sas.identities.providers.ldap.group:
              accountId: 'name'
              baseDN: 'ou=groups,{{OLCSUFFIX}}'
