@@ -143,6 +143,17 @@
                  sas.deploymentbackup:
                      sharedVault: /backups
 
+  - name: set mail host and enable mail health check in sitedefault.yml
+    blockinfile:
+      dest: roles/consul/files/sitedefault.yml
+      marker: '# {mark} set sharedVault'
+      insertafter: 'application:'
+      block: |2
+                 management.health.mail:
+                     enabled: true
+                 sas.mail:
+                     host: localhost
+
   - name: set renderer baseUrl in sitedefault.yml
     blockinfile:
       dest: roles/consul/files/sitedefault.yml
