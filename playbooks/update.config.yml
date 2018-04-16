@@ -146,7 +146,7 @@
   - name: set mail host and enable mail health check in sitedefault.yml
     blockinfile:
       dest: roles/consul/files/sitedefault.yml
-      marker: '# {mark} set sharedVault'
+      marker: '# {mark} set mail'
       insertafter: 'application:'
       block: |2
                  management.health.mail:
