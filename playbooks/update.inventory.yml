@@ -67,6 +67,12 @@
       regexp='^\[platform\]\ndeployTarget'
       replace='[platform]\nprog'
 
+  - name: Programming - platform
+    replace:
+      dest=inventory.ini
+      regexp='^\[Operations\]\ndeployTarget'
+      replace='[Operations]\nprog'
+
   - name: Programming - psqllib
     replace:
       dest=inventory.ini

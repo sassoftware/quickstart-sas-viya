@@ -19,7 +19,7 @@ ldap_uri = ldaps://{{CERT_LDAP}}:636/
 ldap_tls_cacert = {{CERTLOC}}/{{CERTNAME}}.pem
 
 ldap_default_bind_dn = uid=sasldap,ou=users,{{OLCSUFFIX}}
-ldap_default_authtok = {{OLCROOTPW}}
+ldap_default_authtok = {{OLCROOTPW | b64decode }}
 
 ldap_search_base = {{OLCSUFFIX}}
 

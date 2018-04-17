@@ -1,8 +1,9 @@
 [
     {
-        "ParameterKey": "VPCID",
+        "ParameterKey": "AvailabilityZone",
         "ParameterValue": ""
     },
+
     {
         "ParameterKey": "AdminIngressLocation",
         "ParameterValue": ""
@@ -13,14 +14,6 @@
     },
     {
         "ParameterKey": "KeyPairName",
-        "ParameterValue": ""
-    },
-    {
-        "ParameterKey": "PrivateSubnetID",
-        "ParameterValue": ""
-    },
-    {
-        "ParameterKey": "PublicSubnetID",
         "ParameterValue": ""
     },
     {
@@ -46,6 +39,19 @@
     {
         "ParameterKey": "OperatorEmail",
         "ParameterValue": ""
+    },
+    {
+        "ParameterKey": "AWSHostedZoneID",
+        "ParameterValue": ""
+    },
+    {
+        "ParameterKey": "DomainName",
+        "ParameterValue": ""
+    },
+    {
+        "ParameterKey": "SSLCertificateARN",
+        "ParameterValue": ""
     }
-]
 
+
+]

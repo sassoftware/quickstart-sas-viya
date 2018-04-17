@@ -8,11 +8,11 @@
      - openldap-clients
 
 - name: encrypt the admin password
-  shell: "slappasswd -s {{OLCROOTPW}}"
+  shell: "slappasswd -s '{{OLCROOTPW | b64decode }}'"
   register: OLCROOTPW_ENC
 
 - name: encrypt the user password
-  shell: "slappasswd -s {{OLCUSERPW}}"
+  shell: "slappasswd -s '{{OLCUSERPW | b64decode }}'"
   register: OLCUSERPW_ENC
 
 

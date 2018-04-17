@@ -34,7 +34,7 @@ Metadata:
           - AWSHostedZoneID
           - SSLCertificateARN
       - Label:
-          default: AWS Quick Start Configuration
+          default: AWS Quick Start Source Location
         Parameters:
           - QSS3BucketName
           - QSS3KeyPrefix
@@ -61,7 +61,7 @@ Metadata:
       SASAdminPass:
         default: SAS Administrator Password
       SASUserPass:
-        default: Password for default user
+        default: Password for Default User
       OperatorEmail:
         default: Operator Email
       SSLCertificateARN:
@@ -114,15 +114,16 @@ Parameters:
     MinLength: '6'
     MaxLength: '255'
     NoEcho: true
-    ConstraintDescription: Password must have at least 6 and no more than 255 characters.
+    AllowedPattern: ^([^']*)$
+    ConstraintDescription: Password must have at least 6 and no more than 255 characters and cannot contain single quotes.
   SASUserPass:
     Description: >-
       Password of the default SAS User (sasuser). If left empty, no default users are being created (WARNING: If not set, deployment will require additional setup steps before being usable).
     Type: String
-    MinLength: '0'
     MaxLength: '255'
     NoEcho: true
-    ConstraintDescription: Password cannot be longer than 255 characters.
+    AllowedPattern: ^([^']*)$
+    ConstraintDescription: Password cannot be longer than 255 characters and cannot contain single quotes.
 
   VPCID:
     Description: ID of an existing VPC with a public and a private subnet in the same Availability Zone.
@@ -155,20 +156,22 @@ Parameters:
       letters, and hyphens (-). It cannot start or end with a hyphen (-).
     Default: quickstart-reference
     Description: >-
-      S3 bucket name for the Quick Start assets. This string can include
-      numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot
-      start or end with a hyphen (-).
+     S3 bucket name for the Quick Start assets.   
+     Only change this value if you customize or extend the Quick Start for your own use.
+     This string can include numbers, lowercase letters, uppercase letters, and hyphens (-).
+     It cannot start or end with a hyphen (-).
     Type: String
   QSS3KeyPrefix:
-    AllowedPattern: ^[0-9a-zA-Z-/]*$
+    AllowedPattern: ^[0-9a-zA-Z-/]*[/]$
     ConstraintDescription: >-
       Quick Start key prefix can include numbers, lowercase letters, uppercase
-      letters, hyphens (-), and forward slash (/).
+      letters, hyphens (-), and forward slash (/) and must terminate in a forward slash.
     Default: sas/viya/latest/
     Description: >-
-      S3 key prefix for the Quick Start assets. Quick Start key prefix can
-      include numbers, lowercase letters, uppercase letters, hyphens (-), and
-      forward slash (/).
+      S3 key prefix for the Quick Start assets.
+      Only change this value if you customize or extend the Quick Start for your own use.
+      Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-),
+      and forward slash (/) and must terminate in a forward slash.
     Type: String
   OperatorEmail:
     AllowedPattern: "([a-zA-Z0-9_\\-\\.]+)@((\\[[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.)|(([a-zA-Z0-9\\-]+\\.)+))([a-zA-Z]{2,4}|[0-9]{1,3})(\\]?)|^$"
@@ -180,7 +183,7 @@ Parameters:
 
   SSLCertificateARN:
     Description: >-
-      The AWS CertificateManager ARN for the SSL certificate to use to enable HTTPS. The certificate needs to match the DomainName.
+      The AWS CertificateManager Amazon Resource Name (ARN) for the SSL certificate to use to enable HTTPS. The certificate needs to match the DomainName.
       Syntax: arn:aws:acm:region:account-id:certificate/certificate-id
       Example: arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789012
     Type: String
@@ -198,52 +201,52 @@ Parameters:
 Mappings:
   AWSAMIRegionMap:
     AMI:
-      AMZNLINUXHVM: amzn-ami-hvm-2017.09.1.20180108-x86_64-gp2
-      RHEL74HVM: RHEL-7.4_HVM_GA-20170724-x86_64-1-Hourly2-GP2
+      AMZNLINUXHVM: amzn-ami-hvm-2017.09.1.20180115-x86_64-gp2
+      RHEL74HVM: RHEL-7.4_HVM-20180122-x86_64-1-Hourly2-GP2
     ap-northeast-1:
-      AMZNLINUXHVM: ami-33c25b55
+      AMZNLINUXHVM: ami-ceafcba8
       RHEL74HVM: ami-36f09350
     ap-northeast-2:
-      AMZNLINUXHVM: ami-d9b616b7
+      AMZNLINUXHVM: ami-863090e8
       RHEL74HVM: ami-90a201fe
     ap-south-1:
-      AMZNLINUXHVM: ami-fedb8f91
+      AMZNLINUXHVM: ami-531a4c3c
       RHEL74HVM: ami-5c2f7e33
     ap-southeast-1:
-      AMZNLINUXHVM: ami-889cecf4
+      AMZNLINUXHVM: ami-68097514
       RHEL74HVM: ami-8d90e9f1
     ap-southeast-2:
-      AMZNLINUXHVM: ami-ccab56ae
+      AMZNLINUXHVM: ami-942dd1f6
       RHEL74HVM: ami-e1996783
     ca-central-1:
-      AMZNLINUXHVM: ami-61f97c05
+      AMZNLINUXHVM: ami-a954d1cd
       RHEL74HVM: ami-71018415
     eu-central-1:
-      AMZNLINUXHVM: ami-0fc85a60
+      AMZNLINUXHVM: ami-5652ce39
       RHEL74HVM: ami-8a21bfe5
     eu-west-1:
-      AMZNLINUXHVM: ami-e487179d
+      AMZNLINUXHVM: ami-d834aba1
       RHEL74HVM: ami-ccb7d2b5
     eu-west-2:
-      AMZNLINUXHVM: ami-51809835
+      AMZNLINUXHVM: ami-403e2524
       RHEL74HVM: ami-b4b3a8d0
     eu-west-3:
-       AMZNLINUXHVM: ami-fe03b483
-       RHEL74HVM: ami-66d0661b
+      AMZNLINUXHVM: ami-8ee056f3
+      RHEL74HVM: ami-66d0661b
     sa-east-1:
-      AMZNLINUXHVM: ami-1226647e
+      AMZNLINUXHVM: ami-84175ae8
       RHEL74HVM: ami-1a064a76
     us-east-1:
-      AMZNLINUXHVM: ami-cb9ec1b1
+      AMZNLINUXHVM: ami-97785bed
       RHEL74HVM: ami-76a3970c
     us-east-2:
-      AMZNLINUXHVM: ami-caaf84af
+      AMZNLINUXHVM: ami-f63b1193
       RHEL74HVM: ami-cebe94ab
     us-west-1:
-      AMZNLINUXHVM: ami-95eeeef5
+      AMZNLINUXHVM: ami-824c4ee2
       RHEL74HVM: ami-c8020fa8
     us-west-2:
-      AMZNLINUXHVM: ami-32cf7b4a
+      AMZNLINUXHVM: ami-f2d3638a
       RHEL74HVM: ami-1607ba6e
   LinuxAMINameMap:
     RHEL-7.4-HVM:
@@ -321,17 +324,16 @@ Conditions:
   HasDNSEntry:
     Fn::Not:
     - Condition: NoDNSEntry
-  NoSSLCertficate:
+  NoSSLCertificate:
     Fn::Equals:
     - ''
     - Ref: SSLCertificateARN
   HasSSLCertificate:
     Fn::Not:
-    - Condition: NoSSLCertficate
+    - Condition: NoSSLCertificate
 
 
 Resources:
-
 
   # Lambda Function that scans the license file for the CAS cpu count
   # and returns instance sizes and counts
@@ -343,25 +345,29 @@ Resources:
           import zipfile
           import boto3
           import io
-          import cfnresponse
-          responseData = {}
-          responseStatus = cfnresponse.FAILED
+          from botocore.vendored import requests
+          import json
+          SUCCESS = "SUCCESS"
+          FAILED = "FAILED"
+          rD = {}
+          rS = FAILED
           s3 = boto3.client('s3')
           def license(event, context):
             ddl = event['ResourceProperties']['DeploymentDataLocation']
             bucket = ddl[:ddl.find('/')]
             key = ddl[ddl.find('/')+1:]
-            obj = s3.get_object(Bucket=bucket, Key=key)
+            try:
+              obj = s3.get_object(Bucket=bucket, Key=key)
+            except Exception as e:
+              rS = FAILED
+              reason = 'DeploymentDataLocation ' + event['ResourceProperties']['DeploymentDataLocation'] +  ' is not accessible.'
+              send(event, context, rS, rD, reason)
             with io.BytesIO(obj["Body"].read()) as tf:
-              # rewind the file
               tf.seek(0)
-              # Read the file as a zipfile and process the members
               with zipfile.ZipFile(tf, mode='r') as zipf:
                 for file in zipf.infolist():
-                  # find the license file and extract into temporary file
                   if (file.filename.startswith('licenses/')):
                     templicensefile = zipf.extract(file,'/tmp')
-              # wrap lines and extract into array
               tline = ''
               lf = []
               with open(templicensefile) as tlf:
@@ -370,53 +376,79 @@ Resources:
                   if ';' in line:
                     lf.append(tline)
                     tline = ''
-              # find line with cpu for cas product number (e.g. EXPIRE 'PRODNUM1141' '31MAY2018'D / CPU=CPU001;)
               for row in lf:
                 if 'EXPIRE' in row:
                   if 'PRODNUM1141' in row:
                     prodnum = row
               if prodnum is None:
                 raise ValueError('The CAS product number was not found in the license file.')
-              # get name of cas cpu
               cascpu = prodnum[prodnum.find('CPU=')+4:prodnum.find(';')]
               if cascpu is None:
                 raise ValueError('The CASCPU number was not found in the license file.')
-              # get line with CASCPU (e.g.  CPU MODEL=' ' MODNUM=' ' SERIAL='+16' NAME=CPU001;)
               for row in lf:
                 if "NAME="+cascpu in row:
                   model = row
               if model is None:
                 raise ValueError('The CPU detail row for the CAS cpu was not found in the license file.')
-              # extract cpu count
               cpucount = int(model[model.find('SERIAL=')+9:][:3].replace("'",""))
-              responseData['CPUCount'] = cpucount
-              responseStatus = cfnresponse.SUCCESS
-              if cpucount == 4:
-                responseData["NodeInstanceSize"] = "2xlarge"
-                responseData["NumWorkers"] = 0
-                responseData["CASLibSize"] = 500
-                responseData["UserLibSize"] = 500
-                responseData["CASCacheSize"] = 180
-              elif cpucount <= 8:
-                responseData["NodeInstanceSize"] = "4xlarge"
-                responseData["NumWorkers"] = 0
-                responseData["CASLibSize"] = 500
-                responseData["UserLibSize"] = 500
-                responseData["CASCacheSize"] = 360
-              elif cpucount <= 16:
-                responseData["NodeInstanceSize"] = "8xlarge"
-                responseData["NumWorkers"] = 0
-                responseData["CASLibSize"] = 1000
-                responseData["UserLibSize"] = 1000
-                responseData["CASCacheSize"] = 720
-              else:
-                responseStatus = "FAILED"
-                print("Invalid Licensed CPU Count: {0}".format(cpucount))
-              cfnresponse.send(event, context, responseStatus, responseData)
+              rD['CPUCount'] = cpucount
+              rS = SUCCESS
+
+            rD["NumWorkers"] = 0
+            rD["CASLibSize"] = 500
+            rD["UserLibSize"] = 500
+            if cpucount == 4:
+              rD["NodeInstanceSize"] = "2xlarge"
+              rD["CASCacheSize"] = 180
+            elif cpucount <= 8:
+              rD["NodeInstanceSize"] = "4xlarge"
+              rD["CASCacheSize"] = 360
+            elif cpucount <= 16:
+              rD["NodeInstanceSize"] = "8xlarge"
+              rD["CASLibSize"] = 1000
+              rD["UserLibSize"] = 1000
+              rD["CASCacheSize"] = 720
+            else:
+              rS = FAILED
+              print("Invalid Licensed CPU Count: {0}".format(cpucount))
+            send(event, context, rS, rD)
+          def send(event, context, rS, rD, reason="", physicalResourceId=None, noEcho=False):
+            responseUrl = event['ResponseURL']
+
+            print responseUrl
+            if reason == "":
+              reason = 'See the details in CloudWatch Log Stream: ' + context.log_stream_name
+            rB = {}
+            rB['Status'] = rS
+            rB['Reason'] = reason
+            rB['PhysicalResourceId'] = physicalResourceId or context.log_stream_name
+            rB['StackId'] = event['StackId']
+            rB['RequestId'] = event['RequestId']
+            rB['LogicalResourceId'] = event['LogicalResourceId']
+            rB['NoEcho'] = noEcho
+            rB['Data'] = rD
+
+            json_rB = json.dumps(rB)
+
+            print "Response body:\n" + json_rB
+
+            headers = {
+                'content-type' : '',
+                'content-length' : str(len(json_rB))
+            }
+
+            try:
+                response = requests.put(responseUrl,
+                                        data=json_rB,
+                                        headers=headers)
+                print "Status code: " + response.reason
+            except Exception as e:
+                print "send(..) failed executing requests.put(..): " + str(e)
       Handler: index.license
       Runtime: python2.7
       Timeout: 30
       Role: !GetAtt LicenseLambdaExecutionRole.Arn
+      Description: !Sub LicenseInfo Custom Property for Stack ${AWS::StackName}
   LicenseLambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -445,18 +477,105 @@ Resources:
             - s3:getObject
             Resource: !Sub 'arn:aws:s3:::${DeploymentDataLocation}'
   # create the log Group for Lambda by Cloudformation to ensure
-  # it isdeleted at termination
+  # it is deleted at termination
   LicenseLambdaFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/lambda/${LicenseFunction}
-
   # Custom Property to determine deployment size
   LicenseInfo:
     Type: Custom::LicenseInfo
     Properties:
       ServiceToken: !GetAtt LicenseFunction.Arn
       DeploymentDataLocation: !Ref DeploymentDataLocation
+
+
+  DelCert:
+    Type: Custom::DelCert
+    Properties:
+      ServiceToken: !GetAtt DelCertFunction.Arn
+      CertName:
+          Fn::If:
+          - HasSSLCertificate
+          - ""
+          - !Sub "${AWS::StackName}-selfsigned-cert"
+  DelCertLambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+      Policies:
+      - PolicyName: root
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource: arn:aws:logs:*:*:*
+          - Effect: Allow
+            Action:
+            - iam:DeleteServerCertificate
+            Resource: !Sub arn:aws:iam::*:server-certificate/${AWS::StackName}-selfsigned-cert
+  # Lambda Function that deletes the self-signed cert on Stack deletion
+  # The ELB that uses the cert should already be deleted at this point,
+  # because it has the DependsOn= attribute set to the DelCert custom property
+  DelCertFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |
+          import boto3
+          import cfnresponse
+          from time import sleep
+          from botocore.exceptions import ClientError
+          iam = boto3.client('iam')
+          def delcert(event, context):
+            if event['RequestType'] == 'Delete':
+              certname = event['ResourceProperties']['CertName']
+              print "certname: {}".format(certname)
+              if len(certname) > 0:
+                while True:
+                  try:
+                    result = iam.delete_server_certificate(ServerCertificateName=certname)
+                  except ClientError as e:
+                     if e.response['ResponseMetadata']['HTTPStatusCode'] == '200':
+                       # delete was successful
+                       print e.response
+                       break
+                     elif e.response['Error']['Code'] == 'NoSuchEntity':
+                       # this can happen if the Stack did not fully create, and no Cert was create
+                       break
+                     else:
+                       # the only other possible ErrorCode should be: DeleteConflict
+                       # typically when the ELB is still alive, which should not happen
+                       # because ELB has the DependsOn= attribute set to the DelCert custom property.
+                       # It should be deleted before the objects it depends on
+                       print e.response['Error']['Code']
+                       sleep(5)
+            cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+      Handler: index.delcert
+      Runtime: python2.7
+      Timeout: 30
+      Role: !GetAtt DelCertLambdaExecutionRole.Arn
+      Description: !Sub DelCert Custom Property for Stack ${AWS::StackName}
+
+  # create the log Group for Lambda by Cloudformation to ensure
+  # it is deleted at termination
+  DelCertLambdaFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${DelCertFunction}
+
 
   SNSTopic:
     Condition: SNSCondition
@@ -570,22 +689,9 @@ Resources:
       VpcId: !Ref VPCID
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort:
-            Fn::If:
-            - HasSSLCertificate
-            - '443'
-            - '80'
-          ToPort:
-            Fn::If:
-            - HasSSLCertificate
-            - '443'
-            - '80'
+          FromPort: 443
+          ToPort: 443
           CidrIp: !Ref WebIngressLocation
-        - IpProtocol: tcp
-          FromPort: '443'
-          ToPort: '443'
-          CidrIp: !Ref WebIngressLocation
-
   AnsibleControllerSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -619,10 +725,9 @@ Resources:
       VpcId: !Ref VPCID
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: '80'
-          ToPort: '80'
+          FromPort: '443'
+          ToPort: '443'
           SourceSecurityGroupId: !Ref ELBSecurityGroup
-
 
 
   # open ports between all participants
@@ -640,6 +745,7 @@ Resources:
 
   ElasticLoadBalancer:
     Type: AWS::ElasticLoadBalancing::LoadBalancer
+    DependsOn: DelCert
     Properties:
       Subnets:
         - !Ref PublicSubnetID
@@ -647,30 +753,34 @@ Resources:
         - !Ref ELBSecurityGroup
       AppCookieStickinessPolicy:
         - CookieName: dummy
-          PolicyName: WorkloadCookieStickinessPolicy
+          PolicyName: AppCookieStickinessPolicy
       Listeners:
-        - LoadBalancerPort:
-            Fn::If:
-            - HasSSLCertificate
-            - '443'
-            - '80'
+        - LoadBalancerPort: 443
           Protocol:
             Fn::If:
             - HasSSLCertificate
             - HTTPS
-            - HTTP
-          InstanceProtocol: HTTP
-          InstancePort: '80'
+            - TCP
+          InstancePort: 443
+          InstanceProtocol:
+            Fn::If:
+            - HasSSLCertificate
+            - HTTPS
+            - TCP
           SSLCertificateId:
             Fn::If:
             - HasSSLCertificate
             - Ref: SSLCertificateARN
             - Ref: AWS::NoValue
           PolicyNames:
-            - WorkloadCookieStickinessPolicy
+            - Fn::If:
+              - HasSSLCertificate
+              - AppCookieStickinessPolicy
+              - Ref: AWS::NoValue
+
       CrossZone: 'true'
       HealthCheck:
-        Target: 'TCP:80'
+        Target: 'TCP:443'
         HealthyThreshold: '2'
         UnhealthyThreshold: '3'
         Interval: '30'
@@ -775,8 +885,6 @@ Resources:
         configSets:
           quickstart:
             - install
-            - configure
-            - cleanup
         install:
           files:
             /tmp/diskprep.sh:
@@ -834,8 +942,7 @@ Resources:
               command: /tmp/diskprep.sh
             02-setup:
               command: /tmp/node_setup.sh
-        configure: {}
-        cleanup: {}
+
     Properties:
       KeyName: !Ref KeyPairName
       ImageId: !FindInMap
@@ -898,8 +1005,6 @@ Resources:
         configSets:
           quickstart:
             - install
-            - configure
-            - cleanup
         install:
           files:
             /tmp/diskprep.sh:
@@ -957,8 +1062,7 @@ Resources:
               command: /tmp/diskprep.sh
             02-setup:
               command: /tmp/node_setup.sh
-        configure: {}
-        cleanup: {}
+
     Properties:
       KeyName: !Ref KeyPairName
       ImageId: !FindInMap
@@ -1004,6 +1108,7 @@ Resources:
             cfn-init --stack ${AWS::StackName} --resource ProgrammingServices --configsets quickstart --region ${AWS::Region}
             # Signal the status from cfn-init
             cfn-signal -e $? --stack ${AWS::StackName} --resource ProgrammingServices --region ${AWS::Region}
+
   StatefulServices:
     Type: AWS::EC2::Instance
     CreationPolicy:
@@ -1021,8 +1126,6 @@ Resources:
         configSets:
           quickstart:
             - install
-            - configure
-            - cleanup
         install:
           files:
             /tmp/diskprep.sh:
@@ -1080,8 +1183,6 @@ Resources:
               command: /tmp/diskprep.sh
             02-setup:
               command: /tmp/node_setup.sh
-        configure: {}
-        cleanup: {}
     Properties:
       KeyName: !Ref KeyPairName
       ImageId: !FindInMap
@@ -1147,8 +1248,6 @@ Resources:
         configSets:
           quickstart:
             - install
-            - configure
-            - cleanup
         install:
           files:
             /tmp/diskprep.sh:
@@ -1207,8 +1306,7 @@ Resources:
               command: /tmp/diskprep.sh
             02-setup:
               command: /tmp/node_setup.sh
-        configure: {}
-        cleanup: {}
+
     Properties:
       KeyName: !Ref KeyPairName
       ImageId: !FindInMap
@@ -1281,6 +1379,7 @@ Resources:
             Statement:
               - Action:
                   - "cloudformation:DescribeStackResources"
+                  - "cloudformation:DescribeStacks"
                 Resource:
                   - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}*/*"
                 Effect: Allow
@@ -1330,6 +1429,21 @@ Resources:
             Version: 2012-10-17
             Statement:
               - Action:
+                  - 'ec2:AssociateAddress'
+                  - 'ec2:DescribeAddresses'
+                  - 'ec2:DescribeInstances'
+                  - 'elasticloadbalancing:DescribeLoadBalancers'
+                  - 'elasticloadbalancing:DeleteLoadBalancerListeners'
+                  - 'elasticloadbalancing:CreateLoadBalancerListeners'
+                  - 'elasticloadbalancing:SetLoadBalancerPoliciesOfListener'
+                Resource:
+                  - '*'
+                Effect: Allow
+          PolicyName: ansiblecontroller-ec2-policy
+        - PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Action:
                   - 's3:GetObject'
                 Resource: !Sub
                   - 'arn:${Partition}:s3:::quickstart-reference/linux/bastion/*'
@@ -1343,14 +1457,22 @@ Resources:
             Version: 2012-10-17
             Statement:
               - Action:
-                  - 'ec2:AssociateAddress'
-                  - 'ec2:DescribeAddresses'
-                  - 'ec2:DescribeInstances'
-                  - 'elasticloadbalancing:DescribeLoadBalancers'
+                  - 'iam:uploadServerCertificate'
+                  - 'iam:listServerCertificates'
                 Resource:
                   - '*'
                 Effect: Allow
-          PolicyName: ansiblecontroller-ec2-policy
+          PolicyName: ansiblecontroller-iam-policy
+        - PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Action:
+                  - 'route53:GetHostedZone'
+                  - 'route53:ListResourceRecordSets'
+                Resource:
+                  - '*'
+                Effect: Allow
+          PolicyName: ansiblecontroller-route53-policy
         - PolicyDocument:
             Version: 2012-10-17
             Statement:
@@ -1391,6 +1513,11 @@ Resources:
     Type: AWS::EC2::EIP
     Properties:
       Domain: vpc
+  IPAssoc:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      InstanceId: !Ref AnsibleController
+      EIP: !Ref AnsibleControllerEIP
   AnsibleController:
     Type: AWS::EC2::Instance
     CreationPolicy:
@@ -1426,7 +1553,7 @@ Resources:
               authentication: S3AccessCreds
             /tmp/bastion_bootstrap.sh:
               source: !Sub
-                - https://s3.amazonaws.com/quickstart-reference/linux/bastion/latest/scripts/bastion_bootstrap.sh
+                - https://${QSS3Region}.amazonaws.com/quickstart-reference/linux/bastion/latest/scripts/bastion_bootstrap.sh
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -1467,13 +1594,13 @@ Resources:
                     - GovCloudCondition
                     - s3-us-gov-west-1
                     - s3
-              mode: '000550'
+              mode: '000500'
               owner: ec2-user
               group: ec2-user
               authentication: S3AccessCreds
               context:
-                SASAdminPass: !Ref SASAdminPass
                 SASUserPass: !Ref SASUserPass
+                SASAdminPass: !Ref SASAdminPass
                 LogGroup: !Ref CloudWatchLogGroup
                 SNSTopic: !If [SNSCondition, !Ref SNSTopic, ""]
                 AWSRegion: !Ref AWS::Region
@@ -1484,6 +1611,8 @@ Resources:
                 CloudWatchLogs: !Sub "https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#logStream:group=${CloudWatchLogGroup}"
                 SSLCertificateARN: !Ref SSLCertificateARN
                 DomainName: !Ref DomainName
+                HostedZoneID: !If [HasDNSEntry, !Ref AWSHostedZoneID, ""]
+                S3FileRoot: !Sub "${QSS3BucketName}/${QSS3KeyPrefix}"
 
             /tmp/SAS_Viya_deployment_data.zip:
               source: !Sub
@@ -1541,9 +1670,20 @@ Resources:
               owner: ec2-user
               group: ec2-user
               authentication: S3AccessCreds
-            /tmp/ansible.update.vars.file.yml:
+            /tmp/ansible.update.config.yml:
               source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/update.vars.file.yml
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/update.config.yml
+                - QSS3Region: !If
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000444'
+              owner: ec2-user
+              group: ec2-user
+              authentication: S3AccessCreds
+            /tmp/openldapfiles.txt:
+              source: !Sub
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}openldap/files.txt
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -1553,9 +1693,7 @@ Resources:
               group: ec2-user
               authentication: S3AccessCreds
           commands:
-            01-getopenldap:
-              command: !Sub sudo su -l ec2-user -c "mkdir openldap; aws s3 cp --recursive s3://${QSS3BucketName}/${QSS3KeyPrefix}openldap openldap"
-            02-install:
+            01-install:
               command: sudo su -l ec2-user -c "/tmp/install.sh"
     Properties:
       KeyName: !Ref KeyPairName
@@ -1577,7 +1715,11 @@ Resources:
             #!/bin/bash
             export PATH=$PATH:/usr/local/bin:/opt/aws/bin
             pip install awscli --ignore-installed six &> /dev/null
-            EIP_LIST=${AnsibleControllerEIP}
+            # remove pre-installed cfn bootstrap utilities
+            yum -y remove aws-cfn-bootstrap
+            hash -d /opt/aws/bin/cfn-init
+            # install latest cfn bootstrap utilities
+            easy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
             CLOUDWATCHGROUP=${CloudWatchLogGroup}
             cfn-init --stack ${AWS::StackName} --resource AnsibleController --configsets quickstart --region ${AWS::Region}
             # Signal the status from cfn-init
@@ -1588,10 +1730,7 @@ Outputs:
     Description: SAS Viya launch page for SAS solutions and SAS Environment Manager
     Value: !Join
       - ''
-      - - Fn::If:
-          - HasSSLCertificate
-          - 'https://'
-          - 'http://'
+      - - 'https://'
         - Fn::If:
           - HasDNSEntry
           - !Ref DomainName
@@ -1603,10 +1742,7 @@ Outputs:
     Description: SAS Studio
     Value: !Join
       - ''
-      - - Fn::If:
-          - HasSSLCertificate
-          - 'https://'
-          - 'http://'
+      - - 'https://'
         - Fn::If:
           - HasDNSEntry
           - !Ref DomainName
@@ -1614,21 +1750,6 @@ Outputs:
             - ElasticLoadBalancer
             - DNSName
         - '/SASStudio'
-  CASMonitor:
-    Description: CAS Server Monitor
-    Value: !Join
-      - ''
-      - - Fn::If:
-          - HasSSLCertificate
-          - 'https://'
-          - 'http://'
-        - Fn::If:
-          - HasDNSEntry
-          - !Ref DomainName
-          - !GetAtt
-            - ElasticLoadBalancer
-            - DNSName
-        - ':/cas-shared-default-http/tkcas.dsp'
   AnsibleControllerIP:
     Description: Ansible Controller IP address
     Value: !Ref AnsibleControllerEIP
