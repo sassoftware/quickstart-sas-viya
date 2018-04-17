@@ -1695,6 +1695,12 @@ Resources:
           commands:
             01-install:
               command: sudo su -l ec2-user -c "/tmp/install.sh"
+            02-post-install:
+              command: |-
+                chmod +w /tmp/install.sh
+                sed -i  's/ADMINPASS=$.*/ADMINPASS="xxxx"/' /tmp/install.sh
+                sed -i  's/USERPASS=$.*/USERPASS="xxxx"/' /tmp/install.sh
+                chmod -w /tmp/install.sh
     Properties:
       KeyName: !Ref KeyPairName
       SubnetId: !Ref PublicSubnetID
