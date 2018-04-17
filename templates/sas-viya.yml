@@ -965,6 +965,7 @@ Resources:
             VolumeSize: '50'
             VolumeType: gp2
             DeleteOnTermination: true
+            Encrypted: true
       SecurityGroupIds:
         - !Ref ViyaSecurityGroup
         - !Ref ProxySecurityGroup
@@ -1085,6 +1086,7 @@ Resources:
             VolumeSize: '50'
             VolumeType: gp2
             DeleteOnTermination: true
+            Encrypted: true
       SecurityGroupIds:
         - !Ref ProxySecurityGroup
         - !Ref ViyaSecurityGroup
@@ -1205,6 +1207,7 @@ Resources:
             VolumeSize: '50'
             VolumeType: gp2
             DeleteOnTermination: true
+            Encrypted: true
       SecurityGroupIds:
         - !Ref ViyaSecurityGroup
         - !Ref ProxySecurityGroup
@@ -1330,16 +1333,19 @@ Resources:
             VolumeSize: '50'
             VolumeType: gp2
             DeleteOnTermination: true
+            Encrypted: true
         - DeviceName: /dev/sdd
           Ebs:
             VolumeSize: !GetAtt LicenseInfo.CASCacheSize
             VolumeType: gp2
             DeleteOnTermination: true
+            Encrypted: true
         - DeviceName: /dev/sdl
           Ebs:
             VolumeSize: !GetAtt LicenseInfo.CASLibSize
             VolumeType: gp2
             DeleteOnTermination: true
+            Encrypted: true
       Tags:
         - Key: Name
           Value: !Sub ${AWS::StackName} CAS Controller
