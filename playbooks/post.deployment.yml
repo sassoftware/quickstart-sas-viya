@@ -34,16 +34,10 @@
       echo CSRF_TOKEN=$CSRF_TOKEN
       echo NEW_CODE=$NEW_CODE
       curl -f --cookie cookies http://${HOST}/SASLogon/reset_password.do -H "Content-Type: application/x-www-form-urlencoded" -d "code=${NEW_CODE}&email=none" -d 'password={{sasboot_pw|b64decode|urlencode}}' -d 'password_confirmation={{sasboot_pw|b64decode|urlencode}}' -d "_csrf=${CSRF_TOKEN}"
-    register: sasbootpw
     args:
       executable: /bin/bash
     tags:
       - sasboot
-
-  - debug: var=sasbootpw
-    tags:
-      - sasboot
-      - restart
 
 
 - hosts: stateful

@@ -143,6 +143,7 @@
                  sas.deploymentbackup:
                      sharedVault: /backups
 
+
   - name: set renderer baseUrl in sitedefault.yml
     blockinfile:
       dest: roles/consul/files/sitedefault.yml
