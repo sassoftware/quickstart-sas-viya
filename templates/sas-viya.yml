@@ -4,7 +4,7 @@ Description: >-
   This template deploys a SAS Viya stack.
   **WARNING** This template creates EC2 instances and related resources. You
   will be billed for the AWS resources used if you create a stack from this
-  template.
+  template. License: Apache 2.0 (Please do not remove) Apr,19,2018 (qs-1ocb9ttqc)
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
