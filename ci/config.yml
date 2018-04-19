@@ -19,6 +19,6 @@ global:
     - us-west-2
   reporting: true
 tests:
-  workload-master:
+  sas-viya-master:
     parameter_input: sas-viya-vpc.json
     template_file: sas-viya-master.yml
