@@ -845,6 +845,15 @@ Resources:
             Version: 2012-10-17
             Statement:
               - Action:
+                   - 'ec2:DescribeVolumes'
+                   - 'ec2:CreateTags'
+                Resource: "*"
+                Effect: Allow
+          PolicyName: viya-services-ec2-policy
+        - PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Action:
                   - 'logs:CreateLogStream'
                   - 'logs:GetLogEvents'
                   - 'logs:PutLogEvents'
@@ -898,6 +907,10 @@ Resources:
               owner: root
               group: root
               authentication: S3AccessCreds
+              context:
+                AWSRegion: !Ref AWS::Region
+                CloudFormationStack: !Ref AWS::StackName
+                Role: VisualServices
             /usr/sbin/disks_ephemeral.sh:
               source: !Sub
                 - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/disks_ephemeral.sh
@@ -955,11 +968,6 @@ Resources:
       EbsOptimized: true
       PlacementGroupName: !Ref ViyaPlacementGroup
       BlockDeviceMappings:
-        - DeviceName: /dev/sda1
-          Ebs:
-            VolumeSize: '20'
-            VolumeType: gp2
-            DeleteOnTermination: true
         - DeviceName: /dev/sdg
           Ebs:
             VolumeSize: '50'
@@ -977,15 +985,10 @@ Resources:
           Fn::Sub: |
             #!/bin/bash
             export PATH=$PATH:/usr/local/bin
-            which pip &> /dev/null
-            if [ $? -ne 0 ] ; then
-              echo "PIP NOT INSTALLED"
-              [ `which yum` ] && $(yum install -y epel-release; yum install -y python-pip) && echo "PIP INSTALLED"
-              [ `which apt-get` ] && apt-get -y update && apt-get -y install python-pip && echo "PIP INSTALLED"
-            fi
-            pip install --upgrade pip &> /dev/null
+            curl -O https://bootstrap.pypa.io/get-pip.py && python get-pip.py &> /dev/null
             pip install awscli --ignore-installed six &> /dev/null
             easy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
+
             cfn-init --stack ${AWS::StackName} --resource VisualServices --configsets quickstart --region ${AWS::Region}
             # Signal the status from cfn-init
             cfn-signal -e $? --stack ${AWS::StackName} --resource VisualServices --region ${AWS::Region}
@@ -1019,6 +1022,10 @@ Resources:
               owner: root
               group: root
               authentication: S3AccessCreds
+              context:
+                AWSRegion: !Ref AWS::Region
+                CloudFormationStack: !Ref AWS::StackName
+                Role: ProgrammingServices
             /usr/sbin/disks_ephemeral.sh:
               source: !Sub
                 - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/disks_ephemeral.sh
@@ -1076,11 +1083,6 @@ Resources:
       EbsOptimized: true
       PlacementGroupName: !Ref ViyaPlacementGroup
       BlockDeviceMappings:
-        - DeviceName: /dev/sda1
-          Ebs:
-            VolumeSize: '20'
-            VolumeType: gp2
-            DeleteOnTermination: true
         - DeviceName: /dev/sdg
           Ebs:
             VolumeSize: '50'
@@ -1098,13 +1100,7 @@ Resources:
           Fn::Sub: |
             #!/bin/bash
             export PATH=$PATH:/usr/local/bin
-            which pip &> /dev/null
-            if [ $? -ne 0 ] ; then
-              echo "PIP NOT INSTALLED"
-              [ `which yum` ] && $(yum install -y epel-release; yum install -y python-pip) && echo "PIP INSTALLED"
-              [ `which apt-get` ] && apt-get -y update && apt-get -y install python-pip && echo "PIP INSTALLED"
-            fi
-            pip install --upgrade pip &> /dev/null
+            curl -O https://bootstrap.pypa.io/get-pip.py && python get-pip.py &> /dev/null
             pip install awscli --ignore-installed six &> /dev/null
             easy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
             cfn-init --stack ${AWS::StackName} --resource ProgrammingServices --configsets quickstart --region ${AWS::Region}
@@ -1141,6 +1137,10 @@ Resources:
               owner: root
               group: root
               authentication: S3AccessCreds
+              context:
+                AWSRegion: !Ref AWS::Region
+                CloudFormationStack: !Ref AWS::StackName
+                Role: StatefulServices
             /usr/sbin/disks_ephemeral.sh:
               source: !Sub
                 - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/disks_ephemeral.sh
@@ -1197,11 +1197,6 @@ Resources:
       EbsOptimized: true
       PlacementGroupName: !Ref ViyaPlacementGroup
       BlockDeviceMappings:
-        - DeviceName: /dev/sda1
-          Ebs:
-            VolumeSize: '20'
-            VolumeType: gp2
-            DeleteOnTermination: true
         - DeviceName: /dev/sdg
           Ebs:
             VolumeSize: '50'
@@ -1219,13 +1214,7 @@ Resources:
           Fn::Sub: |
             #!/bin/bash
             export PATH=$PATH:/usr/local/bin
-            which pip &> /dev/null
-            if [ $? -ne 0 ] ; then
-              echo "PIP NOT INSTALLED"
-              [ `which yum` ] && $(yum install -y epel-release; yum install -y python-pip) && echo "PIP INSTALLED"
-              [ `which apt-get` ] && apt-get -y update && apt-get -y install python-pip && echo "PIP INSTALLED"
-            fi
-            pip install --upgrade pip &> /dev/null
+            curl -O https://bootstrap.pypa.io/get-pip.py && python get-pip.py &> /dev/null
             pip install awscli --ignore-installed six &> /dev/null
             easy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
             cfn-init --stack ${AWS::StackName} --resource StatefulServices --configsets quickstart --region ${AWS::Region}
@@ -1264,6 +1253,10 @@ Resources:
               owner: root
               group: root
               authentication: S3AccessCreds
+              context:
+                AWSRegion: !Ref AWS::Region
+                CloudFormationStack: !Ref AWS::StackName
+                Role: cas-controller
             /usr/sbin/disks_ephemeral.sh:
               source: !Sub
                 - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/disks_ephemeral.sh
@@ -1334,18 +1327,21 @@ Resources:
             VolumeType: gp2
             DeleteOnTermination: true
             Encrypted: true
+
         - DeviceName: /dev/sdd
           Ebs:
             VolumeSize: !GetAtt LicenseInfo.CASCacheSize
             VolumeType: gp2
             DeleteOnTermination: true
             Encrypted: true
+
         - DeviceName: /dev/sdl
           Ebs:
             VolumeSize: !GetAtt LicenseInfo.CASLibSize
             VolumeType: gp2
             DeleteOnTermination: true
             Encrypted: true
+
       Tags:
         - Key: Name
           Value: !Sub ${AWS::StackName} CAS Controller
@@ -1354,13 +1350,7 @@ Resources:
           Fn::Sub: |
             #!/bin/bash
             export PATH=$PATH:/usr/local/bin
-            which pip &> /dev/null
-            if [ $? -ne 0 ] ; then
-              echo "PIP NOT INSTALLED"
-              [ `which yum` ] && $(yum install -y epel-release; yum install -y python-pip) && echo "PIP INSTALLED"
-              [ `which apt-get` ] && apt-get -y update && apt-get -y install python-pip && echo "PIP INSTALLED"
-            fi
-            pip install --upgrade pip &> /dev/null
+            curl -O https://bootstrap.pypa.io/get-pip.py && python get-pip.py &> /dev/null
             pip install awscli --ignore-installed six &> /dev/null
             easy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
             cfn-init --stack ${AWS::StackName} --resource CASController --configsets quickstart --region ${AWS::Region}

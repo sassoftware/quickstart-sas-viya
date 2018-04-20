@@ -77,3 +77,10 @@ EOF
 sudo systemctl daemon-reload
 sudo systemctl enable disks_ephemeral.service
 sudo systemctl start disks_ephemeral.service
+
+
+# Tag ebs volumes
+INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )
+DISK_IDS=$(aws --region {{AWSRegion}} ec2 describe-volumes  --filter "Name=attachment.instance-id, Values=$INSTANCE_ID" --query "Volumes[].VolumeId" --out text)
+aws ec2  --region {{AWSRegion}}  create-tags --resources $DISK_IDS --tags Key=Name,Value="{{CloudFormationStack}} {{Role}}" Key=Stack,Value="{{CloudFormationStack}}"
+
