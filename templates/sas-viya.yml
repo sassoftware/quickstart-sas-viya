@@ -166,7 +166,7 @@ Parameters:
     ConstraintDescription: >-
       Quick Start key prefix can include numbers, lowercase letters, uppercase
       letters, hyphens (-), and forward slash (/) and must terminate in a forward slash.
-    Default: quicksart-sas-viya/
+    Default: quickstart-sas-viya/
     Description: >-
       S3 key prefix for the Quick Start assets.
       Only change this value if you customize or extend the Quick Start for your own use.
@@ -1444,19 +1444,6 @@ Resources:
             Version: 2012-10-17
             Statement:
               - Action:
-                  - 's3:GetObject'
-                Resource: !Sub
-                  - 'arn:${Partition}:s3:::quickstart-reference/linux/bastion/*'
-                  - Partition: !If
-                      - GovCloudCondition
-                      - aws-us-gov
-                      - aws
-                Effect: Allow
-          PolicyName: linux-bastion-s3-policy
-        - PolicyDocument:
-            Version: 2012-10-17
-            Statement:
-              - Action:
                   - 'iam:uploadServerCertificate'
                   - 'iam:listServerCertificates'
                 Resource:
@@ -1553,7 +1540,7 @@ Resources:
               authentication: S3AccessCreds
             /tmp/bastion_bootstrap.sh:
               source: !Sub
-                - https://${QSS3Region}.amazonaws.com/quickstart-reference/linux/bastion/latest/scripts/bastion_bootstrap.sh
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/bastion_bootstrap.sh
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
