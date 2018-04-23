@@ -1,7 +1,7 @@
 global:
   marketplace-ami: false
   owner: quickstart-eng@amazon.com
-  qsname: quickstart-examples
+  qsname: quickstart-sas-viya
   regions:
     - ap-northeast-1
     - ap-northeast-2
@@ -19,6 +19,6 @@ global:
     - us-west-2
   reporting: true
 tests:
-  workload-master:
+  sas-viya-master:
     parameter_input: sas-viya-vpc.json
-    template_file: sas-viya-vpc.yml
+    template_file: sas-viya-master.yml
