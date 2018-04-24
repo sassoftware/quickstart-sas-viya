@@ -1,45 +1,34 @@
 [
     {
-        "ParameterKey": "AvailabilityZone",
-        "ParameterValue": ""
-    },
-
-    {
         "ParameterKey": "AdminIngressLocation",
-        "ParameterValue": ""
+        "ParameterValue": "10.0.0.0/16"
     },
     {
-        "ParameterKey": "WebIngressLocation",
-        "ParameterValue": ""
-    },
-    {
-        "ParameterKey": "KeyPairName",
-        "ParameterValue": ""
+        "ParameterKey": "AvailabilityZone",
+        "ParameterValue": "$[alfred_genaz_1]"
     },
     {
         "ParameterKey": "DeploymentDataLocation",
-        "ParameterValue": ""
+        "ParameterValue": "$[alfred_getlicensecontent]/sas/viya/deployment-key.txt"
     },
     {
-        "ParameterKey": "QSS3BucketName",
-        "ParameterValue": "quickstart-reference"
-    },
-    {
-        "ParameterKey": "QSS3KeyPrefix",
-        "ParameterValue": "sas/viya/latest/"
-    },
-
-    {
-        "ParameterKey": "SASAdminPass",
-        "ParameterValue": ""
-    },
-    {
-        "ParameterKey": "SASUserPass",
-        "ParameterValue": ""
+        "ParameterKey": "KeyPairName",
+        "ParameterValue": "$[alfred_getkeypair]"
     },
     {
         "ParameterKey": "OperatorEmail",
-        "ParameterValue": ""
+        "ParameterValue": "quickstart@example.com"
+    },
+    {
+        "ParameterKey": "SASAdminPass",
+        "ParameterValue": "$[alfred_genpass_12]"
+    },
+    {
+        "ParameterKey": "SASUserPass",
+        "ParameterValue": "$[alfred_genpass_12]"
+    },
+    {
+        "ParameterKey": "WebIngressLocation",
+        "ParameterValue": "10.0.0.0/16"
     }
-
 ]
