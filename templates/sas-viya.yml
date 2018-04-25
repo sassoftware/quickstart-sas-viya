@@ -968,6 +968,11 @@ Resources:
       EbsOptimized: true
       PlacementGroupName: !Ref ViyaPlacementGroup
       BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: '20'
+            VolumeType: gp2
+            DeleteOnTermination: true
         - DeviceName: /dev/sdg
           Ebs:
             VolumeSize: '50'
@@ -1083,6 +1088,11 @@ Resources:
       EbsOptimized: true
       PlacementGroupName: !Ref ViyaPlacementGroup
       BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: '20'
+            VolumeType: gp2
+            DeleteOnTermination: true
         - DeviceName: /dev/sdg
           Ebs:
             VolumeSize: '50'
@@ -1197,6 +1207,11 @@ Resources:
       EbsOptimized: true
       PlacementGroupName: !Ref ViyaPlacementGroup
       BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: '20'
+            VolumeType: gp2
+            DeleteOnTermination: true
         - DeviceName: /dev/sdg
           Ebs:
             VolumeSize: '50'
