@@ -25,6 +25,10 @@ function try () {
 #  Set up cloudwatch logging
 #
 
+# create config file - update later in post deployment
+echo "[general]" > /tmp/cloudwatch.conf
+chmod 440 /tmp/cloudwatch.conf
+
 try 2 curl https://s3.amazonaws.com/aws-cloudwatch/downloads/latest/awslogs-agent-setup.py -o /tmp/awslogs-agent-setup.py
 
 python /tmp/awslogs-agent-setup.py --region "{{AWSRegion}}" -n -c /tmp/cloudwatch.conf

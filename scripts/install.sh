@@ -563,7 +563,10 @@ pushd sas_viya_playbook
   # set log file for post deployment steps  # set log file for pre deployment steps
   export ANSIBLE_LOG_PATH="$LOGDIR/deployment-post.log"
 
-  ansible-playbook ansible.post.deployment.yml  -e "cas_virtual_host='$DomainName'" --tags "backups, cas, cloudwatch"
+  ansible-playbook ansible.post.deployment.yml  -e "cas_virtual_host='$DomainName'" \
+                                                -e "CloudWatchLogGroup='{{LogGroup}}'" \
+                                                -e "AWSRegion='{{AWSRegion}}'" \
+                                                --tags "backups, cas, cloudwatch"
 
 popd
 

@@ -936,20 +936,6 @@ Resources:
               context:
                 AWSRegion: !Ref AWS::Region
                 CloudFormationStack: !Ref AWS::StackName
-            /tmp/cloudwatch.conf:
-              source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.conf
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000440'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-              context:
-                LogGroup: !Ref CloudWatchLogGroup
-                Role: VisualServices
           commands:
             01-diskprep:
               command: /tmp/diskprep.sh
@@ -1056,20 +1042,6 @@ Resources:
               context:
                 AWSRegion: !Ref AWS::Region
                 CloudFormationStack: !Ref AWS::StackName
-            /tmp/cloudwatch.conf:
-              source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.conf
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000440'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-              context:
-                LogGroup: !Ref CloudWatchLogGroup
-                Role: ProgrammingServices
           commands:
             01-diskprep:
               command: /tmp/diskprep.sh
@@ -1176,20 +1148,6 @@ Resources:
               context:
                 AWSRegion: !Ref AWS::Region
                 CloudFormationStack: !Ref AWS::StackName
-            /tmp/cloudwatch.conf:
-              source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.conf
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000440'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-              context:
-                LogGroup: !Ref CloudWatchLogGroup
-                Role: StatefulServices
           commands:
             01-diskprep:
               command: /tmp/diskprep.sh
@@ -1297,21 +1255,6 @@ Resources:
               context:
                 AWSRegion: !Ref AWS::Region
                 CloudFormationStack: !Ref AWS::StackName
-            /tmp/cloudwatch.conf:
-              source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.conf
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000440'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-              context:
-                LogGroup: !Ref CloudWatchLogGroup
-                Role: cas-controller
-
           commands:
             01-diskprep:
               command: /tmp/diskprep.sh
