@@ -77,6 +77,13 @@
     tags:
       - backups
 
+  - name: restart cloudwatch agent
+    service:
+      name: awslogs
+      state: restarted
+    tags:
+      - cloudwatch
+
 - hosts: controller
   become: yes
   become_user: sas
