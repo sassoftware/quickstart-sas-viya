@@ -495,7 +495,7 @@ pushd sas_viya_playbook
   export ANSIBLE_LOG_PATH="$LOGDIR/deployment-main.log"
 
   # update vars file
-  ansible-playbook ansible.update.config.yml
+  ansible-playbook ansible.update.config.yml -e "sasboot_pw='$ADMINPASS'"
 
 
   # main deployment
@@ -507,12 +507,12 @@ pushd sas_viya_playbook
 
   # reset sasboot
   echo " " >> "$CMDLOG"
-  echo "$(date) Reset sasboot password (see deployment-post.log)" >> "$CMDLOG"
+  echo "$(date) Post deployment steps (see deployment-post.log)" >> "$CMDLOG"
 
   # set log file for post deployment steps  # set log file for pre deployment steps
   export ANSIBLE_LOG_PATH="$LOGDIR/deployment-post.log"
 
-  ansible-playbook ansible.post.deployment.yml -e "sasboot_pw='$ADMINPASS'" -e "cas_virtual_host='$DomainName'" --tags "sasboot, backups, cas, cloudwatch"
+  ansible-playbook ansible.post.deployment.yml  -e "cas_virtual_host='$DomainName'" --tags "backups, cas, cloudwatch"
 
 popd
 
