@@ -30,6 +30,7 @@ CASWorker2IP=
 CASWorker3IP=
 DomainName=
 FAILMSG=
+MIRRORVM=
 
 # use triple mustache to avoid url encoding
 USERPASS=$(echo -n '{{{SASUserPass}}}' | base64)
@@ -427,6 +428,13 @@ fi
 
 configure_self_signed_cert
 
+# set mirror repository, if given
+MIRROROPT=
+if [ -n "$MIRRORVM" ]; then
+  MIRROROPT=" --repository-warehouse http://$MIRRORVM/repo_mirror"
+  echo "Using mirror repository $MIRRORVM" >> "$CMDLOG"
+fi
+
 # get sas-orchestration cli
 echo "$(date) Download and extract sas-orchestration cli" >> "$CMDLOG"
 curl -Os https://support.sas.com/installation/viya/sas-orchestration-cli/lax/sas-orchestration.tgz 2>> "$CMDLOG"
@@ -436,7 +444,7 @@ rm sas-orchestration.tgz
 # build playbook
 echo " " >> "$CMDLOG"
 echo "$(date) Build ansible playbook tar file" >> "$CMDLOG"
-./sas-orchestration build --input  /tmp/SAS_Viya_deployment_data.zip 2>> "$CMDLOG"
+./sas-orchestration build --input  /tmp/SAS_Viya_deployment_data.zip $MIRROROPT 2>> "$CMDLOG"
 
 # untar playbook
 echo " " >> "$CMDLOG"
