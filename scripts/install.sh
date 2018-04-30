@@ -183,6 +183,45 @@ cleanup () {
 
 }
 
+seed_known_hosts_file () {
+
+    #
+    # seed .ssh/known_hosts file
+    #
+    ssh -o StrictHostKeyChecking=no $VisualServicesIP exit
+    ssh -o StrictHostKeyChecking=no visual.viya.sas exit
+    ssh -o StrictHostKeyChecking=no visual exit
+
+    ssh -o StrictHostKeyChecking=no $ProgrammingServicesIP exit
+    ssh -o StrictHostKeyChecking=no prog.viya.sas exit
+    ssh -o StrictHostKeyChecking=no prog exit
+
+    ssh -o StrictHostKeyChecking=no $StatefulServicesIP exit
+    ssh -o StrictHostKeyChecking=no stateful.viya.sas exit
+    ssh -o StrictHostKeyChecking=no stateful exit
+
+    ssh -o StrictHostKeyChecking=no $CASControllerIP exit
+    ssh -o StrictHostKeyChecking=no controller.viya.sas exit
+    ssh -o StrictHostKeyChecking=no controller exit
+
+    if [ -n "${CASWorker1IP}" ]; then
+      ssh -o StrictHostKeyChecking=no $CASWorker1IP exit
+      ssh -o StrictHostKeyChecking=no worker1.viya.sas exit
+      ssh -o StrictHostKeyChecking=no worker1 exit
+    fi
+    if [ -n "${CASWorker2IP}" ]; then
+      ssh -o StrictHostKeyChecking=no $CASWorker2IP exit
+      ssh -o StrictHostKeyChecking=no worker2.viya.sas exit
+      ssh -o StrictHostKeyChecking=no worker2 exit
+    fi
+    if [ -n "${CASWorker3IP}" ]; then
+      ssh -o StrictHostKeyChecking=no $CASWorker3IP exit
+      ssh -o StrictHostKeyChecking=no worker3.viya.sas exit
+      ssh -o StrictHostKeyChecking=no worker3 exit
+    fi
+
+}
+
 
 configure_self_signed_cert () {
 
@@ -349,7 +388,7 @@ fi
   if [ -n "${CASWorker3IP}" ]; then echo worker3 ansible_host="${CASWorker3IP}"; fi
 } > /tmp/inventory.head
 
-# prepare list host entries for /etc/hosts
+# prepare host entries for /etc/hosts
 {
   echo "$VisualServicesIP visual.viya.sas visual"
   echo "$ProgrammingServicesIP prog.viya.sas prog"
@@ -360,6 +399,10 @@ fi
   if [ -n "${CASWorker3IP}" ]; then echo "${CASWorker3IP} worker3.viya.sas worker3"; fi
 } > /tmp/hostnames.txt
 
+
+# update hosts list on ansible controller
+cat /tmp/hostnames.txt | sudo tee -a /etc/hosts
+seed_known_hosts_file
 
 # before we start make sure the stack is still good. It could have failed in resources that are created post-VM (especially the ELB)
 check_stack_status () {
