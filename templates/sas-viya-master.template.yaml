@@ -318,7 +318,7 @@ Resources:
   SASViyaStack:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/sas-viya.yml"
+      TemplateURL: !Sub "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/sas-viya.template.yaml"
       Parameters:
         KeyPairName: !Ref KeyPairName
         PrivateSubnetID: !Ref PrivateSubnet
