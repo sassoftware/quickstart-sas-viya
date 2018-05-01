@@ -21,4 +21,4 @@ global:
 tests:
   sas-viya-master:
     parameter_input: sas-viya-vpc.json
-    template_file: sas-viya-master.yml
+    template_file: sas-viya-master.template.yaml
