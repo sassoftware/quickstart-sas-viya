@@ -1763,24 +1763,4 @@ Outputs:
         - "#logStream:group="
         - !Ref CloudWatchLogGroup
 
-  VisualServicesIP:
-    Description: SAS Viya Visual Services IP address
-    Value: !GetAtt
-      - VisualServices
-      - PrivateIp
-  ProgrammingServicesIP:
-    Description: SAS Viya Programming Services IP address
-    Value: !GetAtt
-      - ProgrammingServices
-      - PrivateIp
-  StatefulServicesIP:
-    Description: SAS Viya Stateful Services IP address
-    Value: !GetAtt
-      - StatefulServices
-      - PrivateIp
-  CASControllerIP:
-    Description: CAS Controller IP address
-    Value: !GetAtt
-      - CASController
-      - PrivateIp
 

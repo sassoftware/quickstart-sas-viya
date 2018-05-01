@@ -63,18 +63,18 @@ cat <<EOF > "$OUTFILE"
   From the ansible controller, you can ssh into these VMs:
 
        Visual Services:
-         visual.viya.sas ($VisualServicesIP)
+         visual.viya.sas (visual)
        Programming Services:
-         prog.viya.sas ($ProgrammingServicesIP)
+         prog.viya.sas (prog)
        Stateful Services:
-         stateful.viya.sas ($StatefulServicesIP)
+         stateful.viya.sas (stateful)
        CAS Controller:
-         controller.viya.sas ($CASControllerIP)
+         controller.viya.sas (controller)
 EOF
 
-if [ -n "${CASWorker1IP}" ]; then echo -e "       CAS Worker 1:\n         worker1.viya.sas (${CASWorker1IP})" >> "$OUTFILE"; fi
-if [ -n "${CASWorker2IP}" ]; then echo -e "       CAS Worker 2:\n         worker2.viya.sas (${CASWorker2IP})" >> "$OUTFILE"; fi
-if [ -n "${CASWorker3IP}" ]; then echo -e "       CAS Worker 3:\n         worker3.viya.sas (${CASWorker3IP})" >> "$OUTFILE"; fi
+if [ -n "${CASWorker1IP}" ]; then echo -e "       CAS Worker 1:\n         worker1.viya.sas (worker1)" >> "$OUTFILE"; fi
+if [ -n "${CASWorker2IP}" ]; then echo -e "       CAS Worker 2:\n         worker2.viya.sas (worker2)" >> "$OUTFILE"; fi
+if [ -n "${CASWorker3IP}" ]; then echo -e "       CAS Worker 3:\n         worker3.viya.sas (worker3)" >> "$OUTFILE"; fi
 
 }
 
@@ -101,18 +101,18 @@ cat <<EOF > "$OUTFILE"
      From the ansible controller, you can ssh into these VMs:
 
        Visual Services:
-         visual.viya.sas ($VisualServicesIP)
+         visual.viya.sas (visual)
        Programming Services:
-         prog.viya.sas ($ProgrammingServicesIP)
+         prog.viya.sas (prog)
        Stateful Services:
-         stateful.viya.sas ($StatefulServicesIP)
+         stateful.viya.sas (stateful)
        CAS Controller:
-         controller.viya.sas ($CASControllerIP)
+         controller.viya.sas (controller)
 EOF
 
-if [ -n "${CASWorker1IP}" ]; then echo -e "       CAS Worker 1:\n         worker1.viya.sas (${CASWorker1IP})" >> "$OUTFILE"; fi
-if [ -n "${CASWorker2IP}" ]; then echo -e "       CAS Worker 2:\n         worker2.viya.sas (${CASWorker2IP})" >> "$OUTFILE"; fi
-if [ -n "${CASWorker3IP}" ]; then echo -e "       CAS Worker 3:\n         worker3.viya.sas (${CASWorker3IP})" >> "$OUTFILE"; fi
+if [ -n "${CASWorker1IP}" ]; then echo -e "       CAS Worker 1:\n         worker1.viya.sas (worker1)" >> "$OUTFILE"; fi
+if [ -n "${CASWorker2IP}" ]; then echo -e "       CAS Worker 2:\n         worker2.viya.sas (worker2)" >> "$OUTFILE"; fi
+if [ -n "${CASWorker3IP}" ]; then echo -e "       CAS Worker 3:\n         worker3.viya.sas (worker3)" >> "$OUTFILE"; fi
 
 
 }
