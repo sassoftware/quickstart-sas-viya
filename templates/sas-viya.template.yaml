@@ -1518,7 +1518,6 @@ Resources:
           roleName: !Ref AnsibleControllerRole
           buckets:
             - !Ref QSS3BucketName
-            - quickstart-reference/linux/bastion
             - !Ref DeploymentDataLocation
       'AWS::CloudFormation::Init':
         configSets:
