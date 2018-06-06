@@ -433,6 +433,11 @@ curl -Os https://support.sas.com/installation/viya/sas-orchestration-cli/lax/sas
 tar xf sas-orchestration.tgz 2>> "$CMDLOG"
 rm sas-orchestration.tgz
 
+# get sas license data file
+echo " " >> "$CMDLOG"
+echo "$(date) Download SAS Deployment Data file" >> "$CMDLOG"
+aws s3 cp s3://{{DeploymentDataLocation}} /tmp/SAS_Viya_deployment_data.zip >> "$CMDLOG"
+
 # build playbook
 echo " " >> "$CMDLOG"
 echo "$(date) Build ansible playbook tar file" >> "$CMDLOG"
