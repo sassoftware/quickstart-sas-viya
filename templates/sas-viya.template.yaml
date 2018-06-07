@@ -1467,7 +1467,6 @@ Resources:
           roleName: !Ref AnsibleControllerRole
           buckets:
             - !Ref QSS3BucketName
-            - quickstart-reference/linux/bastion
             - !Ref DeploymentDataLocation
       'AWS::CloudFormation::Init':
         configSets:
@@ -1549,18 +1548,7 @@ Resources:
                 DomainName: !Ref DomainName
                 HostedZoneID: !If [HasDNSEntry, !Ref AWSHostedZoneID, ""]
                 S3FileRoot: !Sub "${QSS3BucketName}/${QSS3KeyPrefix}"
-
-            /tmp/SAS_Viya_deployment_data.zip:
-              source: !Sub
-                - https://${QSS3Region}.amazonaws.com/${DeploymentDataLocation}
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: ec2-user
-              group: ec2-user
-              authentication: S3AccessCreds
+                DeploymentDataLocation: !Ref DeploymentDataLocation
 
             /tmp/ansible.cfg:
               source: !Sub
