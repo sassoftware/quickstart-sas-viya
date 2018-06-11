@@ -134,7 +134,7 @@ Parameters:
   PublicSubnetID:
     Description: >-
       ID of public subnet for the Elastic Load Balancer
-      and Ansible Controller (e.g. subnet-9bc642ac)
+      and Ansible Controller (e.g. subnet-1234567890abcdef0)
       (must be in the same AZ as PrivateSubnetID)
     Type: AWS::EC2::Subnet::Id
     MinLength: '15'
@@ -142,7 +142,7 @@ Parameters:
     ConstraintDescription: must be an existing Subnet ID in the current AWS region
   PrivateSubnetID:
     Description: >-
-      ID of private subnet for the SAS Viya Application VMs (e.g. subnet-a0246dcd)
+      ID of private subnet for the SAS Viya Application VMs (e.g. subnet-1234567890abcdef0)
       (must be in the same AZ as PublicSubnetID)
     Type: AWS::EC2::Subnet::Id
     MinLength: '15'
