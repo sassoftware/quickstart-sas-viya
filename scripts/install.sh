@@ -475,8 +475,10 @@ pushd sas_viya_playbook
   echo " " >> "$CMDLOG"
   echo "$(date) Download and execute Viya Infrastructure Resource Kit (VIRK)" >> "$CMDLOG"
   git clone -q https://github.com/sassoftware/virk.git 2>> "$CMDLOG"
-  git --git-dir virk/.git checkout viya-3.3 2>> "$CMDLOG"
-  ansible-playbook virk/playbooks/pre-install-playbook/viya_pre_install_playbook.yml -e 'use_pause=false'
+  pushd virk
+    git checkout viya-3.3 2>> "$CMDLOG"
+  popd
+  ansible-playbook virk/playbooks/pre-install-playbook/viya_pre_install_playbook.yml --skip-tags skipmemfail,skipcoresfail,skipstoragefail,skipnicssfail,bandwidth -e 'use_pause=false'
 
   if [ -n "$USERPASS" ]; then
     echo " " >> "$CMDLOG"
