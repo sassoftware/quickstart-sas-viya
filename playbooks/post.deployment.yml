@@ -41,14 +41,13 @@
     tags:
        - cloudwatch
 
-  - name: set up cloudwatch agent configuration
-    blockinfile:
+  - name: initialize cloudwatch configuration file
+    copy:
       dest: /tmp/cloudwatch.conf
-      marker: '# {mark} set header'
-      insertafter: '[general]'
-      block: |
-         use_gzip_http_content_encoding = true
-         queue_size = 10
+      content: |
+        [general]
+        use_gzip_http_content_encoding = true
+        queue_size = 10
     tags:
       - cloudwatch
 
@@ -122,9 +121,16 @@
 
   tasks:
 
-  - name: restart cloudwatch services
+  - name: start cloudwatch services
     shell: |
+      curl https://s3.amazonaws.com/aws-cloudwatch/downloads/latest/awslogs-agent-setup.py -o /tmp/awslogs-agent-setup.py
       python /tmp/awslogs-agent-setup.py --region "{{AWSRegion}}" -n -c /tmp/cloudwatch.conf
+    tags:
+      - cloudwatch
+  # create crontab to make sure the awslog service restarts after each file rollover
+  # (i.e. after midnight, which is the default in the viya log configurations)
+  - name: create cloudwatch crontab restart for log rotation
+    cron: name="restart awslogs" hour="0" minute="15" job="service awslogs restart"
     tags:
       - cloudwatch
 

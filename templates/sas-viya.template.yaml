@@ -13,6 +13,10 @@ Metadata:
         Parameters:
           - DeploymentDataLocation
       - Label:
+          default: Compute Instance Type
+        Parameters:
+          - CASInstanceType
+      - Label:
           default: Administration
         Parameters:
           - KeyPairName
@@ -52,6 +56,8 @@ Metadata:
         default: Quick Start S3 Key Prefix
       DeploymentDataLocation:
         default: SAS Viya Software Order File
+      CASInstanceType:
+        default: EC2 Instance Type for the CAS compute VM
       VPCID:
         default: VPC ID
       AdminIngressLocation:
@@ -82,6 +88,16 @@ Parameters:
     Type: String
     MinLength: '1'
     ConstraintDescription: must be a zip file in a valid S3 bucket location, e.g. mysasbucket/viya_deployment_data/SAS_Viya_deployment_data.zip
+  CASInstanceType:
+    AllowedValues:
+      - "i3"
+      - "r4"
+    ConstraintDescription: Must contain either "i3" or "r4"
+    Default: "i3"
+    Description: Type of EC2 instance for the Viya Compute Nodes (i3 for performance, r4 for auto-recovery)
+    Type: String
+
+
 
   KeyPairName:
     Description: >-
@@ -156,7 +172,7 @@ Parameters:
       letters, and hyphens (-). It cannot start or end with a hyphen (-).
     Default: aws-quickstart
     Description: >-
-     S3 bucket name for the Quick Start assets.   
+     S3 bucket name for the Quick Start assets.
      Only change this value if you customize or extend the Quick Start for your own use.
      This string can include numbers, lowercase letters, uppercase letters, and hyphens (-).
      It cannot start or end with a hyphen (-).
@@ -304,6 +320,7 @@ Rules:
                 - !Ref AWSHostedZoneID
                 - ''
         AssertDescription: DomainName and AWSHostedZoneID need to be set together
+
 Conditions:
   GovCloudCondition: !Equals
     - !Ref AWS::Region
@@ -312,6 +329,14 @@ Conditions:
     - !Equals
       - !Ref OperatorEmail
       - ''
+
+  IsI3: !Equals
+    - !Ref CASInstanceType
+    - i3
+
+  IsNotI3:
+    Fn::Not:
+    - Condition: IsI3
 
   NoDNSEntry:
     Fn::Or:
@@ -980,53 +1005,28 @@ Resources:
           quickstart:
             - install
         install:
-          files:
-            /tmp/diskprep.sh:
-              source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/diskprep.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-              context:
-                AWSRegion: !Ref AWS::Region
-                CloudFormationStack: !Ref AWS::StackName
-                Role: VisualServices
-            /usr/sbin/disks_ephemeral.sh:
-              source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/disks_ephemeral.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-            /tmp/node_setup.sh:
-              source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/node_setup.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-              context:
-                AWSRegion: !Ref AWS::Region
-                CloudFormationStack: !Ref AWS::StackName
           commands:
-            01-diskprep:
-              command: /tmp/diskprep.sh
-            02-setup:
-              command: /tmp/node_setup.sh
-
+            01-getkey:
+              command:
+                Fn::Sub: |
+                  #!/bin/bash
+                  KEY=dummy
+                  # wait until the key is available (the ansible controller puts it there)
+                  TRIES=0
+                  until [[ ! "$KEY" = "dummy" || $TRIES -gt 10 ]]; do
+                     KEY=$(aws ssm get-parameter --region "${AWS::Region}" --name "viya-ansiblekey-${AWS::StackName}" --query Parameter.Value --output text)
+                     if [[ $KEY = *"error"* ]]; then
+                        sleep 5
+                        let TRIES++
+                     else
+                        sleep 1
+                     fi
+                  done
+                  if [ $TRIES -gt 10 ]; then
+                     echo "Error - could not obtain key from ssm."
+                     exit 1
+                  fi
+                  echo "$KEY" | su ec2-user bash -c 'tee -a ~/.ssh/authorized_keys'
     Properties:
       KeyName: !Ref KeyPairName
       ImageId: !FindInMap
@@ -1086,52 +1086,28 @@ Resources:
           quickstart:
             - install
         install:
-          files:
-            /tmp/diskprep.sh:
-              source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/diskprep.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-              context:
-                AWSRegion: !Ref AWS::Region
-                CloudFormationStack: !Ref AWS::StackName
-                Role: ProgrammingServices
-            /usr/sbin/disks_ephemeral.sh:
-              source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/disks_ephemeral.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-            /tmp/node_setup.sh:
-              source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/node_setup.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-              context:
-                AWSRegion: !Ref AWS::Region
-                CloudFormationStack: !Ref AWS::StackName
           commands:
-            01-diskprep:
-              command: /tmp/diskprep.sh
-            02-setup:
-              command: /tmp/node_setup.sh
+            01-getkey:
+              command:
+                Fn::Sub: |
+                  #!/bin/bash
+                  KEY=dummy
+                  # wait until the key is available (the ansible controller puts it there)
+                  TRIES=0
+                  until [[ ! "$KEY" = "dummy" || $TRIES -gt 10 ]]; do
+                     KEY=$(aws ssm get-parameter --region "${AWS::Region}" --name "viya-ansiblekey-${AWS::StackName}" --query Parameter.Value --output text)
+                     if [[ $KEY = *"error"* ]]; then
+                        sleep 5
+                        let TRIES++
+                     else
+                        sleep 1
+                     fi
+                  done
+                  if [[ $TRIES -gt 10 ]]; then
+                     echo "Error - could not obtain key from ssm."
+                     exit 1
+                  fi
+                  echo "$KEY" | su ec2-user bash -c 'tee -a ~/.ssh/authorized_keys'
 
     Properties:
       KeyName: !Ref KeyPairName
@@ -1192,52 +1168,28 @@ Resources:
           quickstart:
             - install
         install:
-          files:
-            /tmp/diskprep.sh:
-              source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/diskprep.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-              context:
-                AWSRegion: !Ref AWS::Region
-                CloudFormationStack: !Ref AWS::StackName
-                Role: StatefulServices
-            /usr/sbin/disks_ephemeral.sh:
-              source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/disks_ephemeral.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-            /tmp/node_setup.sh:
-              source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/node_setup.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-              context:
-                AWSRegion: !Ref AWS::Region
-                CloudFormationStack: !Ref AWS::StackName
           commands:
-            01-diskprep:
-              command: /tmp/diskprep.sh
-            02-setup:
-              command: /tmp/node_setup.sh
+            01-getkey:
+              command:
+                Fn::Sub: |
+                  #!/bin/bash
+                  KEY=dummy
+                  # wait until the key is available (the ansible controller puts it there)
+                  TRIES=0
+                  until [[ ! "$KEY" = "dummy" || $TRIES -gt 10 ]]; do
+                     KEY=$(aws ssm get-parameter --region "${AWS::Region}" --name "viya-ansiblekey-${AWS::StackName}" --query Parameter.Value --output text)
+                     if [[ $KEY = *"error"* ]]; then
+                        sleep 5
+                        let TRIES++
+                     else
+                        sleep 1
+                     fi
+                  done
+                  if [[ $TRIES -gt 10 ]]; then
+                     echo "Error - could not obtain key from ssm."
+                     exit 1
+                  fi
+                  echo "$KEY" | su ec2-user bash -c 'tee -a ~/.ssh/authorized_keys'
     Properties:
       KeyName: !Ref KeyPairName
       ImageId: !FindInMap
@@ -1299,52 +1251,28 @@ Resources:
           quickstart:
             - install
         install:
-          files:
-            /tmp/diskprep.sh:
-              source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/diskprep.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-              context:
-                AWSRegion: !Ref AWS::Region
-                CloudFormationStack: !Ref AWS::StackName
-                Role: cas-controller
-            /usr/sbin/disks_ephemeral.sh:
-              source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/disks_ephemeral.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-            /tmp/node_setup.sh:
-              source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/node_setup.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-              context:
-                AWSRegion: !Ref AWS::Region
-                CloudFormationStack: !Ref AWS::StackName
           commands:
-            01-diskprep:
-              command: /tmp/diskprep.sh
-            02-setup:
-              command: /tmp/node_setup.sh
+            01-getkey:
+              command:
+                Fn::Sub: |
+                  #!/bin/bash
+                  KEY=dummy
+                  # wait until the key is available (the ansible controller puts it there)
+                  TRIES=0
+                  until [[ ! "$KEY" = "dummy" || $TRIES -gt 10 ]]; do
+                     KEY=$(aws ssm get-parameter --region "${AWS::Region}" --name "viya-ansiblekey-${AWS::StackName}" --query Parameter.Value --output text)
+                     if [[ $KEY = *"error"* ]]; then
+                        sleep 5
+                        let TRIES++
+                     else
+                        sleep 1
+                     fi
+                  done
+                  if [[ $TRIES -gt 10 ]]; then
+                     echo "Error - could not obtain key from ssm."
+                     exit 1
+                  fi
+                  echo "$KEY" | su ec2-user bash -c 'tee -a ~/.ssh/authorized_keys'
 
     Properties:
       KeyName: !Ref KeyPairName
@@ -1356,34 +1284,13 @@ Resources:
       IamInstanceProfile: !Ref ViyaProfile
       # transform "Nxlarge (N cores)" to "r4.Nxlarge"
       InstanceType: !Join
-        - ''
-        - - 'r4.'
+        - '.'
+        - - !Ref CASInstanceType
           - !GetAtt LicenseInfo.NodeInstanceSize
       EbsOptimized: true
       PlacementGroupName: !Ref ViyaPlacementGroup
       SecurityGroupIds:
         - !Ref ViyaSecurityGroup
-      BlockDeviceMappings:
-        - DeviceName: /dev/sdg
-          Ebs:
-            VolumeSize: '50'
-            VolumeType: gp2
-            DeleteOnTermination: true
-            Encrypted: true
-
-        - DeviceName: /dev/sdd
-          Ebs:
-            VolumeSize: !GetAtt LicenseInfo.CASCacheSize
-            VolumeType: gp2
-            DeleteOnTermination: true
-            Encrypted: true
-
-        - DeviceName: /dev/sdl
-          Ebs:
-            VolumeSize: !GetAtt LicenseInfo.CASLibSize
-            VolumeType: gp2
-            DeleteOnTermination: true
-            Encrypted: true
 
       Tags:
         - Key: Name
@@ -1400,6 +1307,64 @@ Resources:
             # Signal the status from cfn-init
             cfn-signal -e $? --stack ${AWS::StackName} --resource CASController --region ${AWS::Region}
 
+
+  CASViyaVolume:
+    Type: AWS::EC2::Volume
+    Properties:
+      Size: 50
+      VolumeType: gp2
+      Encrypted: true
+      AvailabilityZone: !GetAtt CASController.AvailabilityZone
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName} CAS Controller Viya Install
+
+  CASViyaAttachment:
+    Type: AWS::EC2::VolumeAttachment
+    Properties:
+      Device: /dev/sdg
+      InstanceId: !Ref CASController
+      VolumeId: !Ref CASViyaVolume
+
+
+  CASLibVolume:
+    Type: AWS::EC2::Volume
+    Properties:
+      Size: !GetAtt LicenseInfo.CASLibSize
+      VolumeType: gp2
+      Encrypted: true
+      AvailabilityZone: !GetAtt CASController.AvailabilityZone
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName} CAS Controller CASLib
+
+  CASLibAttachment:
+    Type: AWS::EC2::VolumeAttachment
+    Properties:
+      Device: /dev/sdl
+      InstanceId: !Ref CASController
+      VolumeId: !Ref CASLibVolume
+
+
+  CASCacheVolume:
+    Condition: IsNotI3
+    Type: AWS::EC2::Volume
+    Properties:
+      Size: !GetAtt LicenseInfo.CASCacheSize
+      VolumeType: gp2
+      Encrypted: true
+      AvailabilityZone: !GetAtt CASController.AvailabilityZone
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName} CAS Controller CAS Cache
+
+  CASCacheAttachment:
+    Condition: IsNotI3
+    Type: AWS::EC2::VolumeAttachment
+    Properties:
+      Device: /dev/sdd
+      InstanceId: !Ref CASController
+      VolumeId: !Ref CASCacheVolume
 
   AnsiblePublicKey:
     Type: AWS::SSM::Parameter
@@ -1471,6 +1436,9 @@ Resources:
                   - 'ec2:AssociateAddress'
                   - 'ec2:DescribeAddresses'
                   - 'ec2:DescribeInstances'
+                  - 'ec2:RunInstances'
+                  - 'ec2:AttachVolume'
+                  - 'ec2:CreateTags'
                   - 'elasticloadbalancing:DescribeLoadBalancers'
                   - 'elasticloadbalancing:DeleteLoadBalancerListeners'
                   - 'elasticloadbalancing:CreateLoadBalancerListeners'
@@ -1488,6 +1456,13 @@ Resources:
                 Resource:
                   - '*'
                 Effect: Allow
+              - Action:
+                  - 'iam:PassRole'
+                Resource:
+                  - !Sub arn:aws:iam::${AWS::AccountId}:role/${ViyaRole}
+                Effect: Allow
+
+
           PolicyName: ansiblecontroller-iam-policy
         - PolicyDocument:
             Version: 2012-10-17
@@ -1595,6 +1570,7 @@ Resources:
               authentication: S3AccessCreds
               context:
                 LogGroup: !Ref CloudWatchLogGroup
+
           commands:
             01-bootstrap:
               command: /tmp/bastion_bootstrap.sh --enable false
@@ -1607,7 +1583,7 @@ Resources:
               command: /tmp/ansiblecontroller_prereqs.sh
         sasprep:
           files:
-            /tmp/install.sh:
+            /home/ec2-user/deployment-scripts/install.sh:
               source: !Sub
                 - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/install.sh
                 - QSS3Region: !If
@@ -1634,6 +1610,40 @@ Resources:
                 HostedZoneID: !If [HasDNSEntry, !Ref AWSHostedZoneID, ""]
                 S3FileRoot: !Sub "${QSS3BucketName}/${QSS3KeyPrefix}"
                 DeploymentDataLocation: !Ref DeploymentDataLocation
+                RAIDScript: !Sub ${QSS3BucketName}/${QSS3KeyPrefix}scripts/disks_ephemeral.sh
+
+
+            /home/ec2-user/deployment-scripts/recover_cascontroller.sh:
+              source: !Sub
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/recover_cascontroller.sh
+                - QSS3Region: !If
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000500'
+              owner: ec2-user
+              group: ec2-user
+              authentication: S3AccessCreds
+              context:
+                Stack: !Ref AWS::StackName
+                AWSRegion: !Ref AWS::Region
+                ImageId: !FindInMap
+                   - AWSAMIRegionMap
+                   - !Ref AWS::Region
+                   - RHEL74HVM
+                KeyName: !Ref KeyPairName
+                SubnetId: !Ref PrivateSubnetID
+                IamInstanceProfile: !Ref ViyaProfile
+                InstanceType: !Join
+                  - '.'
+                  - - !Ref CASInstanceType
+                    - !GetAtt LicenseInfo.NodeInstanceSize
+                PlacementGroupName: !Ref ViyaPlacementGroup
+                SecurityGroupIds: !Ref ViyaSecurityGroup
+                SASUserPass: !Ref SASUserPass
+                SASAdminPass: !Ref SASAdminPass
+                RAIDScript: !Sub ${QSS3BucketName}/${QSS3KeyPrefix}scripts/disks_ephemeral.sh
+
 
             /tmp/ansible.cfg:
               source: !Sub
@@ -1703,13 +1713,13 @@ Resources:
               authentication: S3AccessCreds
           commands:
             01-install:
-              command: sudo su -l ec2-user -c "/tmp/install.sh"
+              command: sudo su -l ec2-user -c "./deployment-scripts/install.sh"
             02-post-install:
               command: |-
-                chmod +w /tmp/install.sh
-                sed -i  's/ADMINPASS=$.*/ADMINPASS="xxxx"/' /tmp/install.sh
-                sed -i  's/USERPASS=$.*/USERPASS="xxxx"/' /tmp/install.sh
-                chmod -w /tmp/install.sh
+                chmod +w /home/ec2-user/deployment-scripts/install.sh
+                sed -i  's/ADMINPASS=$.*/ADMINPASS="xxxx"/' /home/ec2-user/deployment-scripts/install.sh
+                sed -i  's/USERPASS=$.*/USERPASS="xxxx"/' /home/ec2-user/deployment-scripts/install.sh
+                chmod -w /home/ec2-user/deployment-scripts/install.sh
     Properties:
       KeyName: !Ref KeyPairName
       SubnetId: !Ref PublicSubnetID
@@ -1778,5 +1788,3 @@ Outputs:
         - !Ref AWS::Region
         - "#logStream:group="
         - !Ref CloudWatchLogGroup
-
-

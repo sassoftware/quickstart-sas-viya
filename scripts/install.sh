@@ -12,14 +12,14 @@ set -o nounset
 
 # This is a mustache template.
 # Make sure all the input parms are set
-test -n "{{LogGroup}}"
-test -n "{{AWSRegion}}"
-test -n "{{KeyPairName}}"
-test -n "{{AnsibleControllerIP}}"
-test -n "{{NumWorkers}}"
-test -n "{{CloudFormationStack}}"
-test -n "{{CloudWatchLogs}}"
-test -n "{{S3FileRoot}}"
+test -n {{LogGroup}}
+test -n {{AWSRegion}}
+test -n {{KeyPairName}}
+test -n {{AnsibleControllerIP}}
+test -n {{NumWorkers}}
+test -n {{CloudFormationStack}}
+test -n {{CloudWatchLogs}}
+test -n {{S3FileRoot}}
 
 VisualServicesIP=
 ProgrammingServicesIP=
@@ -31,6 +31,7 @@ CASWorker3IP=
 DomainName=
 FAILMSG=
 MIRRORVM=
+ControllerNodeSize={{ControllerNodeSize}}
 
 # use triple mustache to avoid url encoding
 USERPASS=$(echo -n '{{{SASUserPass}}}' | base64)
@@ -487,12 +488,12 @@ rm sas-orchestration.tgz
 # get sas license data file
 echo " " >> "$CMDLOG"
 echo "$(date) Download SAS Deployment Data file" >> "$CMDLOG"
-aws s3 cp s3://{{DeploymentDataLocation}} /tmp/SAS_Viya_deployment_data.zip >> "$CMDLOG"
+aws s3 cp s3://{{DeploymentDataLocation}} ~/deployment-data/SAS_Viya_deployment_data.zip >> "$CMDLOG"
 
 # build playbook
 echo " " >> "$CMDLOG"
 echo "$(date) Build ansible playbook tar file" >> "$CMDLOG"
-./sas-orchestration build --input  /tmp/SAS_Viya_deployment_data.zip $MIRROROPT 2>> "$CMDLOG"
+./sas-orchestration build --input  ~/deployment-data/SAS_Viya_deployment_data.zip $MIRROROPT 2>> "$CMDLOG"
 
 # untar playbook
 echo " " >> "$CMDLOG"
@@ -504,7 +505,7 @@ pushd sas_viya_playbook
 
   # copy additional playbooks and ansible configuration file
   chmod +w ansible.cfg
-  cp /tmp/ansible.* .
+  mv /tmp/ansible.* .
 
   #
   # pre deployment
@@ -520,7 +521,10 @@ pushd sas_viya_playbook
   ansible-playbook ansible.update.inventory.yml
 
   # set hostnames
-  ansible-playbook ansible.pre.deployment.yml
+  ansible-playbook ansible.pre.deployment.yml -e "CloudWatchLogGroup='{{LogGroup}}'" \
+                                              -e "AWSRegion='{{AWSRegion}}'" \
+                                              -e "RAIDScript='{{RAIDScript}}'" \
+                                              -e "CloudFormationStack='{{CloudFormationStack}}'"
 
   # set prereqs on hosts
   echo " " >> "$CMDLOG"

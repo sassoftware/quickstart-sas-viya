@@ -13,6 +13,10 @@ Metadata:
       Parameters:
         - DeploymentDataLocation
     - Label:
+         default: Compute Instance Type
+      Parameters:
+        - CASInstanceType
+    - Label:
         default: Administration
       Parameters:
         - KeyPairName
@@ -44,6 +48,8 @@ Metadata:
         default: Quick Start S3 Key Prefix
       DeploymentDataLocation:
         default: SAS Viya Software Order File
+      CASInstanceType:
+        default: EC2 Instance Type for the CAS compute VM
       AdminIngressLocation:
         default: Permitted IP Range for Deployment Admin
       WebIngressLocation:
@@ -73,6 +79,14 @@ Parameters:
     Type: String
     MinLength: '1'
     ConstraintDescription: must be a zip file in a valid S3 bucket location, e.g. mysasbucket/viya_deployment_data/SAS_Viya_deployment_data.zip
+  CASInstanceType:
+    AllowedValues:
+      - "i3"
+      - "r4"
+    ConstraintDescription: Must contain either "i3" or "r4"
+    Default: "i3"
+    Description: Type of EC2 instance for the Viya Compute Nodes (i3 for performance, r4 for auto-recovery)
+    Type: String
 
   KeyPairName:
     Description: >-
@@ -335,6 +349,7 @@ Resources:
         SSLCertificateARN: !Ref SSLCertificateARN
         DomainName: !Ref DomainName
         AWSHostedZoneID: !Ref AWSHostedZoneID
+        CASInstanceType: !Ref CASInstanceType
 Outputs:
   # Outputs from VPC creation
   VPCID:
