@@ -21,6 +21,7 @@ Metadata:
           - SASAdminPass
           - SASUserPass
           - CASInstanceType
+          - DeploymentMirror
           - OperatorEmail
       - Label:
           default: Network Configuration
@@ -65,6 +66,8 @@ Metadata:
         default: SAS Administrator Password
       SASUserPass:
         default: Password for Default User
+      DeploymentMirror:
+        default: Mirror of SAS Viya Deployment Data
       OperatorEmail:
         default: Operator Email
       SSLCertificateARN:
@@ -137,6 +140,15 @@ Parameters:
     NoEcho: true
     AllowedPattern: ^([^']*)$
     ConstraintDescription: Password cannot be longer than 255 characters and cannot contain single quotes.
+
+  DeploymentMirror:
+    Description: >-
+      (Optional) Location of SAS Viya Deployment Repository Mirror
+    Default: ''
+    Type: String
+    ConstraintDescription: must be valid http(s) or s3 location of mirror repository (e.g. https://my-repository-vm or s3://my-bucket/my-path)
+    AllowedPattern: ^(^$|s3:\/\/|(http|https):\/\/).*
+
 
   VPCID:
     Description: ID of an existing VPC with a public and a private subnet in the same Availability Zone.
@@ -366,6 +378,7 @@ Resources:
         ZipFile: |
           import zipfile
           import boto3
+          from urllib.parse import urlparse
           import io
           from botocore.vendored import requests
           import json
@@ -375,6 +388,13 @@ Resources:
           rS = FAILED
           s3 = boto3.client('s3')
           def license(event, context):
+            rD["s3_mirror_bucket"] = ''
+            rD["s3_mirror_path"] = ''
+            deployment_mirror_path = event['ResourceProperties']['DeploymentMirror']
+            if (deployment_mirror_path.lower().startswith('s3')):
+              o = urlparse(deployment_mirror_path)
+              rD["s3_mirror_bucket"] = o.netloc
+              rD["s3_mirror_path"] = o.path
             ddl = event['ResourceProperties']['DeploymentDataLocation']
             bucket = ddl[:ddl.find('/')]
             key = ddl[ddl.find('/')+1:]
@@ -437,7 +457,7 @@ Resources:
           def send(event, context, rS, rD, reason="", physicalResourceId=None, noEcho=False):
             responseUrl = event['ResponseURL']
 
-            print responseUrl
+            print (responseUrl)
             if reason == "":
               reason = 'See the details in CloudWatch Log Stream: ' + context.log_stream_name
             rB = {}
@@ -452,7 +472,7 @@ Resources:
 
             json_rB = json.dumps(rB)
 
-            print "Response body:\n" + json_rB
+            print ("Response body:\n" + json_rB)
 
             headers = {
                 'content-type' : '',
@@ -463,11 +483,11 @@ Resources:
                 response = requests.put(responseUrl,
                                         data=json_rB,
                                         headers=headers)
-                print "Status code: " + response.reason
+                print ("Status code: " + response.reason)
             except Exception as e:
-                print "send(..) failed executing requests.put(..): " + str(e)
+                print ("send(..) failed executing requests.put(..): " + str(e))
       Handler: index.license
-      Runtime: python2.7
+      Runtime: python3.6
       Timeout: 30
       Role: !GetAtt LicenseLambdaExecutionRole.Arn
       Description: !Sub LicenseInfo Custom Property for Stack ${AWS::StackName}
@@ -517,6 +537,7 @@ Resources:
       ServiceToken: !GetAtt LicenseFunction.Arn
       DeploymentDataLocation: !Ref DeploymentDataLocation
       IsPublic: !GetAtt IsLicensePublicInfo.is_public
+      DeploymentMirror: !Ref DeploymentMirror
 
   # Lambda Function that checks the license file to see if it can be publicly downloaded
   IsLicensePublicFunction:
@@ -529,6 +550,7 @@ Resources:
           from botocore.vendored import requests
           import json
           def is_license_public(event, context):
+
             is_public = False
             license_file_path = event['ResourceProperties']['DeploymentDataLocation']
             bucket_name = license_file_path.split("/")[0]
@@ -592,6 +614,7 @@ Resources:
     Properties:
       ServiceToken: !GetAtt IsLicensePublicFunction.Arn
       DeploymentDataLocation: !Ref DeploymentDataLocation
+
   IsLicensePublicLambdaFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
@@ -824,6 +847,10 @@ Resources:
           FromPort: '22'
           ToPort: '22'
           SourceSecurityGroupId: !Ref AnsibleControllerSecurityGroup
+        - IpProtocol: tcp
+          FromPort: '8008'
+          ToPort: '8008'
+          SourceSecurityGroupId: !Ref AnsibleControllerSecurityGroup
 
   ProxySecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -933,6 +960,23 @@ Resources:
               - 'sts:AssumeRole'
       Path: /
       Policies:
+        - PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Action:
+                  - 's3:ListBucket'
+                Resource: !Sub
+                 - 'arn:aws:s3:::${mirror_bucket_name}'
+                 - mirror_bucket_name: !GetAtt LicenseInfo.s3_mirror_bucket
+                Effect: Allow
+              - Action:
+                  - 's3:GetObject'
+                Resource: !Sub
+                  - 'arn:aws:s3:::${mirror_bucket_name}${mirror_bucket_path}*'
+                  - { mirror_bucket_name: !GetAtt LicenseInfo.s3_mirror_bucket,
+                      mirror_bucket_path: !GetAtt LicenseInfo.s3_mirror_path }
+                Effect: Allow
+          PolicyName: aws-mirror-s3-policy
         - PolicyDocument:
             Version: 2012-10-17
             Statement:
@@ -1421,6 +1465,23 @@ Resources:
             Version: 2012-10-17
             Statement:
               - Action:
+                  - 's3:ListBucket'
+                Resource: !Sub
+                 - 'arn:aws:s3:::${mirror_bucket_name}'
+                 - mirror_bucket_name: !GetAtt LicenseInfo.s3_mirror_bucket
+                Effect: Allow
+              - Action:
+                  - 's3:GetObject'
+                Resource: !Sub
+                  - 'arn:aws:s3:::${mirror_bucket_name}${mirror_bucket_path}*'
+                  - { mirror_bucket_name: !GetAtt LicenseInfo.s3_mirror_bucket,
+                      mirror_bucket_path: !GetAtt LicenseInfo.s3_mirror_path }
+                Effect: Allow
+          PolicyName: aws-mirror-s3-policy
+        - PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Action:
                   - 'ssm:PutParameter'
                 Resource:
                   - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/viya-ansiblekey-${AWS::StackName}'
@@ -1458,8 +1519,6 @@ Resources:
                 Resource:
                   - !Sub arn:aws:iam::${AWS::AccountId}:role/${ViyaRole}
                 Effect: Allow
-
-
           PolicyName: ansiblecontroller-iam-policy
         - PolicyDocument:
             Version: 2012-10-17
@@ -1608,6 +1667,22 @@ Resources:
                 S3FileRoot: !Sub "${QSS3BucketName}/${QSS3KeyPrefix}"
                 DeploymentDataLocation: !Ref DeploymentDataLocation
                 RAIDScript: !Sub ${QSS3BucketName}/${QSS3KeyPrefix}scripts/disks_ephemeral.sh
+                DeploymentMirror: !Ref DeploymentMirror
+
+            /home/ec2-user/deployment-scripts/create.mirror.yml:
+              source: !Sub
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/create.mirror.yml
+                - QSS3Region: !If
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000500'
+              owner: ec2-user
+              group: ec2-user
+              authentication: S3AccessCreds
+              context:
+                AWSRegion: !Ref AWS::Region
+                S3MirrorLocation: !Ref DeploymentMirror
 
 
             /home/ec2-user/deployment-scripts/recover_cascontroller.sh:
@@ -1640,6 +1715,7 @@ Resources:
                 SASUserPass: !Ref SASUserPass
                 SASAdminPass: !Ref SASAdminPass
                 RAIDScript: !Sub ${QSS3BucketName}/${QSS3KeyPrefix}scripts/disks_ephemeral.sh
+
 
 
             /tmp/ansible.cfg:

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -e
 set -x
 
 # this script is expected to be run by a user with sudo privileges (typically ec2-user)
@@ -30,7 +30,6 @@ CASWorker2IP=
 CASWorker3IP=
 DomainName=
 FAILMSG=
-MIRRORVM=
 ControllerNodeSize={{ControllerNodeSize}}
 
 # use triple mustache to avoid url encoding
@@ -317,6 +316,24 @@ function try () {
 }
 
 
+# set log file for deployment steps
+export CMDLOG="$LOGDIR/deployment-commands.log"
+touch "$CMDLOG"
+
+#
+# verify mirror is valid
+#
+DM=$(echo -n {{DeploymentMirror}} |  sed "s+/$++") # remove trailing slash if it exists
+if [[ $(echo -n "{{DeploymentMirror}}" | cut -c1-2 | tr [:lower:] [:upper:]) == S3 ]]; then
+  FAILMSG="ERROR: DeploymentMirror location {{DeploymentMirror}} not valid or not accessible."
+  aws s3 ls ${DM}/entitlements.json
+  FAILMSG=
+elif [[ $(echo -n "{{DeploymentMirror}}" | cut -c1-4 | tr [:lower:] [:upper:]) == HTTP ]]; then
+  FAILMSG="ERROR: DeploymentMirror location {{DeploymentMirror}} not valid or not accessible."
+  curl -L ${DM}/entitlements.json
+  FAILMSG=
+fi
+
 #
 # pre-deployment steps
 #
@@ -327,14 +344,28 @@ echo -e y | ssh-keygen -t rsa -q -f ~/.ssh/id_rsa -N ""
 KEY=$(cat ~/.ssh/id_rsa.pub)
 aws --region "{{AWSRegion}}" ssm put-parameter --name "viya-ansiblekey-{{CloudFormationStack}}" --type String --value "$KEY" --overwrite
 
-## make sure the other VMs are all up
+## make sure the other VMs are all up and the cas controller volumes are attached
 STATUS="status"
 let NUMNODES=4
 while ! [ "$NUMNODES"  -eq "$(echo "$STATUS" | grep "CREATE_COMPLETE" | wc -w)" ]; do
   sleep 3
-  STATUS=$(aws --no-paginate --region "{{AWSRegion}}" cloudformation describe-stack-resources --stack-name "{{CloudFormationStack}}"  --output json --query 'StackResources[?ResourceType ==`AWS::EC2::Instance`]|[?LogicalResourceId != `AnsibleController`].ResourceStatus' --output text)
+  STATUS=$(aws --no-paginate --region "{{AWSRegion}}" cloudformation describe-stack-resources --stack-name "{{CloudFormationStack}}"  --query 'StackResources[?ResourceType ==`AWS::EC2::Instance`]|[?LogicalResourceId != `AnsibleController`].ResourceStatus' --output text)
   if [ "$(echo "$STATUS" | grep "CREATE_FAILED")" ]; then exit 1; fi
 done
+STATUS="status"
+while ! [ "$STATUS" = "CREATE_COMPLETE" ]; do
+  sleep 1
+  STATUS=$(aws --no-paginate --region "{{AWSRegion}}" cloudformation describe-stack-resources --stack-name "{{CloudFormationStack}}"  --query 'StackResources[?ResourceType ==`AWS::EC2::VolumeAttachment`]|[?LogicalResourceId != `CASLibAttachment`].ResourceStatus' --output text)
+  if [ "$(echo "$STATUS" | grep "CREATE_FAILED")" ]; then exit 1; fi
+done
+STATUS="status"
+while ! [ "$STATUS" = "CREATE_COMPLETE" ]; do
+  sleep 1
+  STATUS=$(aws --no-paginate --region "{{AWSRegion}}" cloudformation describe-stack-resources --stack-name "{{CloudFormationStack}}"  --query 'StackResources[?ResourceType ==`AWS::EC2::VolumeAttachment`]|[?LogicalResourceId != `CASViyaAttachment`].ResourceStatus' --output text)
+  if [ "$(echo "$STATUS" | grep "CREATE_FAILED")" ]; then exit 1; fi
+done
+
+
 
 ID=$(aws --no-paginate --region "{{AWSRegion}}" cloudformation describe-stack-resources --stack-name "{{CloudFormationStack}}" --logical-resource-id VisualServices --query StackResources[*].PhysicalResourceId --output text)
 VisualServicesIP=$(aws ec2 --no-paginate --region "{{AWSRegion}}" describe-instances --instance-id "$ID" --query Reservations[*].Instances[*].PrivateIpAddress --output text)
@@ -419,10 +450,6 @@ while [[ "$ELBNAME"  == "" ]]; do
   sleep 3
 done
 
-# set log file for pre deployment steps
-export CMDLOG="$LOGDIR/deployment-commands.log"
-touch "$CMDLOG"
-
 # make sure the Hosted Zone is good
 if [ -n "{{HostedZoneID}}" ]; then
  # this fails the script if the HostedZoneID is invalid
@@ -472,11 +499,44 @@ fi
 
 configure_self_signed_cert
 
+
+#
+# pre deployment
+#
+
+echo " " >> "$CMDLOG"
+echo "$(date) Start Pre-Deployment tasks (see deployment-pre.log)" >> "$CMDLOG"
+
+# set log file for pre deployment steps
+export ANSIBLE_LOG_PATH="$LOGDIR/deployment-pre.log"
+
+# set hostnames, mount drives
+ansible-playbook /tmp/ansible.pre.deployment.yml -e "CloudWatchLogGroup='{{LogGroup}}'" \
+                                          -e "AWSRegion='{{AWSRegion}}'" \
+                                          -e "RAIDScript='{{RAIDScript}}'" \
+                                          -e "CloudFormationStack='{{CloudFormationStack}}'" \
+                                          -i /tmp/inventory.head
+
+#
+# mirror repository
+#
+MIRRORURL=
+if [[ $(echo -n "{{DeploymentMirror}}" | cut -c1-2 | tr [:lower:] [:upper:]) == S3 ]]; then
+  ansible-playbook ~/deployment-scripts/create.mirror.yml -i /tmp/inventory.head
+  MIRRORURL=http://stateful.viya.sas:8008/repo_mirror
+elif [[ $(echo -n "{{DeploymentMirror}}" | cut -c1-4 | tr [:lower:] [:upper:]) == HTTP ]]; then
+  MIRRORURL="{{DeploymentMirror}}"
+elif [ ! -z "{{DeploymentMirror}}" ]; then
+  echo "ERROR: Mirror repository {{DeploymentMirror}} is not valid." >> "$CMDLOG"
+  exit 1
+fi
+
+
 # set mirror repository, if given
 MIRROROPT=
-if [ -n "$MIRRORVM" ]; then
-  MIRROROPT=" --repository-warehouse http://$MIRRORVM/repo_mirror"
-  echo "Using mirror repository $MIRRORVM" >> "$CMDLOG"
+if [ -n "$MIRRORURL" ]; then
+  MIRROROPT=" --repository-warehouse $MIRRORURL"
+  echo "Using mirror repository $MIRRORURL" >> "$CMDLOG"
 fi
 
 # get sas-orchestration cli
@@ -507,24 +567,8 @@ pushd sas_viya_playbook
   chmod +w ansible.cfg
   mv /tmp/ansible.* .
 
-  #
-  # pre deployment
-  #
-
-  echo " " >> "$CMDLOG"
-  echo "$(date) Start Pre-Deployment tasks (see deployment-pre.log)" >> "$CMDLOG"
-
-  # set log file for pre deployment steps
-  export ANSIBLE_LOG_PATH="$LOGDIR/deployment-pre.log"
-
   # add hosts to inventory
   ansible-playbook ansible.update.inventory.yml
-
-  # set hostnames
-  ansible-playbook ansible.pre.deployment.yml -e "CloudWatchLogGroup='{{LogGroup}}'" \
-                                              -e "AWSRegion='{{AWSRegion}}'" \
-                                              -e "RAIDScript='{{RAIDScript}}'" \
-                                              -e "CloudFormationStack='{{CloudFormationStack}}'"
 
   # set prereqs on hosts
   echo " " >> "$CMDLOG"
