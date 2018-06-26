@@ -13,10 +13,6 @@ Metadata:
       Parameters:
         - DeploymentDataLocation
     - Label:
-         default: Compute Instance Type
-      Parameters:
-        - CASInstanceType
-    - Label:
         default: Administration
       Parameters:
         - KeyPairName
@@ -25,6 +21,7 @@ Metadata:
         - AdminIngressLocation
         - SASAdminPass
         - SASUserPass
+        - CASInstanceType
         - OperatorEmail
     - Label:
         default: Server DNS configuration (only required for custom DNS name and SSL)
