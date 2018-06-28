@@ -88,7 +88,9 @@ NEW_ID=$(aws --region "{{AWSRegion}}"  ec2 run-instances \
    export PATH=$PATH:/usr/local/bin
    # install aws cli
    curl -O https://bootstrap.pypa.io/get-pip.py && python get-pip.py &> /dev/null
-   pip install awscli --ignore-installed six &> /dev/null' \
+   pip install awscli --ignore-installed six &> /dev/null
+   KEY=$(aws ssm get-parameter --region "{{AWSRegion}}" --name "viya-ansiblekey-{{Stack}}" --query Parameter.Value --output text)
+   echo "$KEY" | su ec2-user bash -c "tee -a ~/.ssh/authorized_keys"' \
 --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value={{Stack}} CAS Controller}]" \
 --query 'Instances[0].InstanceId' --output text
 )
