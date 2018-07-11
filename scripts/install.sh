@@ -547,6 +547,8 @@ echo "Deploying Viya Version {{ViyaVersion}}" >> "$CMDLOG"
 # get sas-orchestration cli
 echo "$(date) Download and extract sas-orchestration cli" >> "$CMDLOG"
 
+VIRK_COMMIT_ID=
+
 if [ "{{ViyaVersion}}" = "3.4" ]; then
 #   aws s3 cp s3://mercury-deployment-data/viya3.4/sas-orchestration-cli.rpm sas-orchestration-cli.rpm 2>> "$CMDLOG"
 #   sudo yum -y install sas-orchestration-cli.rpm 2>> "$CMDLOG"
@@ -557,11 +559,19 @@ if [ "{{ViyaVersion}}" = "3.4" ]; then
    tar xf sas-orchestration-linux.tgz 2>> "$CMDLOG"
    rm sas-orchestration-linux.tgz
    ORCHCLIPREFIX=.
+   #
+   # Lock the VIRK commitId to the specific commitId used for testing the production Viya 3.4 Quickstart Deployment
+   #
+   VIRK_COMMIT_ID=ee1e6f9
 else
    curl -Os https://support.sas.com/installation/viya/sas-orchestration-cli/lax/sas-orchestration.tgz 2>> "$CMDLOG"
    tar xf sas-orchestration.tgz 2>> "$CMDLOG"
    rm sas-orchestration.tgz
    ORCHCLIPREFIX=.
+   #
+   # Lock the VIRK commitId to the specific commitId used for testing the production Viya 3.3 Quickstart Deployment
+   #
+   VIRK_COMMIT_ID=e210c8d
 fi
 
 
@@ -594,8 +604,9 @@ pushd sas_viya_playbook
   echo " " >> "$CMDLOG"
   echo "$(date) Download and execute Viya Infrastructure Resource Kit (VIRK)" >> "$CMDLOG"
   git clone -q https://github.com/sassoftware/virk.git 2>> "$CMDLOG"
+
   pushd virk
-    git checkout viya-{{ViyaVersion}} 2>> "$CMDLOG"
+    git checkout "$VIRK_COMMIT_ID" 2>> "$CMDLOG"
   popd
   ansible-playbook virk/playbooks/pre-install-playbook/viya_pre_install_playbook.yml --skip-tags skipmemfail,skipcoresfail,skipstoragefail,skipnicssfail,bandwidth -e 'use_pause=false'
 
@@ -642,5 +653,3 @@ pushd sas_viya_playbook
                                                 --tags "backups, cas, cloudwatch"
 
 popd
-
-
