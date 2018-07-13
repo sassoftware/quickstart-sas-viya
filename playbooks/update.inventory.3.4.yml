@@ -24,12 +24,6 @@
       regexp='^\[ComputeServer\]\ndeployTarget'
       replace='[ComputeServer]\nprog'
 
-  - name: Programming - ComputeServices
-    replace:
-      dest=inventory.ini
-      regexp='^\[ComputeServices\]\ndeployTarget'
-      replace='[ComputeServices]\nprog'
-
   - name: Programming - programming
     replace:
       dest=inventory.ini
@@ -46,7 +40,7 @@
     replace:
       dest=inventory.ini
       regexp='^\[CommandLine\]\ndeployTarget'
-      replace='[CommandLine]\nprog'
+      replace='[CommandLine]\nvisual\nstateful\nprog\ncontroller'
 
   - name: Programming - connect
     replace:
@@ -128,6 +122,13 @@
       dest=inventory.ini
       regexp='^\[CoreServices\]\ndeployTarget'
       replace='[CoreServices]\nstateful\nprog\nvisual'
+
+  - name: Multiple - Consul
+    replace:
+      dest=inventory.ini
+      regexp='^\[Consul\]\ndeployTarget'
+      replace='[Consul]\nstateful\nprog\nvisual'
+
 
   - name: Multiple - httpproxy
     replace:
