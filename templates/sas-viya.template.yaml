@@ -879,11 +879,19 @@ Resources:
   # open ports between all participants
   # all hosts need to succeed an ssh-keyscan to all other hosts of the deployment
   # and for consul communication
-  ViyatoviyaSGIngress:
+  ViyatoviyaTCPIngress:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !Ref ViyaSecurityGroup
       IpProtocol: tcp
+      FromPort: '0'
+      ToPort: '65535'
+      SourceSecurityGroupId: !Ref ViyaSecurityGroup
+  ViyatoviyaUDPIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref ViyaSecurityGroup
+      IpProtocol: udp
       FromPort: '0'
       ToPort: '65535'
       SourceSecurityGroupId: !Ref ViyaSecurityGroup
