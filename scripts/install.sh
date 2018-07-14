@@ -353,13 +353,13 @@ while ! [ "$NUMNODES"  -eq "$(echo "$STATUS" | grep "CREATE_COMPLETE" | wc -w)" 
   if [ "$(echo "$STATUS" | grep "CREATE_FAILED")" ]; then exit 1; fi
 done
 STATUS="status"
-while ! [ "$STATUS" = "CREATE_COMPLETE" ]; do
+until [ $(echo "$STATUS" | wc -w) = $(echo "$STATUS" | tr ' ' '\n' | grep -c "CREATE_COMPLETE") ]; do
   sleep 1
   STATUS=$(aws --no-paginate --region "{{AWSRegion}}" cloudformation describe-stack-resources --stack-name "{{CloudFormationStack}}"  --query 'StackResources[?ResourceType ==`AWS::EC2::VolumeAttachment`]|[?LogicalResourceId != `CASLibAttachment`].ResourceStatus' --output text)
   if [ "$(echo "$STATUS" | grep "CREATE_FAILED")" ]; then exit 1; fi
 done
 STATUS="status"
-while ! [ "$STATUS" = "CREATE_COMPLETE" ]; do
+until [ $(echo "$STATUS" | wc -w) = $(echo "$STATUS" | tr ' ' '\n' | grep -c "CREATE_COMPLETE") ]; do
   sleep 1
   STATUS=$(aws --no-paginate --region "{{AWSRegion}}" cloudformation describe-stack-resources --stack-name "{{CloudFormationStack}}"  --query 'StackResources[?ResourceType ==`AWS::EC2::VolumeAttachment`]|[?LogicalResourceId != `CASViyaAttachment`].ResourceStatus' --output text)
   if [ "$(echo "$STATUS" | grep "CREATE_FAILED")" ]; then exit 1; fi
