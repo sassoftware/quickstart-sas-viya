@@ -344,24 +344,22 @@ echo -e y | ssh-keygen -t rsa -q -f ~/.ssh/id_rsa -N ""
 KEY=$(cat ~/.ssh/id_rsa.pub)
 aws --region "{{AWSRegion}}" ssm put-parameter --name "viya-ansiblekey-{{CloudFormationStack}}" --type String --value "$KEY" --overwrite
 
-## make sure the other VMs are all up and the cas controller volumes are attached
-STATUS="status"
+#
+# make sure the Viya VMs are all up
+#
 let NUMNODES=4
 while ! [ "$NUMNODES"  -eq "$(echo "$STATUS" | grep "CREATE_COMPLETE" | wc -w)" ]; do
   sleep 3
   STATUS=$(aws --no-paginate --region "{{AWSRegion}}" cloudformation describe-stack-resources --stack-name "{{CloudFormationStack}}"  --query 'StackResources[?ResourceType ==`AWS::EC2::Instance`]|[?LogicalResourceId != `AnsibleController`].ResourceStatus' --output text)
   if [ "$(echo "$STATUS" | grep "CREATE_FAILED")" ]; then exit 1; fi
 done
+#
+# make sure all the volume attachments are complete
+#
 STATUS="status"
 until [ $(echo "$STATUS" | wc -w) = $(echo "$STATUS" | tr ' ' '\n' | grep -c "CREATE_COMPLETE") ]; do
   sleep 1
-  STATUS=$(aws --no-paginate --region "{{AWSRegion}}" cloudformation describe-stack-resources --stack-name "{{CloudFormationStack}}"  --query 'StackResources[?ResourceType ==`AWS::EC2::VolumeAttachment`]|[?LogicalResourceId != `CASLibAttachment`].ResourceStatus' --output text)
-  if [ "$(echo "$STATUS" | grep "CREATE_FAILED")" ]; then exit 1; fi
-done
-STATUS="status"
-until [ $(echo "$STATUS" | wc -w) = $(echo "$STATUS" | tr ' ' '\n' | grep -c "CREATE_COMPLETE") ]; do
-  sleep 1
-  STATUS=$(aws --no-paginate --region "{{AWSRegion}}" cloudformation describe-stack-resources --stack-name "{{CloudFormationStack}}"  --query 'StackResources[?ResourceType ==`AWS::EC2::VolumeAttachment`]|[?LogicalResourceId != `CASViyaAttachment`].ResourceStatus' --output text)
+  STATUS=$(aws --no-paginate --region "{{AWSRegion}}" cloudformation describe-stack-resources --stack-name "{{CloudFormationStack}}"  --query 'StackResources[?ResourceType ==`AWS::EC2::VolumeAttachment`].ResourceStatus' --output text)
   if [ "$(echo "$STATUS" | grep "CREATE_FAILED")" ]; then exit 1; fi
 done
 
