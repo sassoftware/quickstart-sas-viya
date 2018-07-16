@@ -21,8 +21,8 @@ Metadata:
         - AdminIngressLocation
         - SASAdminPass
         - SASUserPass
-        - CASInstanceType
-        - DeploymentMirror
+#        - CASInstanceType
+#        - DeploymentMirror
         - OperatorEmail
     - Label:
         default: Server DNS configuration (only required for custom DNS name and SSL)
@@ -46,10 +46,10 @@ Metadata:
         default: Quick Start S3 Key Prefix
       DeploymentDataLocation:
         default: SAS Viya Software Order File
-      CASInstanceType:
-        default: EC2 Instance Type for the CAS compute VM
-      DeploymentMirror:
-        default: Mirror of SAS Viya Deployment Data
+#      CASInstanceType:
+#        default: EC2 Instance Type for the CAS compute VM
+#      DeploymentMirror:
+#        default: Mirror of SAS Viya Deployment Data
       AdminIngressLocation:
         default: Permitted IP Range for Deployment Admin
       WebIngressLocation:
@@ -79,14 +79,14 @@ Parameters:
     Type: String
     MinLength: '1'
     ConstraintDescription: must be a zip file in a valid S3 bucket location, e.g. mysasbucket/viya_deployment_data/SAS_Viya_deployment_data.zip
-  CASInstanceType:
-    AllowedValues:
-      - "i3"
-      - "r4"
-    ConstraintDescription: Must contain either "i3" or "r4"
-    Default: "i3"
-    Description: Type of EC2 instance for the Viya Compute Nodes (i3 for performance, r4 for auto-recovery)
-    Type: String
+#  CASInstanceType:
+#    AllowedValues:
+#      - "i3"
+#      - "r4"
+#    ConstraintDescription: Must contain either "i3" or "r4"
+#    Default: "i3"
+#    Description: Type of EC2 instance for the Viya Compute Nodes (i3 for performance, r4 for auto-recovery)
+#    Type: String
 
   KeyPairName:
     Description: >-
@@ -119,13 +119,13 @@ Parameters:
     AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
     ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
 
-  DeploymentMirror:
-    Description: >-
-      (Optional) Location of SAS Viya Deployment Repository Mirror
-    Default: ''
-    Type: String
-    ConstraintDescription: must be valid http(s) or s3 location of mirror repository (e.g. https://my-repository-vm or s3://my-bucket/my-path)
-    AllowedPattern: ^(^$|s3:\/\/|(http|https):\/\/).*
+#  DeploymentMirror:
+#    Description: >-
+#      (Optional) Location of SAS Viya Deployment Repository Mirror
+#    Default: ''
+#    Type: String
+#    ConstraintDescription: must be valid http(s) or s3 location of mirror repository (e.g. https://my-repository-vm or s3://my-bucket/my-path)
+#    AllowedPattern: ^(^$|s3:\/\/|(http|https):\/\/).*
 
   SASAdminPass:
     Description: >-
@@ -357,8 +357,8 @@ Resources:
         SSLCertificateARN: !Ref SSLCertificateARN
         DomainName: !Ref DomainName
         AWSHostedZoneID: !Ref AWSHostedZoneID
-        CASInstanceType: !Ref CASInstanceType
-        DeploymentMirror: !Ref DeploymentMirror
+#        CASInstanceType: !Ref CASInstanceType
+#        DeploymentMirror: !Ref DeploymentMirror
 Outputs:
   # Outputs from VPC creation
   VPCID:
