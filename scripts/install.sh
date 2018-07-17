@@ -245,7 +245,7 @@ configure_self_signed_cert () {
 cat <<EOF > "ssl.conf"
     [ req ]
     distinguished_name = dn
-    req_extensions = san
+    x509_extensions = san
     [ dn ]
     [ san ]
     subjectAltName          = DNS:$ELBDNS
