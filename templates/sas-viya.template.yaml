@@ -565,25 +565,37 @@ Resources:
             is_public = False
             license_file_path = event['ResourceProperties']['DeploymentDataLocation']
             bucket_name = license_file_path.split("/")[0]
-            s3_client = boto3.client("s3")
-            location_response = s3_client.get_bucket_location(Bucket=bucket_name)
-            location = location_response['LocationConstraint']
-            if location is None:
-              location = 'us-east-1'
-            s3_location_client = boto3.client('s3', region_name=location)
-            url_accessable = True
-            url = '{}/{}'.format(s3_location_client.meta.endpoint_url, license_file_path)
             try:
-              response = urllib.request.urlopen(url)
-              is_public = True
-            except urllib.error.HTTPError as e:
-              if e.code == 403:
-                is_public = False
-              else:
-                raise e
-            
+              s3_client = boto3.client("s3")
+              location_response = s3_client.get_bucket_location(Bucket=bucket_name)
+            except:
+              # in case we cannot establish the the bucket location, we return a positive result
+              # An error here could be caused by any of these:
+              # - the bucket does not exist (an error with then be caught by LicenseFunction)
+              # - bucket not accessible (error later caught by LicenseFunction)
+              # - The bucket is in a different account and GetBucketLocation permission not set for client account
+              #   - this can be due to missing permissions on the bucket or the role
+              #   - or in this edge case: the bucket is in a different account and a different region than
+              #     the client session. Even setting explicit permissions for GetBucketLoccation will not suffice.
+              is_public = False
+            else:
+              location = location_response['LocationConstraint']
+              if location is None:
+                location = 'us-east-1'
+              s3_location_client = boto3.client('s3', region_name=location)
+              url_accessable = True
+              url = '{}/{}'.format(s3_location_client.meta.endpoint_url, license_file_path)
+              try:
+                response = urllib.request.urlopen(url)
+                is_public = True
+              except urllib.error.HTTPError as e:
+                if e.code == 403:
+                  is_public = False
+                else:
+                  raise e
+
             if is_public:
-              send(event, context, "FAILED", {'is_public': is_public}, 'License File at ' + license_file_path + ' is public and can be accessed by anyone. Please secure this file before preceeding.')
+              send(event, context, "FAILED", {'is_public': is_public}, 'License File at ' + license_file_path + ' is public and can be accessed by anyone. Please secure this file before proceeding.')
             else:
               send(event, context, "SUCCESS", {'is_public': is_public}, 'License File at ' + license_file_path + ' is private.')
             return is_public
