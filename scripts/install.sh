@@ -357,9 +357,10 @@ done
 # make sure all the volume attachments are complete
 #
 STATUS="status"
-until [ $(echo "$STATUS" | wc -w) = $(echo "$STATUS" | tr ' ' '\n' | grep -c "CREATE_COMPLETE") ]; do
+until [ $(echo "$STATUS" | wc -w) = $(echo "$STATUS" | sed 's/CREATE_COMPLETE/CREATE_COMPLETE\n/g' | grep -c "CREATE_COMPLETE") ]; do
   sleep 1
   STATUS=$(aws --no-paginate --region "{{AWSRegion}}" cloudformation describe-stack-resources --stack-name "{{CloudFormationStack}}"  --query 'StackResources[?ResourceType ==`AWS::EC2::VolumeAttachment`].ResourceStatus' --output text)
+  [ "$STATUS" = "" ] && STATUS="status"
   if [ "$(echo "$STATUS" | grep "CREATE_FAILED")" ]; then exit 1; fi
 done
 
@@ -430,8 +431,6 @@ fi
 
 # update hosts list on ansible controller
 cat /tmp/hostnames.txt | sudo tee -a /etc/hosts
-seed_known_hosts_file
-
 
 # before we start make sure the stack is still good. It could have failed in resources that are created post-VM (especially the ELB)
 check_stack_status () {
@@ -500,6 +499,8 @@ fi
 
 configure_self_signed_cert
 
+
+seed_known_hosts_file
 
 #
 # pre deployment
