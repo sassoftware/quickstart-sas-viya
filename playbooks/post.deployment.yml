@@ -1,5 +1,28 @@
 ---
 
+- hosts: controller
+  become: yes
+  become_user: sas
+
+  tasks:
+  - name: add ELB/Domain to CAS configuration
+    lineinfile:
+      dest: /opt/sas/viya/config/etc/cas/default/casconfig_usermods.lua
+      line: "env.CAS_VIRTUAL_HOST = '{{cas_virtual_host}}'"
+      state: present
+    tags:
+      - cas
+
+  - name: restart cas controller
+    become: yes
+    become_user: root
+    service:
+      name: sas-viya-cascontroller-default
+      state: restarted
+    tags:
+      - cas
+
+
 - hosts: stateful
   become: yes
   become_user: root
@@ -36,7 +59,7 @@
       - backups
 
   - name: get log directories
-    shell: find /opt/sas/viya/config/var/log/* -name default | cut -d'/' -f8
+    shell: find /opt/sas/viya/config/var/log/* -name default | grep -v '/cas/' | cut -d'/' -f8
     register: log_dirs
     tags:
        - cloudwatch
@@ -115,6 +138,25 @@
       - cloudwatch
 
 
+- hosts: controller
+  become: yes
+  become_user: root
+
+  tasks:
+  - name: add controller cloudwatch agent configuration
+    blockinfile:
+      dest: /tmp/cloudwatch.conf
+      marker: '# {mark} set cas'
+      insertafter: 'EOF'
+      block: |
+         [/var/log/sas/viya/cas]
+         file = /opt/sas/viya/config/var/log/cas/default/cas_*_controller_*.log
+         log_stream_name = viya-cas-{{inventory_hostname}}.log
+         initial_position = start_of_file
+         log_group_name = {{CloudWatchLogGroup}}
+    tags:
+      - cloudwatch
+
 - hosts: sas-all
   become: yes
   become_user: root
@@ -134,26 +176,4 @@
     tags:
       - cloudwatch
 
-
-- hosts: controller
-  become: yes
-  become_user: sas
-
-  tasks:
-  - name: add ELB/Domain to CAS configuration
-    lineinfile:
-      dest: /opt/sas/viya/config/etc/cas/default/casconfig_usermods.lua
-      line: "env.CAS_VIRTUAL_HOST = '{{cas_virtual_host}}'"
-      state: present
-    tags:
-      - cas
-
-  - name: restart cas controller
-    become: yes
-    become_user: root
-    service:
-      name: sas-viya-cascontroller-default
-      state: restarted
-    tags:
-      - cas
 
