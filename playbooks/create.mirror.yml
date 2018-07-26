@@ -11,9 +11,12 @@
 
   - name: Download mirror
     shell: |
+      set -e
       mkdir -p /opt/sas/mirror
       chmod a+r /opt/sas/mirror
-      aws --region {{AWSRegion}} s3 sync {{S3MirrorLocation}} /opt/sas/mirror
+      # lowercase initial s, remove trailing slash if it exists
+      DM=$(echo -n {{S3MirrorLocation}} | sed "s/^S/s/" | sed "s+/$++" )
+      aws --region {{AWSRegion}} s3 sync ${DM} /opt/sas/mirror
       # set selinux permissions
       chcon -R -t httpd_sys_content_t /opt/sas/mirror
 

@@ -125,7 +125,7 @@ Parameters:
     Default: ''
     Type: String
     ConstraintDescription: must be valid http(s) or s3 location of mirror repository (e.g. https://my-repository-vm or s3://my-bucket/my-path)
-    AllowedPattern: ^(^$|s3:\/\/|(http|https):\/\/).*
+    AllowedPattern: (?i)^(^$|s3:\/\/|(http|https):\/\/).*
 
   SASAdminPass:
     Description: >-
