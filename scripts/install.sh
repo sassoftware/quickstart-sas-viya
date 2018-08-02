@@ -319,18 +319,6 @@ export CMDLOG="$LOGDIR/deployment-commands.log"
 touch "$CMDLOG"
 echo "SNSTopic: {{SNSTopic}}" >> "$CMDLOG"
 
-#
-# set the SASHome and SASStudio urls
-#
-PROTOCOL="https://"
-if [ "{{ViyaVersion}}" = "3.4" ];then
-    SASHome="${PROTOCOL}${DomainName}/SASDrive"
-    SASStudio="${PROTOCOL}${DomainName}/SASStudioV"
-else
-    SASHome="${PROTOCOL}${DomainName}/SASHome"
-    SASStudio="${PROTOCOL}${DomainName}/SASStudio"
-fi
-
 if [ -n "{{SNSTopic}}" ]; then
 
   # create and send start email
@@ -512,6 +500,18 @@ if [ -z "{{DomainName}}" ]; then
   DomainName=$(aws --no-paginate --region "{{AWSRegion}}" elb describe-load-balancers --load-balancer-name "$ID" --query LoadBalancerDescriptions[*].DNSName --output text)
 else
   DomainName="{{DomainName}}"
+fi
+
+#
+# set the SASHome and SASStudio urls
+#
+PROTOCOL="https://"
+if [ "{{ViyaVersion}}" = "3.4" ];then
+    SASHome="${PROTOCOL}${DomainName}/SASDrive"
+    SASStudio="${PROTOCOL}${DomainName}/SASStudioV"
+else
+    SASHome="${PROTOCOL}${DomainName}/SASHome"
+    SASStudio="${PROTOCOL}${DomainName}/SASStudio"
 fi
 
 configure_self_signed_cert
