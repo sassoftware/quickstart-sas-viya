@@ -532,7 +532,7 @@ Resources:
           - Effect: Allow
             Action:
             - s3:GetBucketLocation
-            Resource: !Sub 
+            Resource: !Sub
               - 'arn:aws:s3:::${target_bucket_name}'
               - {target_bucket_name: !Select [0, !Split [ '/', !Sub "${DeploymentDataLocation}" ] ] }
   # create the log Group for Lambda by Cloudformation to ensure
@@ -642,7 +642,7 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/lambda/${IsLicensePublicFunction}
-  
+
   DelCert:
     Type: Custom::DelCert
     Properties:
@@ -1461,6 +1461,15 @@ Resources:
                   - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}*/*"
                 Effect: Allow
           PolicyName: ansiblecontroller-cfn-policy
+        - PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Action:
+                  - "acm:DescribeCertificate"
+                Resource:
+                  - "arn:aws:acm:*:*:certificate/*"
+                Effect: Allow
+          PolicyName: ansiblecontroller-acm-policy
         - PolicyDocument:
             Version: 2012-10-17
             Statement:
