@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -e
 set -x
 
 # this script is expected to be run by a user with sudo privileges (typically ec2-user)
@@ -9,17 +9,16 @@ set -o pipefail
 set -o errexit
 set -o nounset
 
-
 # This is a mustache template.
 # Make sure all the input parms are set
-test -n "{{LogGroup}}"
-test -n "{{AWSRegion}}"
-test -n "{{KeyPairName}}"
-test -n "{{AnsibleControllerIP}}"
-test -n "{{NumWorkers}}"
-test -n "{{CloudFormationStack}}"
-test -n "{{CloudWatchLogs}}"
-test -n "{{S3FileRoot}}"
+test -n {{LogGroup}}
+test -n {{AWSRegion}}
+test -n {{KeyPairName}}
+test -n {{AnsibleControllerIP}}
+test -n {{NumWorkers}}
+test -n {{CloudFormationStack}}
+test -n {{CloudWatchLogs}}
+test -n {{S3FileRoot}}
 
 VisualServicesIP=
 ProgrammingServicesIP=
@@ -30,12 +29,11 @@ CASWorker2IP=
 CASWorker3IP=
 DomainName=
 FAILMSG=
+ControllerNodeSize={{ControllerNodeSize}}
 
 # use triple mustache to avoid url encoding
 USERPASS=$(echo -n '{{{SASUserPass}}}' | base64)
 ADMINPASS=$(echo -n '{{{SASAdminPass}}}' | base64)
-
-
 
 # prepare directories for logs and messages
 export LOGDIR=$HOME/deployment-logs
@@ -43,13 +41,13 @@ mkdir -p "$LOGDIR"
 export MSGDIR=$HOME/deployment-messages
 mkdir -p "$MSGDIR"
 
-
-
+#
+# Create the message file containing the "Starting SAS Viya Deployment" message
+#
 create_start_message () {
+  OUTFILE="$MSGDIR/sns_start_message.txt"
 
-OUTFILE="$MSGDIR/sns_start_message.txt"
-
-cat <<EOF > "$OUTFILE"
+  cat <<EOF > "$OUTFILE"
 
   Starting SAS Viya Deployment for Stack "{{CloudFormationStack}}".
 
@@ -62,26 +60,27 @@ cat <<EOF > "$OUTFILE"
   From the ansible controller, you can ssh into these VMs:
 
        Visual Services:
-         visual.viya.sas ($VisualServicesIP)
+         visual.viya.sas (visual)
        Programming Services:
-         prog.viya.sas ($ProgrammingServicesIP)
+         prog.viya.sas (prog)
        Stateful Services:
-         stateful.viya.sas ($StatefulServicesIP)
+         stateful.viya.sas (stateful)
        CAS Controller:
-         controller.viya.sas ($CASControllerIP)
+         controller.viya.sas (controller)
 EOF
 
-if [ -n "${CASWorker1IP}" ]; then echo -e "       CAS Worker 1:\n         worker1.viya.sas (${CASWorker1IP})" >> "$OUTFILE"; fi
-if [ -n "${CASWorker2IP}" ]; then echo -e "       CAS Worker 2:\n         worker2.viya.sas (${CASWorker2IP})" >> "$OUTFILE"; fi
-if [ -n "${CASWorker3IP}" ]; then echo -e "       CAS Worker 3:\n         worker3.viya.sas (${CASWorker3IP})" >> "$OUTFILE"; fi
-
+  if [ -n "${CASWorker1IP}" ]; then echo -e "       CAS Worker 1:\n         worker1.viya.sas (worker1)" >> "$OUTFILE"; fi
+  if [ -n "${CASWorker2IP}" ]; then echo -e "       CAS Worker 2:\n         worker2.viya.sas (worker2)" >> "$OUTFILE"; fi
+  if [ -n "${CASWorker3IP}" ]; then echo -e "       CAS Worker 3:\n         worker3.viya.sas (worker3)" >> "$OUTFILE"; fi
 }
 
-
+#
+# Create the message file containing the "completed successfully" message
+#
 create_success_message () {
+  OUTFILE="$MSGDIR/sns_success_message.txt"
 
-OUTFILE="$MSGDIR/sns_success_message.txt"
-cat <<EOF > "$OUTFILE"
+  cat <<EOF > "$OUTFILE"
 
    SAS Viya Deployment for Stack "{{CloudFormationStack}}" completed successfully.
 
@@ -100,27 +99,27 @@ cat <<EOF > "$OUTFILE"
      From the ansible controller, you can ssh into these VMs:
 
        Visual Services:
-         visual.viya.sas ($VisualServicesIP)
+         visual.viya.sas (visual)
        Programming Services:
-         prog.viya.sas ($ProgrammingServicesIP)
+         prog.viya.sas (prog)
        Stateful Services:
-         stateful.viya.sas ($StatefulServicesIP)
+         stateful.viya.sas (stateful)
        CAS Controller:
-         controller.viya.sas ($CASControllerIP)
+         controller.viya.sas (controller)
 EOF
 
-if [ -n "${CASWorker1IP}" ]; then echo -e "       CAS Worker 1:\n         worker1.viya.sas (${CASWorker1IP})" >> "$OUTFILE"; fi
-if [ -n "${CASWorker2IP}" ]; then echo -e "       CAS Worker 2:\n         worker2.viya.sas (${CASWorker2IP})" >> "$OUTFILE"; fi
-if [ -n "${CASWorker3IP}" ]; then echo -e "       CAS Worker 3:\n         worker3.viya.sas (${CASWorker3IP})" >> "$OUTFILE"; fi
-
-
+  if [ -n "${CASWorker1IP}" ]; then echo -e "       CAS Worker 1:\n         worker1.viya.sas (worker1)" >> "$OUTFILE"; fi
+  if [ -n "${CASWorker2IP}" ]; then echo -e "       CAS Worker 2:\n         worker2.viya.sas (worker2)" >> "$OUTFILE"; fi
+  if [ -n "${CASWorker3IP}" ]; then echo -e "       CAS Worker 3:\n         worker3.viya.sas (worker3)" >> "$OUTFILE"; fi
 }
 
-create_failure_message ( ) {
+#
+# Create the message file containing the "failed" message
+#
+create_failure_message () {
+  STACKID=$(aws --no-paginate --region "{{AWSRegion}}" cloudformation describe-stacks --stack-name "{{CloudFormationStack}}" --query Stacks[*].StackId --output text)
 
-STACKID=$(aws --no-paginate --region "{{AWSRegion}}" cloudformation describe-stacks --stack-name "{{CloudFormationStack}}" --query Stacks[*].StackId --output text)
-
-cat <<EOF > "$MSGDIR/sns_failure_message.txt"
+  cat <<EOF > "$MSGDIR/sns_failure_message.txt"
 
    SAS Viya Deployment for Stack "{{CloudFormationStack}}" failed with RC=$1.
 
@@ -131,29 +130,29 @@ cat <<EOF > "$MSGDIR/sns_failure_message.txt"
 
 EOF
 
-if [ -n "$FAILMSG" ]; then
-  echo "$FAILMSG" >> $CMDLOG
-fi
-
+  if [ -n "$FAILMSG" ]; then
+    echo "$FAILMSG" >> $CMDLOG
+  fi
 }
 
-check_subject_length ( ) {
-  # make sure the sns message subject does not exceed the maximum 100 chars
+#
+# make sure the sns message subject does not exceed the maximum 100 chars
+#
+check_subject_length () {
   if [[ ${#SUBJECT} -gt 100 ]]; then
      SUBJECT=$(printf "%s..." "$(echo -n "$SUBJECT" | cut -c1-97 )" );
   fi
 }
 
-
-
+#
+# Send an email notification re: success or sns_failure_message
+#
 cleanup () {
-
   RC=$?
 
   if [ -n "{{SNSTopic}}" ]; then
 
     if [[ $RC == 0 ]]; then
-
       # create and send success email
 
       create_success_message
@@ -163,9 +162,7 @@ cleanup () {
 
       aws --region "{{AWSRegion}}" sns publish --topic-arn "{{SNSTopic}}" --subject "$SUBJECT" \
           --message "file://$MSGDIR/sns_success_message.txt"
-
     else
-
       # create and send failure email
 
       create_failure_message $RC
@@ -175,17 +172,51 @@ cleanup () {
 
       aws --region "{{AWSRegion}}" sns publish --topic-arn "{{SNSTopic}}" --subject "$SUBJECT" \
           --message "file://$MSGDIR/sns_failure_message.txt"
-
     fi
-
   fi
-
 }
 
+#
+# seed .ssh/known_hosts file
+#
+seed_known_hosts_file () {
+  ssh -o StrictHostKeyChecking=no $VisualServicesIP exit
+  ssh -o StrictHostKeyChecking=no visual.viya.sas exit
+  ssh -o StrictHostKeyChecking=no visual exit
 
+  ssh -o StrictHostKeyChecking=no $ProgrammingServicesIP exit
+  ssh -o StrictHostKeyChecking=no prog.viya.sas exit
+  ssh -o StrictHostKeyChecking=no prog exit
+
+  ssh -o StrictHostKeyChecking=no $StatefulServicesIP exit
+  ssh -o StrictHostKeyChecking=no stateful.viya.sas exit
+  ssh -o StrictHostKeyChecking=no stateful exit
+
+  ssh -o StrictHostKeyChecking=no $CASControllerIP exit
+  ssh -o StrictHostKeyChecking=no controller.viya.sas exit
+  ssh -o StrictHostKeyChecking=no controller exit
+
+  if [ -n "${CASWorker1IP}" ]; then
+    ssh -o StrictHostKeyChecking=no $CASWorker1IP exit
+    ssh -o StrictHostKeyChecking=no worker1.viya.sas exit
+    ssh -o StrictHostKeyChecking=no worker1 exit
+  fi
+  if [ -n "${CASWorker2IP}" ]; then
+    ssh -o StrictHostKeyChecking=no $CASWorker2IP exit
+    ssh -o StrictHostKeyChecking=no worker2.viya.sas exit
+    ssh -o StrictHostKeyChecking=no worker2 exit
+  fi
+  if [ -n "${CASWorker3IP}" ]; then
+    ssh -o StrictHostKeyChecking=no $CASWorker3IP exit
+    ssh -o StrictHostKeyChecking=no worker3.viya.sas exit
+    ssh -o StrictHostKeyChecking=no worker3 exit
+  fi
+}
+
+#
+# reconfigure ELB to use self-signed cert
+#
 configure_self_signed_cert () {
-
-  # reconfigure ELB to use self-signed cert
   if ! [ -n "{{SSLCertificateARN}}" ]; then
 
     echo "$(date) Set self-signed SSL certificate on ELB" >> "$CMDLOG"
@@ -212,7 +243,6 @@ cat <<EOF > "ssl.conf"
 EOF
     openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 396 -nodes -config ssl.conf -subj '/CN=*.elb.amazonaws.com'
 
-
     # import cert into IAM (this creates an AWS resource that we later need to remove)
     CERTNAME="{{CloudFormationStack}}-selfsigned-cert"
     CERTARN=$(aws --region "{{AWSRegion}}" iam upload-server-certificate --server-certificate-name "$CERTNAME" --certificate-body file://cert.pem --private-key file://key.pem --query ServerCertificateMetadata.Arn --output text)
@@ -230,7 +260,6 @@ EOF
     aws --region "{{AWSRegion}}" elb set-load-balancer-policies-of-listener --load-balancer-name "$ELBNAME" --load-balancer-port 443 --policy-names AppCookieStickinessPolicy
 
     #  aws --region "{{AWSRegion}}" iam delete-server-certificate --server-certificate-name "$CERTNAME"
-
   fi
 }
 
@@ -261,7 +290,6 @@ install_openldap () {
   popd
 }
 
-
 # sometimes there are ssh connection errors (53) during the install
 # this function allows to retry N times
 function try () {
@@ -275,26 +303,118 @@ function try () {
   return $RC
 }
 
+#
+# before we start make sure the stack is still good. It could have failed in resources that are created post-VM (especially the ELB)
+#
+check_stack_status () {
+  STACK_STATUS=$(aws --no-paginate --region "{{AWSRegion}}" cloudformation describe-stacks --stack-name "{{CloudFormationStack}}"  --query Stacks[*].StackStatus --output text)
+  # fail script if stack creation failed
+  if [ "$(echo "$STACK_STATUS" | grep "CREATE_FAILED")" ]; then exit 1; fi
+}
+
+#
+# set log file for deployment steps
+#
+export CMDLOG="$LOGDIR/deployment-commands.log"
+touch "$CMDLOG"
+echo "SNSTopic: {{SNSTopic}}" >> "$CMDLOG"
+
+if [ -n "{{SNSTopic}}" ]; then
+
+  # create and send start email
+
+  create_start_message
+  SUBJECT="Starting SAS Viya Deployment {{CloudFormationStack}}"
+  check_subject_length
+
+  aws --region "{{AWSRegion}}" sns publish --topic-arn "{{SNSTopic}}" --subject "$SUBJECT" \
+      --message "file://$MSGDIR/sns_start_message.txt"
+
+fi
+
+#
+# verify SSL certificate is valid, if specified
+#
+echo "Verifying SSL Certificate ARN" >> "$CMDLOG"
+if [ -n "{{SSLCertificateARN}}" ]; then
+  echo " " >> "$CMDLOG"
+  echo "$(date) Certificate ARN: {{SSLCertificateARN}}" >> "$CMDLOG"
+
+  # this fails the script if the SSLCertificateARN is invalid
+  FAILMSG="ERROR: SSL Certificate {{SSLCertificateARN}} does not exist in the current AWS account."
+  aws --no-paginate --region "{{AWSRegion}}" acm describe-certificate --certificate "{{SSLCertificateARN}}"
+  FAILMSG=
+fi
+
+#
+# make sure the Hosted Zone is good
+#
+echo "Verifying Hosted Zone Id" >> "$CMDLOG"
+if [ -n "{{HostedZoneID}}" ]; then
+ # this fails the script if the HostedZoneID is invalid
+ FAILMSG="ERROR: Hosted Zone {{HostedZoneID}} does not exist in the current AWS account."
+ aws --no-paginate --region "{{AWSRegion}}" route53 get-hosted-zone --id {{HostedZoneID}}
+ FAILMSG=
+
+ # compare DNS entry used in the hosted zone with the given DNSName
+ HZDNS=$(aws --no-paginate --region "{{AWSRegion}}" route53 list-resource-record-sets --hosted-zone-id {{HostedZoneID}} --query 'ResourceRecordSets[?Type==`NS`].Name' --output text)
+ # fail the script if the specified DomainName does not match the hosted zone
+ FAILMSG="ERROR: Value for DomainName=\"{{DomainName}}\" does not match domain \"${HZDNS:0:-1}\" in Hosted Zone {{HostedZoneID}}"
+ [[ "$HZDNS" == "{{DomainName}}." ]]
+ FAILMSG=
+fi
+
+
+#
+# verify mirror is valid
+#
+DM=$(echo -n {{DeploymentMirror}} |  sed "s+/$++") # remove trailing slash if it exists
+if [[ $(echo -n "{{DeploymentMirror}}" | cut -c1-2 | tr [:lower:] [:upper:]) == S3 ]]; then
+  FAILMSG="ERROR: DeploymentMirror location {{DeploymentMirror}} not valid or not accessible."
+  aws s3 ls ${DM}/entitlements.json
+  FAILMSG=
+elif [[ $(echo -n "{{DeploymentMirror}}" | cut -c1-4 | tr [:lower:] [:upper:]) == HTTP ]]; then
+  FAILMSG="ERROR: DeploymentMirror location {{DeploymentMirror}} not valid or not accessible."
+  curl -L ${DM}/entitlements.json
+  FAILMSG=
+fi
 
 #
 # pre-deployment steps
 #
 
 # create a key and make available via SSM parameter store
+echo "Creating key" >> "$CMDLOG"
 echo -e y | ssh-keygen -t rsa -q -f ~/.ssh/id_rsa -N ""
 
 KEY=$(cat ~/.ssh/id_rsa.pub)
 aws --region "{{AWSRegion}}" ssm put-parameter --name "viya-ansiblekey-{{CloudFormationStack}}" --type String --value "$KEY" --overwrite
 
-## make sure the other VMs are all up
-STATUS="status"
+#
+# make sure the Viya VMs are all up
+#
+echo "Checking Viya VMs" >> "$CMDLOG"
 let NUMNODES=4
 while ! [ "$NUMNODES"  -eq "$(echo "$STATUS" | grep "CREATE_COMPLETE" | wc -w)" ]; do
   sleep 3
-  STATUS=$(aws --no-paginate --region "{{AWSRegion}}" cloudformation describe-stack-resources --stack-name "{{CloudFormationStack}}"  --output json --query 'StackResources[?ResourceType ==`AWS::EC2::Instance`]|[?LogicalResourceId != `AnsibleController`].ResourceStatus' --output text)
+  STATUS=$(aws --no-paginate --region "{{AWSRegion}}" cloudformation describe-stack-resources --stack-name "{{CloudFormationStack}}"  --query 'StackResources[?ResourceType ==`AWS::EC2::Instance`]|[?LogicalResourceId != `AnsibleController`].ResourceStatus' --output text)
   if [ "$(echo "$STATUS" | grep "CREATE_FAILED")" ]; then exit 1; fi
 done
 
+#
+# make sure all the volume attachments are complete
+#
+echo "Checking volume attachments" >> "$CMDLOG"
+STATUS="status"
+until [ $(echo "$STATUS" | wc -w) = $(echo "$STATUS" | sed 's/CREATE_COMPLETE/CREATE_COMPLETE\n/g' | grep -c "CREATE_COMPLETE") ]; do
+  sleep 1
+  STATUS=$(aws --no-paginate --region "{{AWSRegion}}" cloudformation describe-stack-resources --stack-name "{{CloudFormationStack}}"  --query 'StackResources[?ResourceType ==`AWS::EC2::VolumeAttachment`].ResourceStatus' --output text)
+  [ "$STATUS" = "" ] && STATUS="status"
+  if [ "$(echo "$STATUS" | grep "CREATE_FAILED")" ]; then exit 1; fi
+  check_stack_status
+done
+
+echo "Getting IP addresses" >> "$CMDLOG"
 ID=$(aws --no-paginate --region "{{AWSRegion}}" cloudformation describe-stack-resources --stack-name "{{CloudFormationStack}}" --logical-resource-id VisualServices --query StackResources[*].PhysicalResourceId --output text)
 VisualServicesIP=$(aws ec2 --no-paginate --region "{{AWSRegion}}" describe-instances --instance-id "$ID" --query Reservations[*].Instances[*].PrivateIpAddress --output text)
 
@@ -319,7 +439,6 @@ if [[ "{{NumWorkers}}" -gt "0" ]]; then
     if [ "$(echo "$STATUS" | grep "CREATE_FAILED")" ]; then exit 1; fi
   done
 
-
   if [ {{NumWorkers}} -ge 1 ]; then
     # get worker sub stack id
     ID=$(aws --no-paginate --region "{{AWSRegion}}" cloudformation describe-stack-resources --stack-name "$WorkerStackID" --logical-resource-id CASWorker1 --query StackResources[*].PhysicalResourceId --output text)
@@ -333,10 +452,9 @@ if [[ "{{NumWorkers}}" -gt "0" ]]; then
     ID=$(aws --no-paginate --region "{{AWSRegion}}" cloudformation describe-stack-resources --stack-name "$WorkerStackID" --logical-resource-id CASWorker3 --query StackResources[*].PhysicalResourceId --output text)
     if [ -n "$ID" ]; then CASWorker3IP=$(aws --no-paginate --region "{{AWSRegion}}" ec2 describe-instances --instance-id "$ID" --query Reservations[*].Instances[*].PrivateIpAddress --output text); fi
   fi
-
 fi
 
-
+echo "Generating inventory.ini" >> "$CMDLOG"
 # prepare host list for ansible inventory.ini file
 {
   echo visual ansible_host="$VisualServicesIP"
@@ -348,7 +466,7 @@ fi
   if [ -n "${CASWorker3IP}" ]; then echo worker3 ansible_host="${CASWorker3IP}"; fi
 } > /tmp/inventory.head
 
-# prepare list host entries for /etc/hosts
+# prepare host entries for /etc/hosts
 {
   echo "$VisualServicesIP visual.viya.sas visual"
   echo "$ProgrammingServicesIP prog.viya.sas prog"
@@ -359,44 +477,22 @@ fi
   if [ -n "${CASWorker3IP}" ]; then echo "${CASWorker3IP} worker3.viya.sas worker3"; fi
 } > /tmp/hostnames.txt
 
+# update hosts list on ansible controller
+cat /tmp/hostnames.txt | sudo tee -a /etc/hosts
 
-# before we start make sure the stack is still good. It could have failed in resources that are created post-VM (especially the ELB)
-check_stack_status () {
-  STACK_STATUS=$(aws --no-paginate --region "{{AWSRegion}}" cloudformation describe-stacks --stack-name "{{CloudFormationStack}}"  --query Stacks[*].StackStatus --output text)
-  # fail script if stack creation failed
-  [[ "$STACK_STATUS" != "CREATE_FAILED" ]]
-}
+echo "Checking for ELB" >> "$CMDLOG"
 # make sure the ELB has been created
 ELBNAME=""
 while [[ "$ELBNAME"  == "" ]]; do
   ELBNAME=$(aws --no-paginate --region "{{AWSRegion}}" cloudformation describe-stack-resources --stack-name "{{CloudFormationStack}}" --logical-resource-id ElasticLoadBalancer --query StackResources[*].PhysicalResourceId --output text)
+  echo "ELBNAME=${ELBNAME}" >> "$CMDLOG"
   check_stack_status
   sleep 3
 done
 
-# set log file for pre deployment steps
-export CMDLOG="$LOGDIR/deployment-commands.log"
-touch "$CMDLOG"
-
-# make sure the Hosted Zone is good
-if [ -n "{{HostedZoneID}}" ]; then
- # this fails the script if the HostedZoneID is invalid
- FAILMSG="ERROR: Hosted Zone {{HostedZoneID}} does not exist in the current AWS account."
- aws --no-paginate --region "{{AWSRegion}}" route53 get-hosted-zone --id {{HostedZoneID}}
- FAILMSG=
-
- # compare DNS entry used in the hosted zone with the given DNSName
- HZDNS=$(aws --no-paginate --region "{{AWSRegion}}" route53 list-resource-record-sets --hosted-zone-id {{HostedZoneID}} --query 'ResourceRecordSets[?Type==`NS`].Name' --output text)
- # fail the script if the specified DomainName does not match the hosted zone
- FAILMSG="ERROR: Value for DomainName=\"{{DomainName}}\" does not match domain \"${HZDNS:0:-1}\" in Hosted Zone {{HostedZoneID}}"
- [[ "$HZDNS" == "{{DomainName}}." ]]
- FAILMSG=
-fi
-
 #
 # Beging Viya software installation
 #
-
 if [ -z "{{DomainName}}" ]; then
   ID=$(aws --no-paginate --region "{{AWSRegion}}" cloudformation describe-stack-resources --stack-name "{{CloudFormationStack}}" --logical-resource-id ElasticLoadBalancer --query StackResources[*].PhysicalResourceId --output text)
   DomainName=$(aws --no-paginate --region "{{AWSRegion}}" elb describe-load-balancers --load-balancer-name "$ID" --query LoadBalancerDescriptions[*].DNSName --output text)
@@ -404,34 +500,95 @@ else
   DomainName="{{DomainName}}"
 fi
 
+#
+# set the SASHome and SASStudio urls
+#
 PROTOCOL="https://"
-SASHome="${PROTOCOL}${DomainName}/SASHome"
-SASStudio="${PROTOCOL}${DomainName}/SASStudio"
-
-
-
-
-if [ -n "{{SNSTopic}}" ]; then
-
-  # create and send start email
-
-  create_start_message
-  SUBJECT="Starting SAS Viya Deployment {{CloudFormationStack}}"
-  check_subject_length
-
-  aws --region "{{AWSRegion}}" sns publish --topic-arn "{{SNSTopic}}" --subject "$SUBJECT" \
-      --message "file://$MSGDIR/sns_start_message.txt"
-
+if [ "{{ViyaVersion}}" = "3.4" ];then
+    SASHome="${PROTOCOL}${DomainName}/SASDrive"
+    SASStudio="${PROTOCOL}${DomainName}/SASStudioV"
+else
+    SASHome="${PROTOCOL}${DomainName}/SASHome"
+    SASStudio="${PROTOCOL}${DomainName}/SASStudio"
 fi
-
 
 configure_self_signed_cert
 
+seed_known_hosts_file
+
+#
+# pre deployment
+#
+echo " " >> "$CMDLOG"
+echo "$(date) Start Pre-Deployment tasks (see deployment-pre.log)" >> "$CMDLOG"
+
+# set log file for pre deployment steps
+export ANSIBLE_LOG_PATH="$LOGDIR/deployment-pre.log"
+
+# set hostnames, mount drives
+ansible-playbook /tmp/ansible.pre.deployment.yml -e "CloudWatchLogGroup='{{LogGroup}}'" \
+                                          -e "AWSRegion='{{AWSRegion}}'" \
+                                          -e "RAIDScript='{{RAIDScript}}'" \
+                                          -e "CloudFormationStack='{{CloudFormationStack}}'" \
+                                          -i /tmp/inventory.head
+
+#
+# mirror repository
+#
+MIRRORURL=
+if [[ $(echo -n "{{DeploymentMirror}}" | cut -c1-2 | tr [:lower:] [:upper:]) == S3 ]]; then
+  ansible-playbook ~/deployment-scripts/create.mirror.yml -i /tmp/inventory.head
+  MIRRORURL=http://stateful.viya.sas:8008/repo_mirror
+elif [[ $(echo -n "{{DeploymentMirror}}" | cut -c1-4 | tr [:lower:] [:upper:]) == HTTP ]]; then
+  MIRRORURL="{{DeploymentMirror}}"
+elif [ ! -z "{{DeploymentMirror}}" ]; then
+  echo "ERROR: Mirror repository {{DeploymentMirror}} is not valid." >> "$CMDLOG"
+  exit 1
+fi
+
+# set mirror repository, if given
+MIRROROPT=
+if [ -n "$MIRRORURL" ]; then
+  MIRROROPT=" --repository-warehouse $MIRRORURL"
+  echo "Using mirror repository $MIRRORURL" >> "$CMDLOG"
+fi
+
+echo "Deploying Viya Version {{ViyaVersion}}" >> "$CMDLOG"
+
 # get sas-orchestration cli
 echo "$(date) Download and extract sas-orchestration cli" >> "$CMDLOG"
-curl -Os https://support.sas.com/installation/viya/sas-orchestration-cli/lax/sas-orchestration.tgz 2>> "$CMDLOG"
-tar xf sas-orchestration.tgz 2>> "$CMDLOG"
-rm sas-orchestration.tgz
+
+VIRK_COMMIT_ID=
+
+if [ "{{ViyaVersion}}" = "3.4" ]; then
+#   aws s3 cp s3://mercury-deployment-data/viya3.4/sas-orchestration-cli.rpm sas-orchestration-cli.rpm 2>> "$CMDLOG"
+#   sudo yum -y install sas-orchestration-cli.rpm 2>> "$CMDLOG"
+#   rm sas-orchestration-cli.rpm
+#   ORCHCLIPREFIX=/opt/sas/viya/home/bin
+
+   curl -Os https://support.sas.com/installation/viya/34/sas-orchestration-cli/lax/sas-orchestration-linux.tgz 2>> "$CMDLOG"
+   tar xf sas-orchestration-linux.tgz 2>> "$CMDLOG"
+   rm sas-orchestration-linux.tgz
+   ORCHCLIPREFIX=.
+   #
+   # Lock the VIRK commitId to the specific commitId used for testing the production Viya 3.4 Quickstart Deployment
+   #
+   VIRK_COMMIT_ID=ee1e6f9
+else
+   curl -Os https://support.sas.com/installation/viya/sas-orchestration-cli/lax/sas-orchestration.tgz 2>> "$CMDLOG"
+   tar xf sas-orchestration.tgz 2>> "$CMDLOG"
+   rm sas-orchestration.tgz
+   ORCHCLIPREFIX=.
+   #
+   # Lock the VIRK commitId to the specific commitId used for testing the production Viya 3.3 Quickstart Deployment
+   #
+   VIRK_COMMIT_ID=e210c8d
+fi
+
+# get sas license data file
+echo " " >> "$CMDLOG"
+echo "$(date) Download SAS Deployment Data file" >> "$CMDLOG"
+aws s3 cp s3://{{DeploymentDataLocation}} ~/deployment-data/SAS_Viya_deployment_data.zip >> "$CMDLOG"
 
 # get sas license data file
 echo " " >> "$CMDLOG"
@@ -441,7 +598,7 @@ aws s3 cp s3://{{DeploymentDataLocation}} /tmp/SAS_Viya_deployment_data.zip >> "
 # build playbook
 echo " " >> "$CMDLOG"
 echo "$(date) Build ansible playbook tar file" >> "$CMDLOG"
-./sas-orchestration build --input  /tmp/SAS_Viya_deployment_data.zip 2>> "$CMDLOG"
+$ORCHCLIPREFIX/sas-orchestration build --input  ~/deployment-data/SAS_Viya_deployment_data.zip $MIRROROPT 2>> "$CMDLOG"
 
 # untar playbook
 echo " " >> "$CMDLOG"
@@ -453,30 +610,18 @@ pushd sas_viya_playbook
 
   # copy additional playbooks and ansible configuration file
   chmod +w ansible.cfg
-  cp /tmp/ansible.* .
-
-  #
-  # pre deployment
-  #
-
-  echo " " >> "$CMDLOG"
-  echo "$(date) Start Pre-Deployment tasks (see deployment-pre.log)" >> "$CMDLOG"
-
-  # set log file for pre deployment steps
-  export ANSIBLE_LOG_PATH="$LOGDIR/deployment-pre.log"
+  mv /tmp/ansible.* .
 
   # add hosts to inventory
   ansible-playbook ansible.update.inventory.yml
-
-  # set hostnames
-  ansible-playbook ansible.pre.deployment.yml
 
   # set prereqs on hosts
   echo " " >> "$CMDLOG"
   echo "$(date) Download and execute Viya Infrastructure Resource Kit (VIRK)" >> "$CMDLOG"
   git clone -q https://github.com/sassoftware/virk.git 2>> "$CMDLOG"
+
   pushd virk
-    git checkout viya-3.3 2>> "$CMDLOG"
+    git checkout "$VIRK_COMMIT_ID" 2>> "$CMDLOG"
   popd
   ansible-playbook virk/playbooks/pre-install-playbook/viya_pre_install_playbook.yml --skip-tags skipmemfail,skipcoresfail,skipstoragefail,skipnicssfail,bandwidth -e 'use_pause=false'
 
@@ -489,7 +634,6 @@ pushd sas_viya_playbook
   #
   # main deployment
   #
-
   echo " " >> "$CMDLOG"
   echo "$(date) Start Main Deployment (see deployment-main.log)" >> "$CMDLOG"
 
@@ -502,8 +646,7 @@ pushd sas_viya_playbook
   export ANSIBLE_LOG_PATH="$LOGDIR/deployment-main.log"
 
   # update vars file
-  ansible-playbook ansible.update.config.yml
-
+  ansible-playbook ansible.update.config.yml -e "sasboot_pw='$ADMINPASS'"
 
   # main deployment
   try 3 ansible-playbook site.yml
@@ -511,15 +654,15 @@ pushd sas_viya_playbook
   #
   # post deployment
   #
-
-  # reset sasboot
   echo " " >> "$CMDLOG"
-  echo "$(date) Reset sasboot password (see deployment-post.log)" >> "$CMDLOG"
+  echo "$(date) Post deployment steps (see deployment-post.log)" >> "$CMDLOG"
 
   # set log file for post deployment steps  # set log file for pre deployment steps
   export ANSIBLE_LOG_PATH="$LOGDIR/deployment-post.log"
 
-  ansible-playbook ansible.post.deployment.yml -e "sasboot_pw='$ADMINPASS'" -e "cas_virtual_host='$DomainName'" --tags "sasboot, backups, cas, cloudwatch"
+  ansible-playbook ansible.post.deployment.yml  -e "cas_virtual_host='$DomainName'" \
+                                                -e "CloudWatchLogGroup='{{LogGroup}}'" \
+                                                -e "AWSRegion='{{AWSRegion}}'" \
+                                                --tags "backups, cas, cloudwatch"
 
 popd
-

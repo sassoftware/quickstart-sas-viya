@@ -1,0 +1,161 @@
+---
+- hosts: localhost
+
+  tasks:
+
+  # Host definitions
+  - name: remove default deployTarget
+    replace:
+      dest=inventory.ini
+      regexp='^\[host-definitions\]\ndeployTarget.*'
+      replace='[host-definitions]'
+
+  - name: insert host definitions
+    blockinfile:
+      insertafter='\[host-definitions\]'
+      dest=inventory.ini
+      block="{{ lookup('file', '/tmp/inventory.head') }}"
+      marker="# {mark} ADD HOST DEFINITIONS"
+
+  # Programming Services
+  - name: Programming - ComputeServer
+    replace:
+      dest=inventory.ini
+      regexp='^\[ComputeServer\]\ndeployTarget'
+      replace='[ComputeServer]\nprog'
+
+  - name: Programming - ComputeServices
+    replace:
+      dest=inventory.ini
+      regexp='^\[ComputeServices\]\ndeployTarget'
+      replace='[ComputeServices]\nprog'
+
+  - name: Programming - programming
+    replace:
+      dest=inventory.ini
+      regexp='^\[programming\]\ndeployTarget'
+      replace='[programming]\nprog'
+
+  - name: Programming - spre
+    replace:
+      dest=inventory.ini
+      regexp='^\[spre\]\ndeployTarget'
+      replace='[spre]\nprog'
+
+  - name: Programming - CommandLine
+    replace:
+      dest=inventory.ini
+      regexp='^\[CommandLine\]\ndeployTarget'
+      replace='[CommandLine]\nprog'
+
+  - name: Programming - connect
+    replace:
+      dest=inventory.ini
+      regexp='^\[connect\]\ndeployTarget'
+      replace='[connect]\nprog'
+
+  - name: Programming - pcfile
+    replace:
+      dest=inventory.ini
+      regexp='^\[pcfile\]\ndeployTarget'
+      replace='[pcfile]\nprog'
+
+  - name: Programming - platform
+    replace:
+      dest=inventory.ini
+      regexp='^\[platform\]\ndeployTarget'
+      replace='[platform]\nprog'
+
+  - name: Programming - Operations
+    replace:
+      dest=inventory.ini
+      regexp='^\[Operations\]\ndeployTarget'
+      replace='[Operations]\nprog'
+
+  - name: Programming - psqllib
+    replace:
+      dest=inventory.ini
+      regexp='^\[psqllib\]\ndeployTarget'
+      replace='[psqllib]\nprog'
+
+  - name: Programming - psqllib1
+    replace:
+      dest=inventory.ini
+      regexp='^\[psqllib1\]\ndeployTarget'
+      replace='[psqllib1]\nprog'
+
+  - name: Programming - psqlodbc
+    replace:
+      dest=inventory.ini
+      regexp='^\[psqlodbc\]\ndeployTarget'
+      replace='[psqlodbc]\nprog'
+
+  - name: Programming - psqlodbc1
+    replace:
+      dest=inventory.ini
+      regexp='^\[psqlodbc1\]\ndeployTarget'
+      replace='[psqlodbc1]\nprog'
+
+
+  # Stateful Services
+  - name: Stateful - configuratn
+    replace:
+      dest=inventory.ini
+      regexp='^\[configuratn]\\ndeployTarget'
+      replace='[configuratn]\nstateful'
+
+  - name: Stateful -pgpoolc
+    replace:
+      dest=inventory.ini
+      regexp='^\[pgpoolc\]\ndeployTarget'
+      replace='[pgpoolc]\nstateful'
+
+  - name: Stateful -rabbitmq
+    replace:
+      dest=inventory.ini
+      regexp='^\[rabbitmq\]\ndeployTarget'
+      replace='[rabbitmq]\nstateful'
+
+  - name: Stateful -sasdatasvrc
+    replace:
+      dest=inventory.ini
+      regexp='^\[sasdatasvrc\]\ndeployTarget'
+      replace='[sasdatasvrc]\nstateful\nprog\nvisual'
+
+  # multiple
+  - name: Multiple - consul
+    replace:
+      dest=inventory.ini
+      regexp='^\[consul\]\ndeployTarget'
+      replace='[consul]\nstateful\nprog\nvisual'
+
+  - name: Multiple - httpproxy
+    replace:
+      dest=inventory.ini
+      regexp='^\[httpproxy\]\ndeployTarget'
+      replace='[httpproxy]\nstateful\nprog\nvisual'
+
+  # CAS
+  - name: Set CAS controller target
+    replace:
+      dest=inventory.ini
+      regexp='^\[sas-casserver-primary\]\ndeployTarget'
+      replace='[sas-casserver-primary]\ncontroller'
+
+  - name: Prepare CAS Workers list
+    shell: cat /tmp/inventory.head | grep worker | cut -d' ' -f1 > /tmp/inventory.workers
+
+  - name: Set CAS workers
+    blockinfile:
+      dest=inventory.ini
+      insertafter='^\[sas-casserver-worker\]'
+      block="{{ lookup('file', '/tmp/inventory.workers') }}"
+      marker="# {mark} ADD WORKERS"
+
+  # Everything else
+  - name: All other services
+    replace:
+      dest=inventory.ini
+      regexp='^deployTarget'
+      replace='visual'
+      backup=yes

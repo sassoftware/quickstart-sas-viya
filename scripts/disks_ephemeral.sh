@@ -1,7 +1,5 @@
 #!/bin/bash -e
 
-# TODO: support non nvm-type ephemerals (for non i*. instance types)
-
 
 # create sastmp directory/mountpoint
 if [ ! -d /sastmp/ ]; then
@@ -36,8 +34,6 @@ else
 
   # format (raid) ephemeral drives if needed
   if  [ "$(blkid /dev/md0 | grep xfs)" = "" ]; then
-
-    yum -y -d0 install mdadm
 
     # find the drive devices
     drives=""
@@ -83,11 +79,6 @@ else
 
 fi
 
-
-if [ ! -d /sastmp/saswork/ ]; then
-    mkdir /sastmp/saswork
-fi
-chmod 777 /sastmp/saswork
 if [ ! -d /sastmp/cascache/ ]; then
     mkdir /sastmp/cascache
 fi
