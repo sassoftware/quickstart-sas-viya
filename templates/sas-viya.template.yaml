@@ -20,6 +20,8 @@ Metadata:
           - AdminIngressLocation
           - SASAdminPass
           - SASUserPass
+#          - CASInstanceType
+#          - DeploymentMirror
           - OperatorEmail
       - Label:
           default: Network Configuration
@@ -52,6 +54,8 @@ Metadata:
         default: Quick Start S3 Key Prefix
       DeploymentDataLocation:
         default: SAS Viya Software Order File
+#      CASInstanceType:
+#        default: EC2 Instance Type for the CAS compute VM
       VPCID:
         default: VPC ID
       AdminIngressLocation:
@@ -62,6 +66,8 @@ Metadata:
         default: SAS Administrator Password
       SASUserPass:
         default: Password for Default User
+#      DeploymentMirror:
+#        default: Mirror of SAS Viya Deployment Data
       OperatorEmail:
         default: Operator Email
       SSLCertificateARN:
@@ -82,6 +88,16 @@ Parameters:
     Type: String
     MinLength: '1'
     ConstraintDescription: must be a zip file in a valid S3 bucket location, e.g. mysasbucket/viya_deployment_data/SAS_Viya_deployment_data.zip
+#  CASInstanceType:
+#    AllowedValues:
+#      - "i3"
+#      - "r4"
+#    ConstraintDescription: Must contain either "i3" or "r4"
+#    Default: "i3"
+#    Description: Type of EC2 instance for the Viya Compute Nodes (i3 for performance, r4 for auto-recovery)
+#    Type: String
+
+
 
   KeyPairName:
     Description: >-
@@ -125,6 +141,15 @@ Parameters:
     AllowedPattern: ^([^']*)$
     ConstraintDescription: Password cannot be longer than 255 characters and cannot contain single quotes.
 
+#  DeploymentMirror:
+#    Description: >-
+#      (Optional) Location of SAS Viya Deployment Repository Mirror
+#    Default: ''
+#    Type: String
+#    ConstraintDescription: must be valid http(s) or s3 location of mirror repository (e.g. https://my-repository-vm or s3://my-bucket/my-path)
+#    AllowedPattern: ^(^$|s3:\/\/|(http|https):\/\/).*
+
+
   VPCID:
     Description: ID of an existing VPC with a public and a private subnet in the same Availability Zone.
     Type: AWS::EC2::VPC::Id
@@ -134,7 +159,7 @@ Parameters:
   PublicSubnetID:
     Description: >-
       ID of public subnet for the Elastic Load Balancer
-      and Ansible Controller (e.g. subnet-9bc642ac)
+      and Ansible Controller (e.g. subnet-1234567890abcdef0)
       (must be in the same AZ as PrivateSubnetID)
     Type: AWS::EC2::Subnet::Id
     MinLength: '15'
@@ -142,7 +167,7 @@ Parameters:
     ConstraintDescription: must be an existing Subnet ID in the current AWS region
   PrivateSubnetID:
     Description: >-
-      ID of private subnet for the SAS Viya Application VMs (e.g. subnet-a0246dcd)
+      ID of private subnet for the SAS Viya Application VMs (e.g. subnet-1234567890abcdef0)
       (must be in the same AZ as PublicSubnetID)
     Type: AWS::EC2::Subnet::Id
     MinLength: '15'
@@ -156,7 +181,7 @@ Parameters:
       letters, and hyphens (-). It cannot start or end with a hyphen (-).
     Default: aws-quickstart
     Description: >-
-     S3 bucket name for the Quick Start assets.   
+     S3 bucket name for the Quick Start assets.
      Only change this value if you customize or extend the Quick Start for your own use.
      This string can include numbers, lowercase letters, uppercase letters, and hyphens (-).
      It cannot start or end with a hyphen (-).
@@ -196,7 +221,6 @@ Parameters:
     Description: Existing DNS Zone ID for the DomainName (blank = generated ELB name will be used as application DNS name)
     Type: String
     Default: ''
-
 
 Mappings:
   AWSAMIRegionMap:
@@ -304,6 +328,7 @@ Rules:
                 - !Ref AWSHostedZoneID
                 - ''
         AssertDescription: DomainName and AWSHostedZoneID need to be set together
+
 Conditions:
   GovCloudCondition: !Equals
     - !Ref AWS::Region
@@ -312,6 +337,14 @@ Conditions:
     - !Equals
       - !Ref OperatorEmail
       - ''
+
+#  IsI3: !Equals
+#    - !Ref CASInstanceType
+#    - i3
+
+#  IsNotI3:
+#    Fn::Not:
+#    - Condition: IsI3
 
   NoDNSEntry:
     Fn::Or:
@@ -344,6 +377,7 @@ Resources:
         ZipFile: |
           import zipfile
           import boto3
+          from urllib.parse import urlparse
           import io
           from botocore.vendored import requests
           import json
@@ -353,6 +387,13 @@ Resources:
           rS = FAILED
           s3 = boto3.client('s3')
           def license(event, context):
+            # rD["s3_mirror_bucket"] = ''
+            # rD["s3_mirror_path"] = ''
+            # deployment_mirror_path = event['ResourceProperties']['DeploymentMirror']
+            #if (deployment_mirror_path.lower().startswith('s3')):
+            #  o = urlparse(deployment_mirror_path)
+            #  rD["s3_mirror_bucket"] = o.netloc
+            #  rD["s3_mirror_path"] = o.path
             ddl = event['ResourceProperties']['DeploymentDataLocation']
             bucket = ddl[:ddl.find('/')]
             key = ddl[ddl.find('/')+1:]
@@ -364,10 +405,17 @@ Resources:
               send(event, context, rS, rD, reason)
             with io.BytesIO(obj["Body"].read()) as tf:
               tf.seek(0)
+              rD['ViyaVersion'] = '3.3'
+              rD['SASHomePath'] = '/SASHome'
+              rD['SASStudioPath'] = '/SASStudio'
               with zipfile.ZipFile(tf, mode='r') as zipf:
                 for file in zipf.infolist():
-                  if (file.filename.startswith('licenses/')):
+                  if (file.filename.endswith('Linux_x86-64.txt')):
                     templicensefile = zipf.extract(file,'/tmp')
+                  if (file.filename.endswith('.jwt')):
+                    rD['ViyaVersion'] = '3.4'
+                    rD['SASHomePath'] = '/SASDrive'
+                    rD['SASStudioPath'] = '/SASStudioV'
               tline = ''
               lf = []
               with open(templicensefile) as tlf:
@@ -391,15 +439,20 @@ Resources:
               if model is None:
                 raise ValueError('The CPU detail row for the CAS cpu was not found in the license file.')
               cpucount = int(model[model.find('SERIAL=')+9:][:3].replace("'",""))
+              if cpucount == 999:
+                cpucount = int(4)
+                if ddl.find("Core") > 0:
+                  cpucount = int(ddl[ddl.find("Core")-2:ddl.find("Core")].strip('_'))
               rD['CPUCount'] = cpucount
               rS = SUCCESS
 
             rD["NumWorkers"] = 0
             rD["CASLibSize"] = 500
             rD["UserLibSize"] = 500
+            rD["NodeInstanceSize"] = "2xlarge"
+            rD["CASCacheSize"] = 180
             if cpucount == 4:
-              rD["NodeInstanceSize"] = "2xlarge"
-              rD["CASCacheSize"] = 180
+              pass
             elif cpucount <= 8:
               rD["NodeInstanceSize"] = "4xlarge"
               rD["CASCacheSize"] = 360
@@ -415,7 +468,7 @@ Resources:
           def send(event, context, rS, rD, reason="", physicalResourceId=None, noEcho=False):
             responseUrl = event['ResponseURL']
 
-            print responseUrl
+            print (responseUrl)
             if reason == "":
               reason = 'See the details in CloudWatch Log Stream: ' + context.log_stream_name
             rB = {}
@@ -430,7 +483,7 @@ Resources:
 
             json_rB = json.dumps(rB)
 
-            print "Response body:\n" + json_rB
+            print ("Response body:\n" + json_rB)
 
             headers = {
                 'content-type' : '',
@@ -441,11 +494,11 @@ Resources:
                 response = requests.put(responseUrl,
                                         data=json_rB,
                                         headers=headers)
-                print "Status code: " + response.reason
+                print ("Status code: " + response.reason)
             except Exception as e:
-                print "send(..) failed executing requests.put(..): " + str(e)
+                print ("send(..) failed executing requests.put(..): " + str(e))
       Handler: index.license
-      Runtime: python2.7
+      Runtime: python3.6
       Timeout: 30
       Role: !GetAtt LicenseLambdaExecutionRole.Arn
       Description: !Sub LicenseInfo Custom Property for Stack ${AWS::StackName}
@@ -476,6 +529,12 @@ Resources:
             Action:
             - s3:getObject
             Resource: !Sub 'arn:aws:s3:::${DeploymentDataLocation}'
+          - Effect: Allow
+            Action:
+            - s3:GetBucketLocation
+            Resource: !Sub
+              - 'arn:aws:s3:::${target_bucket_name}'
+              - {target_bucket_name: !Select [0, !Split [ '/', !Sub "${DeploymentDataLocation}" ] ] }
   # create the log Group for Lambda by Cloudformation to ensure
   # it is deleted at termination
   LicenseLambdaFunctionLogGroup:
@@ -488,7 +547,101 @@ Resources:
     Properties:
       ServiceToken: !GetAtt LicenseFunction.Arn
       DeploymentDataLocation: !Ref DeploymentDataLocation
+      IsPublic: !GetAtt IsLicensePublicInfo.is_public
+      # DeploymentMirror: !Ref DeploymentMirror
 
+  # Lambda Function that checks the license file to see if it can be publicly downloaded
+  IsLicensePublicFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |
+          import boto3
+          import urllib.request
+          from botocore.vendored import requests
+          import json
+          def is_license_public(event, context):
+
+            is_public = False
+            license_file_path = event['ResourceProperties']['DeploymentDataLocation']
+            bucket_name = license_file_path.split("/")[0]
+            try:
+              s3_client = boto3.client("s3")
+              location_response = s3_client.get_bucket_location(Bucket=bucket_name)
+            except:
+              # in case we cannot establish the the bucket location, we return a positive result
+              # An error here could be caused by any of these:
+              # - the bucket does not exist (an error with then be caught by LicenseFunction)
+              # - bucket not accessible (error later caught by LicenseFunction)
+              # - The bucket is in a different account and GetBucketLocation permission not set for client account
+              #   - this can be due to missing permissions on the bucket or the role
+              #   - or in this edge case: the bucket is in a different account and a different region than
+              #     the client session. Even setting explicit permissions for GetBucketLoccation will not suffice.
+              is_public = False
+            else:
+              location = location_response['LocationConstraint']
+              if location is None:
+                location = 'us-east-1'
+              s3_location_client = boto3.client('s3', region_name=location)
+              url_accessable = True
+              url = '{}/{}'.format(s3_location_client.meta.endpoint_url, license_file_path)
+              try:
+                response = urllib.request.urlopen(url)
+                is_public = True
+              except urllib.error.HTTPError as e:
+                if e.code == 403:
+                  is_public = False
+                else:
+                  raise e
+
+            if is_public:
+              send(event, context, "FAILED", {'is_public': is_public}, 'License File at ' + license_file_path + ' is public and can be accessed by anyone. Please secure this file before proceeding.')
+            else:
+              send(event, context, "SUCCESS", {'is_public': is_public}, 'License File at ' + license_file_path + ' is private.')
+            return is_public
+          def send(event, context, rS, rD, reason="", physicalResourceId=None, noEcho=False):
+            responseUrl = event['ResponseURL']
+            print(responseUrl)
+            if reason == "":
+              reason = 'See the details in CloudWatch Log Stream: ' + context.log_stream_name
+            rB = {}
+            rB['Status'] = rS
+            rB['Reason'] = reason
+            rB['PhysicalResourceId'] = physicalResourceId or context.log_stream_name
+            rB['StackId'] = event['StackId']
+            rB['RequestId'] = event['RequestId']
+            rB['LogicalResourceId'] = event['LogicalResourceId']
+            rB['NoEcho'] = noEcho
+            rB['Data'] = rD
+            json_rB = json.dumps(rB)
+            print("Response body:\n" + json_rB)
+            headers = {
+                'content-type' : '',
+                'content-length' : str(len(json_rB))
+            }
+            try:
+              response = requests.put(responseUrl,
+                                      data=json_rB,
+                                      headers=headers)
+              print("Status code: " + response.reason)
+            except Exception as e:
+              print("send(..) failed executing requests.put(..): " + str(e))
+      Handler: index.is_license_public
+      Runtime: python3.6
+      Timeout: 30
+      Role: !GetAtt LicenseLambdaExecutionRole.Arn
+      Description: !Sub IsLicensePublicInfo Custom prereq checker for Stack ${AWS::StackName}
+  # Custom Property to force execution of the IsLicensePublicFunction function
+  IsLicensePublicInfo:
+    Type: Custom::IsLicensePublicInfo
+    Properties:
+      ServiceToken: !GetAtt IsLicensePublicFunction.Arn
+      DeploymentDataLocation: !Ref DeploymentDataLocation
+
+  IsLicensePublicLambdaFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${IsLicensePublicFunction}
 
   DelCert:
     Type: Custom::DelCert
@@ -707,6 +860,7 @@ Resources:
           ToPort: '-1'
           CidrIp: !Ref AdminIngressLocation
 
+
   ViyaSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -716,6 +870,10 @@ Resources:
         - IpProtocol: tcp
           FromPort: '22'
           ToPort: '22'
+          SourceSecurityGroupId: !Ref AnsibleControllerSecurityGroup
+        - IpProtocol: tcp
+          FromPort: '8008'
+          ToPort: '8008'
           SourceSecurityGroupId: !Ref AnsibleControllerSecurityGroup
 
   ProxySecurityGroup:
@@ -733,11 +891,19 @@ Resources:
   # open ports between all participants
   # all hosts need to succeed an ssh-keyscan to all other hosts of the deployment
   # and for consul communication
-  ViyatoviyaSGIngress:
+  ViyatoviyaTCPIngress:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !Ref ViyaSecurityGroup
       IpProtocol: tcp
+      FromPort: '0'
+      ToPort: '65535'
+      SourceSecurityGroupId: !Ref ViyaSecurityGroup
+  ViyatoviyaUDPIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref ViyaSecurityGroup
+      IpProtocol: udp
       FromPort: '0'
       ToPort: '65535'
       SourceSecurityGroupId: !Ref ViyaSecurityGroup
@@ -826,6 +992,23 @@ Resources:
               - 'sts:AssumeRole'
       Path: /
       Policies:
+#        - PolicyDocument:
+#            Version: 2012-10-17
+#            Statement:
+#              - Action:
+#                  - 's3:ListBucket'
+#                Resource: !Sub
+#                 - 'arn:aws:s3:::${mirror_bucket_name}'
+#                 - mirror_bucket_name: !GetAtt LicenseInfo.s3_mirror_bucket
+#                Effect: Allow
+#              - Action:
+#                  - 's3:GetObject'
+#                Resource: !Sub
+#                  - 'arn:aws:s3:::${mirror_bucket_name}${mirror_bucket_path}*'
+#                  - { mirror_bucket_name: !GetAtt LicenseInfo.s3_mirror_bucket,
+#                      mirror_bucket_path: !GetAtt LicenseInfo.s3_mirror_path }
+#                Effect: Allow
+#          PolicyName: aws-mirror-s3-policy
         - PolicyDocument:
             Version: 2012-10-17
             Statement:
@@ -841,6 +1024,15 @@ Resources:
                 Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/viya-ansiblekey-${AWS::StackName}'
                 Effect: Allow
           PolicyName: viya-services-ssm-policy
+        - PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Action:
+                   - 'ec2:DescribeVolumes'
+                   - 'ec2:CreateTags'
+                Resource: "*"
+                Effect: Allow
+          PolicyName: viya-services-ec2-policy
         - PolicyDocument:
             Version: 2012-10-17
             Statement:
@@ -886,63 +1078,28 @@ Resources:
           quickstart:
             - install
         install:
-          files:
-            /tmp/diskprep.sh:
-              source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/diskprep.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-            /usr/sbin/disks_ephemeral.sh:
-              source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/disks_ephemeral.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-            /tmp/node_setup.sh:
-              source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/node_setup.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-              context:
-                AWSRegion: !Ref AWS::Region
-                CloudFormationStack: !Ref AWS::StackName
-            /tmp/cloudwatch.conf:
-              source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.conf
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000440'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-              context:
-                LogGroup: !Ref CloudWatchLogGroup
-                Role: VisualServices
           commands:
-            01-diskprep:
-              command: /tmp/diskprep.sh
-            02-setup:
-              command: /tmp/node_setup.sh
-
+            01-getkey:
+              command:
+                Fn::Sub: |
+                  #!/bin/bash
+                  KEY=dummy
+                  # wait until the key is available (the ansible controller puts it there)
+                  TRIES=0
+                  until [[ ! "$KEY" = "dummy" || $TRIES -gt 10 ]]; do
+                     KEY=$(aws ssm get-parameter --region "${AWS::Region}" --name "viya-ansiblekey-${AWS::StackName}" --query Parameter.Value --output text)
+                     if [[ $KEY = *"error"* ]]; then
+                        sleep 5
+                        let TRIES++
+                     else
+                        sleep 1
+                     fi
+                  done
+                  if [ $TRIES -gt 10 ]; then
+                     echo "Error - could not obtain key from ssm."
+                     exit 1
+                  fi
+                  echo "$KEY" | su ec2-user bash -c 'tee -a ~/.ssh/authorized_keys'
     Properties:
       KeyName: !Ref KeyPairName
       ImageId: !FindInMap
@@ -965,6 +1122,7 @@ Resources:
             VolumeSize: '50'
             VolumeType: gp2
             DeleteOnTermination: true
+            Encrypted: true
       SecurityGroupIds:
         - !Ref ViyaSecurityGroup
         - !Ref ProxySecurityGroup
@@ -976,15 +1134,10 @@ Resources:
           Fn::Sub: |
             #!/bin/bash
             export PATH=$PATH:/usr/local/bin
-            which pip &> /dev/null
-            if [ $? -ne 0 ] ; then
-              echo "PIP NOT INSTALLED"
-              [ `which yum` ] && $(yum install -y epel-release; yum install -y python-pip) && echo "PIP INSTALLED"
-              [ `which apt-get` ] && apt-get -y update && apt-get -y install python-pip && echo "PIP INSTALLED"
-            fi
-            pip install --upgrade pip &> /dev/null
+            curl -O https://bootstrap.pypa.io/get-pip.py && python get-pip.py &> /dev/null
             pip install awscli --ignore-installed six &> /dev/null
             easy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
+
             cfn-init --stack ${AWS::StackName} --resource VisualServices --configsets quickstart --region ${AWS::Region}
             # Signal the status from cfn-init
             cfn-signal -e $? --stack ${AWS::StackName} --resource VisualServices --region ${AWS::Region}
@@ -1006,62 +1159,28 @@ Resources:
           quickstart:
             - install
         install:
-          files:
-            /tmp/diskprep.sh:
-              source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/diskprep.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-            /usr/sbin/disks_ephemeral.sh:
-              source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/disks_ephemeral.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-            /tmp/node_setup.sh:
-              source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/node_setup.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-              context:
-                AWSRegion: !Ref AWS::Region
-                CloudFormationStack: !Ref AWS::StackName
-            /tmp/cloudwatch.conf:
-              source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.conf
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000440'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-              context:
-                LogGroup: !Ref CloudWatchLogGroup
-                Role: ProgrammingServices
           commands:
-            01-diskprep:
-              command: /tmp/diskprep.sh
-            02-setup:
-              command: /tmp/node_setup.sh
+            01-getkey:
+              command:
+                Fn::Sub: |
+                  #!/bin/bash
+                  KEY=dummy
+                  # wait until the key is available (the ansible controller puts it there)
+                  TRIES=0
+                  until [[ ! "$KEY" = "dummy" || $TRIES -gt 10 ]]; do
+                     KEY=$(aws ssm get-parameter --region "${AWS::Region}" --name "viya-ansiblekey-${AWS::StackName}" --query Parameter.Value --output text)
+                     if [[ $KEY = *"error"* ]]; then
+                        sleep 5
+                        let TRIES++
+                     else
+                        sleep 1
+                     fi
+                  done
+                  if [[ $TRIES -gt 10 ]]; then
+                     echo "Error - could not obtain key from ssm."
+                     exit 1
+                  fi
+                  echo "$KEY" | su ec2-user bash -c 'tee -a ~/.ssh/authorized_keys'
 
     Properties:
       KeyName: !Ref KeyPairName
@@ -1085,6 +1204,7 @@ Resources:
             VolumeSize: '50'
             VolumeType: gp2
             DeleteOnTermination: true
+            Encrypted: true
       SecurityGroupIds:
         - !Ref ProxySecurityGroup
         - !Ref ViyaSecurityGroup
@@ -1096,13 +1216,7 @@ Resources:
           Fn::Sub: |
             #!/bin/bash
             export PATH=$PATH:/usr/local/bin
-            which pip &> /dev/null
-            if [ $? -ne 0 ] ; then
-              echo "PIP NOT INSTALLED"
-              [ `which yum` ] && $(yum install -y epel-release; yum install -y python-pip) && echo "PIP INSTALLED"
-              [ `which apt-get` ] && apt-get -y update && apt-get -y install python-pip && echo "PIP INSTALLED"
-            fi
-            pip install --upgrade pip &> /dev/null
+            curl -O https://bootstrap.pypa.io/get-pip.py && python get-pip.py &> /dev/null
             pip install awscli --ignore-installed six &> /dev/null
             easy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
             cfn-init --stack ${AWS::StackName} --resource ProgrammingServices --configsets quickstart --region ${AWS::Region}
@@ -1127,62 +1241,28 @@ Resources:
           quickstart:
             - install
         install:
-          files:
-            /tmp/diskprep.sh:
-              source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/diskprep.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-            /usr/sbin/disks_ephemeral.sh:
-              source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/disks_ephemeral.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-            /tmp/node_setup.sh:
-              source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/node_setup.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-              context:
-                AWSRegion: !Ref AWS::Region
-                CloudFormationStack: !Ref AWS::StackName
-            /tmp/cloudwatch.conf:
-              source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.conf
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000440'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-              context:
-                LogGroup: !Ref CloudWatchLogGroup
-                Role: StatefulServices
           commands:
-            01-diskprep:
-              command: /tmp/diskprep.sh
-            02-setup:
-              command: /tmp/node_setup.sh
+            01-getkey:
+              command:
+                Fn::Sub: |
+                  #!/bin/bash
+                  KEY=dummy
+                  # wait until the key is available (the ansible controller puts it there)
+                  TRIES=0
+                  until [[ ! "$KEY" = "dummy" || $TRIES -gt 10 ]]; do
+                     KEY=$(aws ssm get-parameter --region "${AWS::Region}" --name "viya-ansiblekey-${AWS::StackName}" --query Parameter.Value --output text)
+                     if [[ $KEY = *"error"* ]]; then
+                        sleep 5
+                        let TRIES++
+                     else
+                        sleep 1
+                     fi
+                  done
+                  if [[ $TRIES -gt 10 ]]; then
+                     echo "Error - could not obtain key from ssm."
+                     exit 1
+                  fi
+                  echo "$KEY" | su ec2-user bash -c 'tee -a ~/.ssh/authorized_keys'
     Properties:
       KeyName: !Ref KeyPairName
       ImageId: !FindInMap
@@ -1205,6 +1285,7 @@ Resources:
             VolumeSize: '50'
             VolumeType: gp2
             DeleteOnTermination: true
+            Encrypted: true
       SecurityGroupIds:
         - !Ref ViyaSecurityGroup
         - !Ref ProxySecurityGroup
@@ -1216,13 +1297,7 @@ Resources:
           Fn::Sub: |
             #!/bin/bash
             export PATH=$PATH:/usr/local/bin
-            which pip &> /dev/null
-            if [ $? -ne 0 ] ; then
-              echo "PIP NOT INSTALLED"
-              [ `which yum` ] && $(yum install -y epel-release; yum install -y python-pip) && echo "PIP INSTALLED"
-              [ `which apt-get` ] && apt-get -y update && apt-get -y install python-pip && echo "PIP INSTALLED"
-            fi
-            pip install --upgrade pip &> /dev/null
+            curl -O https://bootstrap.pypa.io/get-pip.py && python get-pip.py &> /dev/null
             pip install awscli --ignore-installed six &> /dev/null
             easy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
             cfn-init --stack ${AWS::StackName} --resource StatefulServices --configsets quickstart --region ${AWS::Region}
@@ -1249,63 +1324,28 @@ Resources:
           quickstart:
             - install
         install:
-          files:
-            /tmp/diskprep.sh:
-              source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/diskprep.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-            /usr/sbin/disks_ephemeral.sh:
-              source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/disks_ephemeral.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-            /tmp/node_setup.sh:
-              source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/node_setup.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-              context:
-                AWSRegion: !Ref AWS::Region
-                CloudFormationStack: !Ref AWS::StackName
-            /tmp/cloudwatch.conf:
-              source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.conf
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000440'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-              context:
-                LogGroup: !Ref CloudWatchLogGroup
-                Role: cas-controller
-
           commands:
-            01-diskprep:
-              command: /tmp/diskprep.sh
-            02-setup:
-              command: /tmp/node_setup.sh
+            01-getkey:
+              command:
+                Fn::Sub: |
+                  #!/bin/bash
+                  KEY=dummy
+                  # wait until the key is available (the ansible controller puts it there)
+                  TRIES=0
+                  until [[ ! "$KEY" = "dummy" || $TRIES -gt 10 ]]; do
+                     KEY=$(aws ssm get-parameter --region "${AWS::Region}" --name "viya-ansiblekey-${AWS::StackName}" --query Parameter.Value --output text)
+                     if [[ $KEY = *"error"* ]]; then
+                        sleep 5
+                        let TRIES++
+                     else
+                        sleep 1
+                     fi
+                  done
+                  if [[ $TRIES -gt 10 ]]; then
+                     echo "Error - could not obtain key from ssm."
+                     exit 1
+                  fi
+                  echo "$KEY" | su ec2-user bash -c 'tee -a ~/.ssh/authorized_keys'
 
     Properties:
       KeyName: !Ref KeyPairName
@@ -1317,29 +1357,14 @@ Resources:
       IamInstanceProfile: !Ref ViyaProfile
       # transform "Nxlarge (N cores)" to "r4.Nxlarge"
       InstanceType: !Join
-        - ''
-        - - 'r4.'
+        - '.'
+        - - r4 # !Ref CASInstanceType
           - !GetAtt LicenseInfo.NodeInstanceSize
       EbsOptimized: true
       PlacementGroupName: !Ref ViyaPlacementGroup
       SecurityGroupIds:
         - !Ref ViyaSecurityGroup
-      BlockDeviceMappings:
-        - DeviceName: /dev/sdg
-          Ebs:
-            VolumeSize: '50'
-            VolumeType: gp2
-            DeleteOnTermination: true
-        - DeviceName: /dev/sdd
-          Ebs:
-            VolumeSize: !GetAtt LicenseInfo.CASCacheSize
-            VolumeType: gp2
-            DeleteOnTermination: true
-        - DeviceName: /dev/sdl
-          Ebs:
-            VolumeSize: !GetAtt LicenseInfo.CASLibSize
-            VolumeType: gp2
-            DeleteOnTermination: true
+
       Tags:
         - Key: Name
           Value: !Sub ${AWS::StackName} CAS Controller
@@ -1348,19 +1373,71 @@ Resources:
           Fn::Sub: |
             #!/bin/bash
             export PATH=$PATH:/usr/local/bin
-            which pip &> /dev/null
-            if [ $? -ne 0 ] ; then
-              echo "PIP NOT INSTALLED"
-              [ `which yum` ] && $(yum install -y epel-release; yum install -y python-pip) && echo "PIP INSTALLED"
-              [ `which apt-get` ] && apt-get -y update && apt-get -y install python-pip && echo "PIP INSTALLED"
-            fi
-            pip install --upgrade pip &> /dev/null
+            curl -O https://bootstrap.pypa.io/get-pip.py && python get-pip.py &> /dev/null
             pip install awscli --ignore-installed six &> /dev/null
             easy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
             cfn-init --stack ${AWS::StackName} --resource CASController --configsets quickstart --region ${AWS::Region}
             # Signal the status from cfn-init
             cfn-signal -e $? --stack ${AWS::StackName} --resource CASController --region ${AWS::Region}
 
+
+  CASViyaVolume:
+    Type: AWS::EC2::Volume
+    Properties:
+      Size: 50
+      VolumeType: gp2
+      Encrypted: true
+      AvailabilityZone: !GetAtt CASController.AvailabilityZone
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName} CAS Controller Viya Install
+
+  CASViyaAttachment:
+    Type: AWS::EC2::VolumeAttachment
+    Properties:
+      Device: /dev/sdg
+      InstanceId: !Ref CASController
+      VolumeId: !Ref CASViyaVolume
+
+
+  CASLibVolume:
+    Type: AWS::EC2::Volume
+    Properties:
+      Size: !GetAtt LicenseInfo.CASLibSize
+      VolumeType: gp2
+      Encrypted: true
+      AvailabilityZone: !GetAtt CASController.AvailabilityZone
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName} CAS Controller CASLib
+
+  CASLibAttachment:
+    Type: AWS::EC2::VolumeAttachment
+    Properties:
+      Device: /dev/sdl
+      InstanceId: !Ref CASController
+      VolumeId: !Ref CASLibVolume
+
+
+  CASCacheVolume:
+    #Condition: IsNotI3
+    Type: AWS::EC2::Volume
+    Properties:
+      Size: !GetAtt LicenseInfo.CASCacheSize
+      VolumeType: gp2
+      Encrypted: true
+      AvailabilityZone: !GetAtt CASController.AvailabilityZone
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName} CAS Controller CAS Cache
+
+  CASCacheAttachment:
+    #Condition: IsNotI3
+    Type: AWS::EC2::VolumeAttachment
+    Properties:
+      Device: /dev/sdd
+      InstanceId: !Ref CASController
+      VolumeId: !Ref CASCacheVolume
 
   AnsiblePublicKey:
     Type: AWS::SSM::Parameter
@@ -1388,6 +1465,15 @@ Resources:
             Version: 2012-10-17
             Statement:
               - Action:
+                  - "acm:DescribeCertificate"
+                Resource:
+                  - "arn:aws:acm:*:*:certificate/*"
+                Effect: Allow
+          PolicyName: ansiblecontroller-acm-policy
+        - PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Action:
                   - 'SNS:Publish'
                 Resource: "*"
                 Effect: Allow
@@ -1397,14 +1483,14 @@ Resources:
             Statement:
               - Action:
                   - 's3:ListBucket'
-                  - 's3:ListObjects'
                 Resource:
-                  - !Sub 'arn:aws:s3:::${QSS3BucketName}*'
+                  - !Sub 'arn:aws:s3:::${QSS3BucketName}'
                 Effect: Allow
               - Action:
                   - 's3:GetObject'
                 Resource:
                   - !Sub 'arn:aws:s3:::${QSS3BucketName}/*'
+
                 Effect: Allow
           PolicyName: aws-quick-start-s3-policy
         - PolicyDocument:
@@ -1416,6 +1502,23 @@ Resources:
                   - !Sub 'arn:aws:s3:::${DeploymentDataLocation}'
                 Effect: Allow
           PolicyName: viya-playbook-s3-policy
+#        - PolicyDocument:
+#            Version: 2012-10-17
+#            Statement:
+#              - Action:
+#                  - 's3:ListBucket'
+#                Resource: !Sub
+#                 - 'arn:aws:s3:::${mirror_bucket_name}'
+#                 - mirror_bucket_name: !GetAtt LicenseInfo.s3_mirror_bucket
+#                Effect: Allow
+#              - Action:
+#                  - 's3:GetObject'
+#                Resource: !Sub
+#                  - 'arn:aws:s3:::${mirror_bucket_name}${mirror_bucket_path}*'
+#                  - { mirror_bucket_name: !GetAtt LicenseInfo.s3_mirror_bucket,
+#                      mirror_bucket_path: !GetAtt LicenseInfo.s3_mirror_path }
+#                Effect: Allow
+#          PolicyName: aws-mirror-s3-policy
         - PolicyDocument:
             Version: 2012-10-17
             Statement:
@@ -1432,6 +1535,9 @@ Resources:
                   - 'ec2:AssociateAddress'
                   - 'ec2:DescribeAddresses'
                   - 'ec2:DescribeInstances'
+                  - 'ec2:RunInstances'
+                  - 'ec2:AttachVolume'
+                  - 'ec2:CreateTags'
                   - 'elasticloadbalancing:DescribeLoadBalancers'
                   - 'elasticloadbalancing:DeleteLoadBalancerListeners'
                   - 'elasticloadbalancing:CreateLoadBalancerListeners'
@@ -1448,6 +1554,11 @@ Resources:
                   - 'iam:listServerCertificates'
                 Resource:
                   - '*'
+                Effect: Allow
+              - Action:
+                  - 'iam:PassRole'
+                Resource:
+                  - !Sub arn:aws:iam::${AWS::AccountId}:role/${ViyaRole}
                 Effect: Allow
           PolicyName: ansiblecontroller-iam-policy
         - PolicyDocument:
@@ -1500,11 +1611,6 @@ Resources:
     Type: AWS::EC2::EIP
     Properties:
       Domain: vpc
-  IPAssoc:
-    Type: AWS::EC2::EIPAssociation
-    Properties:
-      InstanceId: !Ref AnsibleController
-      EIP: !Ref AnsibleControllerEIP
   AnsibleController:
     Type: AWS::EC2::Instance
     CreationPolicy:
@@ -1561,6 +1667,7 @@ Resources:
               authentication: S3AccessCreds
               context:
                 LogGroup: !Ref CloudWatchLogGroup
+
           commands:
             01-bootstrap:
               command: /tmp/bastion_bootstrap.sh --enable false
@@ -1573,7 +1680,7 @@ Resources:
               command: /tmp/ansiblecontroller_prereqs.sh
         sasprep:
           files:
-            /tmp/install.sh:
+            /home/ec2-user/deployment-scripts/install.sh:
               source: !Sub
                 - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/install.sh
                 - QSS3Region: !If
@@ -1600,6 +1707,56 @@ Resources:
                 HostedZoneID: !If [HasDNSEntry, !Ref AWSHostedZoneID, ""]
                 S3FileRoot: !Sub "${QSS3BucketName}/${QSS3KeyPrefix}"
                 DeploymentDataLocation: !Ref DeploymentDataLocation
+                RAIDScript: !Sub ${QSS3BucketName}/${QSS3KeyPrefix}scripts/disks_ephemeral.sh
+                DeploymentMirror: "" #!Ref DeploymentMirror
+                ViyaVersion: !GetAtt LicenseInfo.ViyaVersion
+
+            /home/ec2-user/deployment-scripts/create.mirror.yml:
+              source: !Sub
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/create.mirror.yml
+                - QSS3Region: !If
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000500'
+              owner: ec2-user
+              group: ec2-user
+              authentication: S3AccessCreds
+              context:
+                AWSRegion: !Ref AWS::Region
+                #S3MirrorLocation: !Ref DeploymentMirror
+
+
+            /home/ec2-user/deployment-scripts/recover_cascontroller.sh:
+              source: !Sub
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/recover_cascontroller.sh
+                - QSS3Region: !If
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000500'
+              owner: ec2-user
+              group: ec2-user
+              authentication: S3AccessCreds
+              context:
+                Stack: !Ref AWS::StackName
+                AWSRegion: !Ref AWS::Region
+                ImageId: !FindInMap
+                   - AWSAMIRegionMap
+                   - !Ref AWS::Region
+                   - RHEL74HVM
+                KeyName: !Ref KeyPairName
+                SubnetId: !Ref PrivateSubnetID
+                IamInstanceProfile: !Ref ViyaProfile
+                InstanceType: !Join
+                  - '.'
+                  - - r4 # !Ref CASInstanceType
+                    - !GetAtt LicenseInfo.NodeInstanceSize
+                PlacementGroupName: !Ref ViyaPlacementGroup
+                SecurityGroupIds: !Ref ViyaSecurityGroup
+                SASUserPass: !Ref SASUserPass
+                SASAdminPass: !Ref SASAdminPass
+                RAIDScript: !Sub ${QSS3BucketName}/${QSS3KeyPrefix}scripts/disks_ephemeral.sh
 
             /tmp/ansible.cfg:
               source: !Sub
@@ -1614,11 +1771,12 @@ Resources:
               authentication: S3AccessCreds
             /tmp/ansible.update.inventory.yml:
               source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/update.inventory.yml
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/update.inventory.${ViyaVersion}.yml
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
                     - s3
+                  ViyaVersion: !GetAtt LicenseInfo.ViyaVersion
               mode: '000444'
               owner: ec2-user
               group: ec2-user
@@ -1669,13 +1827,13 @@ Resources:
               authentication: S3AccessCreds
           commands:
             01-install:
-              command: sudo su -l ec2-user -c "/tmp/install.sh"
+              command: sudo su -l ec2-user -c "./deployment-scripts/install.sh"
             02-post-install:
               command: |-
-                chmod +w /tmp/install.sh
-                sed -i  's/ADMINPASS=$.*/ADMINPASS="xxxx"/' /tmp/install.sh
-                sed -i  's/USERPASS=$.*/USERPASS="xxxx"/' /tmp/install.sh
-                chmod -w /tmp/install.sh
+                chmod +w /home/ec2-user/deployment-scripts/install.sh
+                sed -i  's/ADMINPASS=$.*/ADMINPASS="xxxx"/' /home/ec2-user/deployment-scripts/install.sh
+                sed -i  's/USERPASS=$.*/USERPASS="xxxx"/' /home/ec2-user/deployment-scripts/install.sh
+                chmod -w /home/ec2-user/deployment-scripts/install.sh
     Properties:
       KeyName: !Ref KeyPairName
       SubnetId: !Ref PublicSubnetID
@@ -1702,6 +1860,7 @@ Resources:
             # install latest cfn bootstrap utilities
             easy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
             CLOUDWATCHGROUP=${CloudWatchLogGroup}
+            EIP_LIST=${AnsibleControllerEIP}
             cfn-init --stack ${AWS::StackName} --resource AnsibleController --configsets quickstart --region ${AWS::Region}
             # Signal the status from cfn-init
             cfn-signal -e $? --stack ${AWS::StackName} --resource AnsibleController --region ${AWS::Region}
@@ -1718,7 +1877,7 @@ Outputs:
           - !GetAtt
             - ElasticLoadBalancer
             - DNSName
-        - '/SASHome'
+        - !GetAtt LicenseInfo.SASHomePath
   SASStudio:
     Description: SAS Studio
     Value: !Join
@@ -1730,7 +1889,7 @@ Outputs:
           - !GetAtt
             - ElasticLoadBalancer
             - DNSName
-        - '/SASStudio'
+        - !GetAtt LicenseInfo.SASStudioPath
   AnsibleControllerIP:
     Description: Ansible Controller IP address
     Value: !Ref AnsibleControllerEIP
@@ -1743,25 +1902,3 @@ Outputs:
         - !Ref AWS::Region
         - "#logStream:group="
         - !Ref CloudWatchLogGroup
-
-  VisualServicesIP:
-    Description: SAS Viya Visual Services IP address
-    Value: !GetAtt
-      - VisualServices
-      - PrivateIp
-  ProgrammingServicesIP:
-    Description: SAS Viya Programming Services IP address
-    Value: !GetAtt
-      - ProgrammingServices
-      - PrivateIp
-  StatefulServicesIP:
-    Description: SAS Viya Stateful Services IP address
-    Value: !GetAtt
-      - StatefulServices
-      - PrivateIp
-  CASControllerIP:
-    Description: CAS Controller IP address
-    Value: !GetAtt
-      - CASController
-      - PrivateIp
-

@@ -1,5 +1,5 @@
 ---
-- hosts: sas-all
+- hosts: all
   become: yes
   become_user: root
 
@@ -8,40 +8,102 @@
   - name: update hostname
     shell: "hostnamectl set-hostname --static {{inventory_hostname}}.viya.sas"
 
-#  - name: set yum.conf debuglevel
-#    lineinfile:
-#      dest: /etc/yum.conf
-#      regexp: '^debuglevel='
-#      line: 'debuglevel=10'
-#
-#  - name: set yum.conf timeout
-#    lineinfile:
-#      dest: /etc/yum.conf
-#      regexp: '^timeout='
-#      line: 'timeout=60'
-#      insertafter: '^\[main\]'
-#
-#  - name: set yum.conf retries
-#    lineinfile:
-#      dest: /etc/yum.conf
-#      regexp: '^retries='
-#      line: 'retries=0'
-#      insertafter: '^\[main\]'
-#
 
-
-
-- hosts: all, localhost
-  become: yes
-  become_user: root
-
-  tasks:
+  - name: create viya installation subdir
+    file:
+      path: /opt/sas
+      state: directory
+  - name: format viya installation volume
+    filesystem: fstype=xfs dev=/dev/xvdg
+  - name: mount viya installation volume
+    mount: name=/opt/sas fstype=xfs state=mounted src=/dev/xvdg
 
   - name: Set hosts
     blockinfile:
       dest=/etc/hosts
       block="{{ lookup('file', '/tmp/hostnames.txt') }}"
       marker="# {mark} ADD HOSTS"
+
+  - name: Tag EBS volumes
+    shell: |
+      INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )
+      DISK_IDS=$(aws --region {{AWSRegion}} ec2 describe-volumes  --filter "Name=attachment.instance-id, Values=$INSTANCE_ID" --query "Volumes[].VolumeId" --out text)
+      aws ec2  --region {{AWSRegion}}  create-tags --resources $DISK_IDS --tags Key=Name,Value="{{CloudFormationStack}} {{inventory_hostname}}" Key=Stack,Value="{{CloudFormationStack}}"
+
+
+
+- hosts: prog
+  become: yes
+  become_user: root
+
+  tasks:
+
+  - name: create saswork subdir
+    file:
+      path: /sastmp/saswork
+      state: directory
+      mode: 0777
+
+
+- hosts: controller
+  become: yes
+  become_user: root
+
+  tasks:
+
+  - name: create saslib subdir
+    file:
+      path: /opt/sas/viya/config/data/cas
+      state: directory
+  - name: format saslib volume
+    filesystem: fstype=xfs dev=/dev/xvdl
+  - name: mount saslib volume
+    mount: name=/opt/sas/viya/config/data/cas fstype=xfs state=mounted src=/dev/xvdl
+
+
+  - name: check for xvdd device
+    stat:
+      path: /dev/xvdd
+    register: xvdd
+  - name: format new volume
+    filesystem: fstype=xfs dev=/dev/xvdd
+    when: xvdd.stat.exists == true
+  - name: mount sastmp
+    mount: name=/sastmp fstype=xfs state=mounted src=/dev/xvdd
+    when: xvdd.stat.exists == true
+
+  - name: make sure mdadm is installed
+    yum:
+      name: mdadm
+      state: present
+  - name: Download disks_ephemeral.sh
+    shell: |
+      aws --region {{AWSRegion}} s3 cp s3://{{RAIDScript}} /usr/sbin/disks_ephemeral.sh
+      chmod +x /usr/sbin/disks_ephemeral.sh
+  - name: create disks_ephemeral service definition
+    copy:
+      dest: /etc/systemd/system/disks_ephemeral.service
+      content: |
+        [Unit]
+        Description=Format and Mount Ephemeral Disks
+        [Service]
+        ExecStart=/usr/sbin/disks_ephemeral.sh
+        [Install]
+        WantedBy=multi-user.target
+  - name: reload systemctl
+    command: systemctl daemon-reload
+  - name: ephemeral disks sercive
+    service:
+      name: disks_ephemeral
+      enabled: yes
+      state: started
+
+
+  - name: create cascache subdir
+    file:
+      path: /sastmp/cascache
+      state: directory
+      mode: 0777
 
 
 
