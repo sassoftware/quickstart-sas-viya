@@ -30,13 +30,13 @@ Metadata:
           - PublicSubnetID
           - PrivateSubnetID
       - Label:
-          default: Server DNS configuration (only required for custom DNS name and SSL)
+          default: Server DNS Configuration (only required for custom DNS name and SSL)
         Parameters:
           - DomainName
           - AWSHostedZoneID
           - SSLCertificateARN
       - Label:
-          default: AWS Quick Start Source Location
+          default: AWS Quick Start Configuration
         Parameters:
           - QSS3BucketName
           - QSS3KeyPrefix
