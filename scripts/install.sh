@@ -342,8 +342,18 @@ if [ -n "{{SSLCertificateARN}}" ]; then
 
   # this fails the script if the SSLCertificateARN is invalid
   FAILMSG="ERROR: SSL Certificate {{SSLCertificateARN}} does not exist in the current AWS account."
-  aws --no-paginate --region "{{AWSRegion}}" acm describe-certificate --certificate "{{SSLCertificateARN}}"
-  FAILMSG=
+  # Check the ARN to determine if this is an iam or acm certificate
+  CERT_ARN="{{SSLCertificateARN}}"
+  if [[ $CERT_ARN = *":iam:"* ]]; then
+      # iam certificate uses get-server-certificate
+      CERT_NAME=${CERT_ARN##*/}
+      aws --no-paginate --region "{{AWSRegion}}" iam get-server-certificate --server-certificate-name "$CERT_NAME"
+      FAILMSG=
+  else
+      # acm certificate uses describe-certificate
+      aws --no-paginate --region "{{AWSRegion}}" acm describe-certificate --certificate "$CERT_ARN"
+      FAILMSG=
+  fi
 fi
 
 #

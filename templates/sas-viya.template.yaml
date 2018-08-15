@@ -1552,6 +1552,7 @@ Resources:
               - Action:
                   - 'iam:uploadServerCertificate'
                   - 'iam:listServerCertificates'
+                  - 'iam:getServerCertificate'
                 Resource:
                   - '*'
                 Effect: Allow
