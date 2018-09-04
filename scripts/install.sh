@@ -236,7 +236,7 @@ configure_self_signed_cert () {
 cat <<EOF > "ssl.conf"
     [ req ]
     distinguished_name = dn
-    req_extensions = san
+    x509_extensions = san
     [ dn ]
     [ san ]
     subjectAltName          = DNS:$ELBDNS
@@ -342,8 +342,18 @@ if [ -n "{{SSLCertificateARN}}" ]; then
 
   # this fails the script if the SSLCertificateARN is invalid
   FAILMSG="ERROR: SSL Certificate {{SSLCertificateARN}} does not exist in the current AWS account."
-  aws --no-paginate --region "{{AWSRegion}}" acm describe-certificate --certificate "{{SSLCertificateARN}}"
-  FAILMSG=
+  # Check the ARN to determine if this is an iam or acm certificate
+  CERT_ARN="{{SSLCertificateARN}}"
+  if [[ $CERT_ARN = *":iam:"* ]]; then
+      # iam certificate uses get-server-certificate
+      CERT_NAME=${CERT_ARN##*/}
+      aws --no-paginate --region "{{AWSRegion}}" iam get-server-certificate --server-certificate-name "$CERT_NAME"
+      FAILMSG=
+  else
+      # acm certificate uses describe-certificate
+      aws --no-paginate --region "{{AWSRegion}}" acm describe-certificate --certificate "$CERT_ARN"
+      FAILMSG=
+  fi
 fi
 
 #
@@ -368,7 +378,9 @@ fi
 #
 # verify mirror is valid
 #
-DM=$(echo -n {{DeploymentMirror}} |  sed "s+/$++") # remove trailing slash if it exists
+
+# For s3:// : lowercase initial s, remove trailing slash if it exists
+DM=$(echo -n {{DeploymentMirror}} | sed "s/^S/s/" | sed "s+/$++"   )
 if [[ $(echo -n "{{DeploymentMirror}}" | cut -c1-2 | tr [:lower:] [:upper:]) == S3 ]]; then
   FAILMSG="ERROR: DeploymentMirror location {{DeploymentMirror}} not valid or not accessible."
   aws s3 ls ${DM}/entitlements.json
@@ -589,11 +601,6 @@ fi
 echo " " >> "$CMDLOG"
 echo "$(date) Download SAS Deployment Data file" >> "$CMDLOG"
 aws s3 cp s3://{{DeploymentDataLocation}} ~/deployment-data/SAS_Viya_deployment_data.zip >> "$CMDLOG"
-
-# get sas license data file
-echo " " >> "$CMDLOG"
-echo "$(date) Download SAS Deployment Data file" >> "$CMDLOG"
-aws s3 cp s3://{{DeploymentDataLocation}} /tmp/SAS_Viya_deployment_data.zip >> "$CMDLOG"
 
 # build playbook
 echo " " >> "$CMDLOG"

@@ -20,8 +20,8 @@ Metadata:
           - AdminIngressLocation
           - SASAdminPass
           - SASUserPass
-#          - CASInstanceType
-#          - DeploymentMirror
+          - CASInstanceType
+          - DeploymentMirror
           - OperatorEmail
       - Label:
           default: Network Configuration
@@ -54,8 +54,8 @@ Metadata:
         default: Quick Start S3 Key Prefix
       DeploymentDataLocation:
         default: SAS Viya Software Order File
-#      CASInstanceType:
-#        default: EC2 Instance Type for the CAS compute VM
+      CASInstanceType:
+        default: EC2 Instance Type for the CAS compute VM
       VPCID:
         default: VPC ID
       AdminIngressLocation:
@@ -66,8 +66,8 @@ Metadata:
         default: SAS Administrator Password
       SASUserPass:
         default: Password for Default User
-#      DeploymentMirror:
-#        default: Mirror of SAS Viya Deployment Data
+      DeploymentMirror:
+        default: Mirror of SAS Viya Deployment Data
       OperatorEmail:
         default: Operator Email
       SSLCertificateARN:
@@ -88,14 +88,14 @@ Parameters:
     Type: String
     MinLength: '1'
     ConstraintDescription: must be a zip file in a valid S3 bucket location, e.g. mysasbucket/viya_deployment_data/SAS_Viya_deployment_data.zip
-#  CASInstanceType:
-#    AllowedValues:
-#      - "i3"
-#      - "r4"
-#    ConstraintDescription: Must contain either "i3" or "r4"
-#    Default: "i3"
-#    Description: Type of EC2 instance for the Viya Compute Nodes (i3 for performance, r4 for auto-recovery)
-#    Type: String
+  CASInstanceType:
+    AllowedValues:
+      - "i3"
+      - "r4"
+    ConstraintDescription: Must contain either "i3" or "r4"
+    Default: "i3"
+    Description: Type of EC2 instance for the Viya Compute Nodes (i3 for performance, r4 for auto-recovery)
+    Type: String
 
 
 
@@ -141,13 +141,13 @@ Parameters:
     AllowedPattern: ^([^']*)$
     ConstraintDescription: Password cannot be longer than 255 characters and cannot contain single quotes.
 
-#  DeploymentMirror:
-#    Description: >-
-#      (Optional) Location of SAS Viya Deployment Repository Mirror
-#    Default: ''
-#    Type: String
-#    ConstraintDescription: must be valid http(s) or s3 location of mirror repository (e.g. https://my-repository-vm or s3://my-bucket/my-path)
-#    AllowedPattern: ^(^$|s3:\/\/|(http|https):\/\/).*
+  DeploymentMirror:
+    Description: >-
+      (Optional) Location of SAS Viya Deployment Repository Mirror
+    Default: ''
+    Type: String
+    ConstraintDescription: must be valid http(s) or s3 location of mirror repository (e.g. https://my-repository-vm or s3://my-bucket/my-path)
+    AllowedPattern: (?i)^(^$|s3:\/\/|(http|https):\/\/).*
 
 
   VPCID:
@@ -338,13 +338,13 @@ Conditions:
       - !Ref OperatorEmail
       - ''
 
-#  IsI3: !Equals
-#    - !Ref CASInstanceType
-#    - i3
+  IsI3: !Equals
+    - !Ref CASInstanceType
+    - i3
 
-#  IsNotI3:
-#    Fn::Not:
-#    - Condition: IsI3
+  IsNotI3:
+    Fn::Not:
+    - Condition: IsI3
 
   NoDNSEntry:
     Fn::Or:
@@ -387,13 +387,13 @@ Resources:
           rS = FAILED
           s3 = boto3.client('s3')
           def license(event, context):
-            # rD["s3_mirror_bucket"] = ''
-            # rD["s3_mirror_path"] = ''
-            # deployment_mirror_path = event['ResourceProperties']['DeploymentMirror']
-            #if (deployment_mirror_path.lower().startswith('s3')):
-            #  o = urlparse(deployment_mirror_path)
-            #  rD["s3_mirror_bucket"] = o.netloc
-            #  rD["s3_mirror_path"] = o.path
+            rD["s3_mirror_bucket"] = ''
+            rD["s3_mirror_path"] = ''
+            deployment_mirror_path = event['ResourceProperties']['DeploymentMirror']
+            if (deployment_mirror_path.lower().startswith('s3')):
+              o = urlparse(deployment_mirror_path)
+              rD["s3_mirror_bucket"] = o.netloc
+              rD["s3_mirror_path"] = o.path
             ddl = event['ResourceProperties']['DeploymentDataLocation']
             bucket = ddl[:ddl.find('/')]
             key = ddl[ddl.find('/')+1:]
@@ -548,7 +548,7 @@ Resources:
       ServiceToken: !GetAtt LicenseFunction.Arn
       DeploymentDataLocation: !Ref DeploymentDataLocation
       IsPublic: !GetAtt IsLicensePublicInfo.is_public
-      # DeploymentMirror: !Ref DeploymentMirror
+      DeploymentMirror: !Ref DeploymentMirror
 
   # Lambda Function that checks the license file to see if it can be publicly downloaded
   IsLicensePublicFunction:
@@ -992,23 +992,23 @@ Resources:
               - 'sts:AssumeRole'
       Path: /
       Policies:
-#        - PolicyDocument:
-#            Version: 2012-10-17
-#            Statement:
-#              - Action:
-#                  - 's3:ListBucket'
-#                Resource: !Sub
-#                 - 'arn:aws:s3:::${mirror_bucket_name}'
-#                 - mirror_bucket_name: !GetAtt LicenseInfo.s3_mirror_bucket
-#                Effect: Allow
-#              - Action:
-#                  - 's3:GetObject'
-#                Resource: !Sub
-#                  - 'arn:aws:s3:::${mirror_bucket_name}${mirror_bucket_path}*'
-#                  - { mirror_bucket_name: !GetAtt LicenseInfo.s3_mirror_bucket,
-#                      mirror_bucket_path: !GetAtt LicenseInfo.s3_mirror_path }
-#                Effect: Allow
-#          PolicyName: aws-mirror-s3-policy
+        - PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Action:
+                  - 's3:ListBucket'
+                Resource: !Sub
+                 - 'arn:aws:s3:::${mirror_bucket_name}'
+                 - mirror_bucket_name: !GetAtt LicenseInfo.s3_mirror_bucket
+                Effect: Allow
+              - Action:
+                  - 's3:GetObject'
+                Resource: !Sub
+                  - 'arn:aws:s3:::${mirror_bucket_name}${mirror_bucket_path}*'
+                  - { mirror_bucket_name: !GetAtt LicenseInfo.s3_mirror_bucket,
+                      mirror_bucket_path: !GetAtt LicenseInfo.s3_mirror_path }
+                Effect: Allow
+          PolicyName: aws-mirror-s3-policy
         - PolicyDocument:
             Version: 2012-10-17
             Statement:
@@ -1358,7 +1358,7 @@ Resources:
       # transform "Nxlarge (N cores)" to "r4.Nxlarge"
       InstanceType: !Join
         - '.'
-        - - r4 # !Ref CASInstanceType
+        - - !Ref CASInstanceType
           - !GetAtt LicenseInfo.NodeInstanceSize
       EbsOptimized: true
       PlacementGroupName: !Ref ViyaPlacementGroup
@@ -1420,7 +1420,7 @@ Resources:
 
 
   CASCacheVolume:
-    #Condition: IsNotI3
+    Condition: IsNotI3
     Type: AWS::EC2::Volume
     Properties:
       Size: !GetAtt LicenseInfo.CASCacheSize
@@ -1432,7 +1432,7 @@ Resources:
           Value: !Sub ${AWS::StackName} CAS Controller CAS Cache
 
   CASCacheAttachment:
-    #Condition: IsNotI3
+    Condition: IsNotI3
     Type: AWS::EC2::VolumeAttachment
     Properties:
       Device: /dev/sdd
@@ -1502,23 +1502,23 @@ Resources:
                   - !Sub 'arn:aws:s3:::${DeploymentDataLocation}'
                 Effect: Allow
           PolicyName: viya-playbook-s3-policy
-#        - PolicyDocument:
-#            Version: 2012-10-17
-#            Statement:
-#              - Action:
-#                  - 's3:ListBucket'
-#                Resource: !Sub
-#                 - 'arn:aws:s3:::${mirror_bucket_name}'
-#                 - mirror_bucket_name: !GetAtt LicenseInfo.s3_mirror_bucket
-#                Effect: Allow
-#              - Action:
-#                  - 's3:GetObject'
-#                Resource: !Sub
-#                  - 'arn:aws:s3:::${mirror_bucket_name}${mirror_bucket_path}*'
-#                  - { mirror_bucket_name: !GetAtt LicenseInfo.s3_mirror_bucket,
-#                      mirror_bucket_path: !GetAtt LicenseInfo.s3_mirror_path }
-#                Effect: Allow
-#          PolicyName: aws-mirror-s3-policy
+        - PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Action:
+                  - 's3:ListBucket'
+                Resource: !Sub
+                 - 'arn:aws:s3:::${mirror_bucket_name}'
+                 - mirror_bucket_name: !GetAtt LicenseInfo.s3_mirror_bucket
+                Effect: Allow
+              - Action:
+                  - 's3:GetObject'
+                Resource: !Sub
+                  - 'arn:aws:s3:::${mirror_bucket_name}${mirror_bucket_path}*'
+                  - { mirror_bucket_name: !GetAtt LicenseInfo.s3_mirror_bucket,
+                      mirror_bucket_path: !GetAtt LicenseInfo.s3_mirror_path }
+                Effect: Allow
+          PolicyName: aws-mirror-s3-policy
         - PolicyDocument:
             Version: 2012-10-17
             Statement:
@@ -1552,6 +1552,7 @@ Resources:
               - Action:
                   - 'iam:uploadServerCertificate'
                   - 'iam:listServerCertificates'
+                  - 'iam:getServerCertificate'
                 Resource:
                   - '*'
                 Effect: Allow
@@ -1708,7 +1709,7 @@ Resources:
                 S3FileRoot: !Sub "${QSS3BucketName}/${QSS3KeyPrefix}"
                 DeploymentDataLocation: !Ref DeploymentDataLocation
                 RAIDScript: !Sub ${QSS3BucketName}/${QSS3KeyPrefix}scripts/disks_ephemeral.sh
-                DeploymentMirror: "" #!Ref DeploymentMirror
+                DeploymentMirror: !Ref DeploymentMirror
                 ViyaVersion: !GetAtt LicenseInfo.ViyaVersion
 
             /home/ec2-user/deployment-scripts/create.mirror.yml:
@@ -1724,7 +1725,7 @@ Resources:
               authentication: S3AccessCreds
               context:
                 AWSRegion: !Ref AWS::Region
-                #S3MirrorLocation: !Ref DeploymentMirror
+                S3MirrorLocation: !Ref DeploymentMirror
 
 
             /home/ec2-user/deployment-scripts/recover_cascontroller.sh:
@@ -1750,7 +1751,7 @@ Resources:
                 IamInstanceProfile: !Ref ViyaProfile
                 InstanceType: !Join
                   - '.'
-                  - - r4 # !Ref CASInstanceType
+                  - - !Ref CASInstanceType
                     - !GetAtt LicenseInfo.NodeInstanceSize
                 PlacementGroupName: !Ref ViyaPlacementGroup
                 SecurityGroupIds: !Ref ViyaSecurityGroup
