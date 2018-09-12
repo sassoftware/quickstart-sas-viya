@@ -22,7 +22,7 @@ Metadata:
         - SASAdminPass
         - SASUserPass
         - CASInstanceType
-#        - DeploymentSize
+        - DeploymentSize
         - DeploymentMirror
         - OperatorEmail
     - Label:
@@ -49,8 +49,8 @@ Metadata:
         default: SAS Viya Software Order File
       CASInstanceType:
         default: EC2 Instance Type for the CAS compute VM
-#      DeploymentSize:
-#        default: Topology Size (small or medium)
+      DeploymentSize:
+        default: Topology Size (small or medium)
       DeploymentMirror:
         default: Mirror of SAS Viya Deployment Data
       AdminIngressLocation:
@@ -92,14 +92,14 @@ Parameters:
     Description: Type of EC2 instance for the Viya Compute Nodes (i3 for performance, r4 for auto-recovery)
     Type: String
 
-#  DeploymentSize:
-#    AllowedValues:
-#      - "small"
-#      - "medium"
-#    ConstraintDescription: Must contain either "small" or "medium"
-#    Default: "small"
-#    Description: Determines size and number of VMs used for the Viya Services
-#    Type: String
+  DeploymentSize:
+    AllowedValues:
+      - "small"
+      - "medium"
+    ConstraintDescription: Must contain either "small" or "medium"
+    Default: "small"
+    Description: Determines size and number of VMs used for the Viya Services
+    Type: String
 
   KeyPairName:
     Description: >-
@@ -371,7 +371,7 @@ Resources:
         DomainName: !Ref DomainName
         AWSHostedZoneID: !Ref AWSHostedZoneID
         CASInstanceType: !Ref CASInstanceType
-#        DeploymentSize: !Ref DeploymentSize
+        DeploymentSize: !Ref DeploymentSize
         DeploymentMirror: !Ref DeploymentMirror
 Outputs:
   # Outputs from VPC creation

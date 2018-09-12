@@ -21,7 +21,7 @@ Metadata:
           - SASAdminPass
           - SASUserPass
           - CASInstanceType
-#          - DeploymentSize
+          - DeploymentSize
           - DeploymentMirror
           - OperatorEmail
       - Label:
@@ -57,8 +57,8 @@ Metadata:
         default: SAS Viya Software Order File
       CASInstanceType:
         default: EC2 Instance Type for the CAS compute VM
-#      DeploymentSize:
-#        default: Topology Size (small or medium)
+      DeploymentSize:
+        default: Topology Size (small or medium)
       VPCID:
         default: VPC ID
       AdminIngressLocation:
@@ -100,14 +100,14 @@ Parameters:
     Description: Type of EC2 instance for the Viya Compute Nodes (i3 for performance, r4 for auto-recovery)
     Type: String
 
-#  DeploymentSize:
-#    AllowedValues:
-#      - "small"
-#      - "medium"
-#    ConstraintDescription: Must contain either "small" or "medium"
-#    Default: "small"
-#    Description: Determines size and number of VMs used for the Viya Services
-#    Type: String
+  DeploymentSize:
+    AllowedValues:
+      - "small"
+      - "medium"
+    ConstraintDescription: Must contain either "small" or "medium"
+    Default: "small"
+    Description: Determines size and number of VMs used for the Viya Services
+    Type: String
 
 
   KeyPairName:
@@ -358,11 +358,11 @@ Conditions:
     - Condition: IsI3
 
   IsSmall: !Equals
-    - medium
+    - !Ref DeploymentSize
     - small
 
   IsMedium: !Equals
-    - medium
+    - !Ref DeploymentSize
     - medium
 
   NoDNSEntry:
@@ -1073,26 +1073,6 @@ Resources:
                 Resource: "*"
                 Effect: Allow
           PolicyName: viya-services-ec2-policy
-#        - PolicyDocument:
-#            Version: 2012-10-17
-#            Statement:
-#              - Action:
-#                  - 'logs:CreateLogStream'
-#                  - 'logs:GetLogEvents'
-#                  - 'logs:PutLogEvents'
-#                  - 'logs:DescribeLogGroups'
-#                  - 'logs:DescribeLogStreams'
-#                  - 'logs:PutRetentionPolicy'
-#                  - 'logs:PutMetricFilter'
-#                  - 'logs:CreateLogGroup'
-#                Resource: !Sub
-#                  - arn:${Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${CloudWatchLogGroup}:*
-#                  - Partition: !If
-#                      - GovCloudCondition
-#                      - aws-us-gov
-#                      - aws
-#                Effect: Allow
-#          PolicyName: viya-services-cloudwatch-logs-policy
   ViyaProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
@@ -1840,7 +1820,7 @@ Resources:
                 RAIDScript: !Sub ${QSS3BucketName}/${QSS3KeyPrefix}scripts/disks_ephemeral.sh
                 DeploymentMirror: !Ref DeploymentMirror
                 ViyaVersion: !GetAtt LicenseInfo.ViyaVersion
-                DeploymentSize: medium
+                DeploymentSize: !Ref DeploymentSize
 
             /home/ec2-user/deployment-scripts/create.mirror.yml:
               source: !Sub
@@ -1958,7 +1938,7 @@ Resources:
               authentication: S3AccessCreds
             /tmp/inventory.pre:
               source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/inventory.medium.pre
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/inventory.${DeploymentSize}.pre
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -2002,31 +1982,6 @@ Resources:
               owner: ec2-user
               group: ec2-user
               authentication: S3AccessCreds
-
-            /home/ec2-user/deployment-scripts/dataagent2dataprep.yml:
-              source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/dataagent2dataprep.yml
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000444'
-              owner: ec2-user
-              group: ec2-user
-              authentication: S3AccessCreds
-
-            /tmp/ansible.dataprep2dataagent.yml:
-              source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/dataprep2dataagent.yml
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000444'
-              owner: ec2-user
-              group: ec2-user
-              authentication: S3AccessCreds
-
 
             /tmp/openldapfiles.txt:
               source: !Sub
