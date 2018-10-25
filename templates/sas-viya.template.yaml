@@ -350,7 +350,7 @@ Conditions:
       - ''
 
   IsI3: !Equals
-    - !Ref CASInstanceType
+    - Ref: CASInstanceType
     - i3
 
   IsNotI3:
@@ -378,6 +378,13 @@ Conditions:
 
 
 Resources:
+
+  WaitCondition:
+    Type: AWS::CloudFormation::WaitCondition
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: 'PT3H30M'
+        Count: 1
 
   # Lambda Function that scans the license file for the CAS cpu count
   # and returns instance sizes and counts
@@ -829,6 +836,15 @@ Resources:
           FromPort: '-1'
           ToPort: '-1'
           CidrIp: !Ref AdminIngressLocation
+        # allow NFS from viya VMs
+  ViyatoAnsibleNFSIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref AnsibleControllerSecurityGroup
+      IpProtocol: tcp
+      FromPort: '2049'
+      ToPort: '2049'
+      SourceSecurityGroupId: !Ref ViyaSecurityGroup
 
 
   ViyaSecurityGroup:
@@ -877,6 +893,7 @@ Resources:
       FromPort: '0'
       ToPort: '65535'
       SourceSecurityGroupId: !Ref ViyaSecurityGroup
+
 
 
   ElasticLoadBalancer:
@@ -986,13 +1003,6 @@ Resources:
         - PolicyDocument:
             Version: 2012-10-17
             Statement:
-              - Action: 'ssm:GetParameter'
-                Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/viya-ansiblekey-${AWS::StackName}'
-                Effect: Allow
-          PolicyName: viya-services-ssm-policy
-        - PolicyDocument:
-            Version: 2012-10-17
-            Statement:
               - Action:
                    - 'ec2:DescribeVolumes'
                    - 'ec2:CreateTags'
@@ -1007,13 +1017,12 @@ Resources:
         - !Ref ViyaRole
 
 
-
   ViyaServices:
     Type: AWS::EC2::Instance
     CreationPolicy:
       ResourceSignal:
         Count: 1
-        Timeout: 'PT10M'
+        Timeout: 'PT20M'
     Metadata:
       'AWS::CloudFormation::Authentication':
         S3AccessCreds:
@@ -1024,31 +1033,27 @@ Resources:
       'AWS::CloudFormation::Init':
         configSets:
           quickstart:
-            - install
-        install:
-          commands:
-            01-getkey:
-              command:
-                Fn::Sub: |
-                  #!/bin/bash
-                  KEY=dummy
-                  # wait until the key is available (the ansible controller puts it there)
-                  TRIES=0
-                  until [[ ! "$KEY" = "dummy" || $TRIES -gt 10 ]]; do
-                     KEY=$(aws ssm get-parameter --region "${AWS::Region}" --name "viya-ansiblekey-${AWS::StackName}" --query Parameter.Value --output text)
-                     if [[ $KEY = *"error"* ]]; then
-                        sleep 5
-                        let TRIES++
-                     else
-                        sleep 1
-                     fi
-                  done
-                  if [[ $TRIES -gt 10 ]]; then
-                     echo "Error - could not obtain key from ssm."
-                     exit 1
-                  fi
-                  echo "$KEY" | su ec2-user bash -c 'tee -a ~/.ssh/authorized_keys'
+            - prereqs
+        prereqs:
+          files:
+            /tmp/prereqs.sh:
+              source: !Sub
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}common/scripts/viyanodes_prereqs.sh
+                - QSS3Region: !If
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000550'
+              owner: root
+              group: root
+              authentication: S3AccessCreds
 
+
+          commands:
+            01-setup:
+              command: !Sub
+                - INSTALL_USER=ec2-user NFS_SERVER=${ANSIBLE_CONTROLLER_IP} /tmp/prereqs.sh &>/tmp/prereqs.log
+                - ANSIBLE_CONTROLLER_IP: !GetAtt AnsibleController.PrivateIp
     Properties:
       KeyName: !Ref KeyPairName
       ImageId: !FindInMap
@@ -1098,7 +1103,7 @@ Resources:
     CreationPolicy:
       ResourceSignal:
         Count: 1
-        Timeout: 'PT10M'
+        Timeout: 'PT20M'
     Metadata:
       'AWS::CloudFormation::Authentication':
         S3AccessCreds:
@@ -1109,31 +1114,26 @@ Resources:
       'AWS::CloudFormation::Init':
         configSets:
           quickstart:
-            - install
-        install:
-          commands:
-            01-getkey:
-              command:
-                Fn::Sub: |
-                  #!/bin/bash
-                  KEY=dummy
-                  # wait until the key is available (the ansible controller puts it there)
-                  TRIES=0
-                  until [[ ! "$KEY" = "dummy" || $TRIES -gt 10 ]]; do
-                     KEY=$(aws ssm get-parameter --region "${AWS::Region}" --name "viya-ansiblekey-${AWS::StackName}" --query Parameter.Value --output text)
-                     if [[ $KEY = *"error"* ]]; then
-                        sleep 5
-                        let TRIES++
-                     else
-                        sleep 1
-                     fi
-                  done
-                  if [[ $TRIES -gt 10 ]]; then
-                     echo "Error - could not obtain key from ssm."
-                     exit 1
-                  fi
-                  echo "$KEY" | su ec2-user bash -c 'tee -a ~/.ssh/authorized_keys'
+            - prereqs
+        prereqs:
+          files:
+            /tmp/prereqs.sh:
+              source: !Sub
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}common/scripts/viyanodes_prereqs.sh
+                - QSS3Region: !If
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000550'
+              owner: root
+              group: root
+              authentication: S3AccessCreds
 
+          commands:
+            01-setup:
+              command: !Sub
+                - INSTALL_USER=ec2-user NFS_SERVER=${ANSIBLE_CONTROLLER_IP} /tmp/prereqs.sh &>/tmp/prereqs.log
+                - ANSIBLE_CONTROLLER_IP: !GetAtt AnsibleController.PrivateIp
     Properties:
       KeyName: !Ref KeyPairName
       ImageId: !FindInMap
@@ -1164,7 +1164,13 @@ Resources:
             pip install awscli --ignore-installed six &> /dev/null
             easy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
             cfn-init --stack ${AWS::StackName} --resource CASController --configsets quickstart --region ${AWS::Region}
-            # Signal the status from cfn-init
+            #RC=$?
+            #if ! [ $RC = 0 ]; then
+            #  cfn-signal -e $RC --success False --stack ${AWS::StackName} --resource CASController --region ${AWS::Region}
+            #fi
+            # Send a signal only if there is an issue.
+            # The final signal for the CAS Controller will be sent by the AnsibleController,
+            # after the Viya deployment. That signal should be the last signal sent, and complete the Stack creation.
             cfn-signal -e $? --stack ${AWS::StackName} --resource CASController --region ${AWS::Region}
 
 
@@ -1226,13 +1232,6 @@ Resources:
       InstanceId: !Ref CASController
       VolumeId: !Ref CASCacheVolume
 
-  AnsiblePublicKey:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: !Sub 'viya-ansiblekey-${AWS::StackName}'
-      Description: !Sub 'viya-ansiblekey-${AWS::StackName}'
-      Type: String
-      Value: dummy
 
   AnsibleControllerRole:
     Type: AWS::IAM::Role
@@ -1306,15 +1305,6 @@ Resources:
                       mirror_bucket_path: !GetAtt LicenseInfo.s3_mirror_path }
                 Effect: Allow
           PolicyName: aws-mirror-s3-policy
-        - PolicyDocument:
-            Version: 2012-10-17
-            Statement:
-              - Action:
-                  - 'ssm:PutParameter'
-                Resource:
-                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/viya-ansiblekey-${AWS::StackName}'
-                Effect: Allow
-          PolicyName: ansible-controller-ssm-policy
         - PolicyDocument:
             Version: 2012-10-17
             Statement:
@@ -1408,7 +1398,7 @@ Resources:
     CreationPolicy:
       ResourceSignal:
         Count: 1
-        Timeout: 'PT3H30M'
+        Timeout: 'PT20M'
     Metadata:
       'AWS::CloudFormation::Authentication':
         S3AccessCreds:
@@ -1419,14 +1409,15 @@ Resources:
             - !Ref DeploymentDataLocation
       'AWS::CloudFormation::Init':
         configSets:
-          quickstart:
+          startup:
             - config
-            - sasprep
+          deployment:
+            - sasinstall
         config:
           files:
-            /tmp/ansiblecontroller_prereqs.sh:
+            /tmp/prereqs.sh:
               source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/ansiblecontroller_prereqs.sh
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}common/scripts/ansiblecontroller_prereqs.sh
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -1434,6 +1425,19 @@ Resources:
               mode: '000550'
               owner: root
               group: root
+              authentication: S3AccessCreds
+              context:
+                InstallUser: ec2-user
+            /tmp/prereqs.yml:
+              source: !Sub
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}common/playbooks/ansiblecontroller_prereqs.yml
+                - QSS3Region: !If
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000550'
+              owner: ec2-user
+              group: ec2-user
               authentication: S3AccessCreds
             /tmp/bastion_bootstrap.sh:
               source: !Sub
@@ -1469,8 +1473,8 @@ Resources:
                 cat /tmp/cloudwatch.conf >> /etc/awslogs/awslogs.conf;
                 service awslogs restart
             03-prereqs:
-              command: /tmp/ansiblecontroller_prereqs.sh
-        sasprep:
+              command: /tmp/prereqs.sh &>/tmp/prereqs.log
+        sasinstall:
           files:
             /home/ec2-user/deployment-scripts/install.sh:
               source: !Sub
@@ -1735,9 +1739,17 @@ Resources:
             easy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
             CLOUDWATCHGROUP=${CloudWatchLogGroup}
             EIP_LIST=${AnsibleControllerEIP}
-            cfn-init --stack ${AWS::StackName} --resource AnsibleController --configsets quickstart --region ${AWS::Region}
-            # Signal the status from cfn-init
+
+            # Install prereqs
+            cfn-init --stack ${AWS::StackName} --resource AnsibleController --configsets startup --region ${AWS::Region}
+            # This signal will complete the ansible controller creation and allow the other VMs to start
+            # their creation, using the ansible controller private ip as input
             cfn-signal -e $? --stack ${AWS::StackName} --resource AnsibleController --region ${AWS::Region}
+
+            # Start the actual Viya deployment
+            cfn-init --stack ${AWS::StackName} --resource AnsibleController --configsets deployment --region ${AWS::Region}
+            # Update the WaitCondition (this concludes the Stack creation)
+            cfn-signal -e $? --stack ${AWS::StackName} --resource WaitCondition --region ${AWS::Region}
 
 Outputs:
   SASDrive:
