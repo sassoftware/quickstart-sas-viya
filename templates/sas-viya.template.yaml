@@ -474,11 +474,16 @@ Resources:
             elif cpucount <= 8:
               rD["NodeInstanceSize"] = "4xlarge"
               rD["CASCacheSize"] = 360
-            else:
+            elif cpucount <= 16:
               rD['CPUCount'] = 16
               rD["NodeInstanceSize"] = "8xlarge"
               rD["CASLibSize"] = 1000
               rD["CASCacheSize"] = 720
+            else:
+              rD['CPUCount'] = 32
+              rD["NodeInstanceSize"] = "16xlarge"
+              rD["CASLibSize"] = 1000
+              rD["CASCacheSize"] = 900
 
             send(event, context, rS, rD)
           def send(event, context, rS, rD, reason="", physicalResourceId=None, noEcho=False):
