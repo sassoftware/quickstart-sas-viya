@@ -170,7 +170,7 @@ seed_known_hosts_file () {
   # All subsequent ssh attempts will then not get the "unkown host" interactive message
   # That is primarily as a convenience for admin tasks later on
 
-  hosts=($(cat /etc/hosts | grep -v localhost ))
+  hosts=($(cat /etc/hosts | grep -v localhost | grep -v "$AnsibleControllerPrivateIP" ))
   for host in "${hosts[@]}"
   do
     ssh -o StrictHostKeyChecking=no $host exit
@@ -359,13 +359,6 @@ fi
 # pre-deployment steps
 #
 
-# create a key and make available via SSM parameter store
-echo "Creating key" >> "$CMDLOG"
-echo -e y | ssh-keygen -t rsa -q -f ~/.ssh/id_rsa -N ""
-
-KEY=$(cat ~/.ssh/id_rsa.pub)
-aws --region "{{AWSRegion}}" ssm put-parameter --name "viya-ansiblekey-{{CloudFormationStack}}" --type String --value "$KEY" --overwrite
-
 #
 # make sure the Viya VMs are all up
 #
@@ -397,6 +390,7 @@ ViyaServicesID=$(aws --region "{{AWSRegion}}" cloudformation describe-stack-reso
 CASControllerID=$(aws --region "{{AWSRegion}}" cloudformation describe-stack-resources --stack-name "{{CloudFormationStack}}" --logical-resource-id CASController --query StackResources[*].PhysicalResourceId --output text)
 CASControllerIP=$(aws --region "{{AWSRegion}}" ec2 describe-instances --instance-id "$CASControllerID" --query Reservations[*].Instances[*].PrivateIpAddress --output text)
 
+AnsibleControllerPrivateIP=$(hostname -i)
 
 echo "Generating inventory.ini" >> "$CMDLOG"
 # prepare host list for ansible inventory.ini file
@@ -418,6 +412,7 @@ cat /tmp/inventory.pre >> /tmp/inventory.head
     #echo "$ViyaServicesIP services.viya.sas services visual.viya.sas visual prog.viya.sas prog stateful.viya.sas stateful"
     echo "$ViyaServicesIP services.viya.sas services"
     echo "$CASControllerIP controller.viya.sas controller"
+    echo "$AnsibleControllerPrivateIP ansiblecontroller ansiblecontroller.viya.sas ansible ansible.viya.sas"
 
 } > /tmp/hostnames.txt
 
