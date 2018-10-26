@@ -358,11 +358,11 @@ Conditions:
     - Condition: IsI3
 
   IsSmall: !Equals
-    - !Ref DeploymentSize
+    - small
     - small
 
   IsMedium: !Equals
-    - !Ref DeploymentSize
+    - small
     - medium
 
   NoDNSEntry:
@@ -1383,7 +1383,7 @@ Resources:
         - RHEL74HVM
       SubnetId: !Ref PrivateSubnetID
       IamInstanceProfile: !Ref ViyaProfile
-      InstanceType: r4.2xlarge
+      InstanceType: r4.4xlarge
       EbsOptimized: true
       PlacementGroupName: !Ref ViyaPlacementGroup
       BlockDeviceMappings:
@@ -1825,7 +1825,7 @@ Resources:
                 RAIDScript: !Sub ${QSS3BucketName}/${QSS3KeyPrefix}scripts/disks_ephemeral.sh
                 DeploymentMirror: !Ref DeploymentMirror
                 ViyaVersion: !GetAtt LicenseInfo.ViyaVersion
-                DeploymentSize: !Ref DeploymentSize
+                DeploymentSize: small
 
             /home/ec2-user/deployment-scripts/create.mirror.yml:
               source: !Sub
@@ -1943,7 +1943,7 @@ Resources:
               authentication: S3AccessCreds
             /tmp/inventory.pre:
               source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/inventory.${DeploymentSize}.pre
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}playbooks/inventory.small.pre
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
