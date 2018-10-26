@@ -13,7 +13,7 @@ USER=${1:-testuser}
 USERPW=${2:-testuserpw}
 ADMINPW=${3:-adminadmin}
 
-TOPUID=$(ssh -o StrictHostKeyChecking=no  stateful ldapsearch -x -h localhost -b "dc=sasviya,dc=com" | grep uidNumber | cut -f2 -d ' ' | sort -n | tail -n1)
+TOPUID=$(ssh -o StrictHostKeyChecking=no  services ldapsearch -x -h localhost -b "dc=sasviya,dc=com" | grep uidNumber | cut -f2 -d ' ' | sort -n | tail -n1)
 let NEWUID=(TOPUID+1)
 
 #
@@ -32,14 +32,14 @@ loginShell: /bin/bash
 uidNumber: $NEWUID
 gidNumber: 100001
 homeDirectory: /home/$USER
-mail: $USER@stateful.viya.sas
+mail: $USER@services.viya.sas
 displayName: $USER User
 EOF
 
-scp /tmp/adduser.ldif stateful:/tmp/adduser.ldif
-ssh -o StrictHostKeyChecking=no  stateful ldapadd    -x -h localhost -D "cn=admin,dc=sasviya,dc=com" -w $ADMINPW -f /tmp/adduser.ldif
+scp /tmp/adduser.ldif services:/tmp/adduser.ldif
+ssh -o StrictHostKeyChecking=no  services ldapadd    -x -h localhost -D "cn=admin,dc=sasviya,dc=com" -w $ADMINPW -f /tmp/adduser.ldif
 
-ssh -o StrictHostKeyChecking=no  stateful ldappasswd -s $USERPW -x -w $ADMINPW -D "cn=admin,dc=sasviya,dc=com" "uid=$USER,ou=users,dc=sasviya,dc=com"
+ssh -o StrictHostKeyChecking=no  services ldappasswd -s $USERPW -x -w $ADMINPW -D "cn=admin,dc=sasviya,dc=com" "uid=$USER,ou=users,dc=sasviya,dc=com"
 
 #
 # add user to sasusers group
@@ -54,8 +54,8 @@ add: member
 member: uid=$USER,ou=users,dc=sasviya,dc=com
 EOF
 
-scp /tmp/addtogroup.ldif stateful:/tmp/addtogroup.ldif
-ssh -o StrictHostKeyChecking=no  stateful ldapadd -x -h localhost -D "cn=admin,dc=sasviya,dc=com" -w $ADMINPW -f /tmp/addtogroup.ldif
+scp /tmp/addtogroup.ldif services:/tmp/addtogroup.ldif
+ssh -o StrictHostKeyChecking=no  services ldapadd -x -h localhost -D "cn=admin,dc=sasviya,dc=com" -w $ADMINPW -f /tmp/addtogroup.ldif
 
 
 #

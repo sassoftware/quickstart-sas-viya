@@ -18,17 +18,12 @@ test -n {{AnsibleControllerIP}}
 test -n {{CloudFormationStack}}
 test -n {{CloudWatchLogs}}
 test -n {{S3FileRoot}}
-test -n {{DeploymentSize}}
 
-
-VisualServicesIP=
-ProgrammingServicesIP=
-StatefulServicesIP=
 ViyaServicesIP=
 CASControllerIP=
 DomainName=
 FAILMSG=
-ControllerNodeSize={{ControllerNodeSize}}
+
 
 # use triple mustache to avoid url encoding
 USERPASS=$(echo -n '{{{SASUserPass}}}' | base64)
@@ -60,23 +55,9 @@ create_start_message () {
 
 EOF
 
-if [ {{DeploymentSize}} = medium ]
-then cat <<EOF >> "$OUTFILE"
-       Visual Services:
-         visual.viya.sas (visual)
-       Programming Services:
-         prog.viya.sas (prog)
-       Stateful Services:
-         stateful.viya.sas (stateful)
-EOF
-  elif [ {{DeploymentSize}} == small ]
-  then cat <<EOF >> "$OUTFILE"
+cat <<EOF >> "$OUTFILE"
        Viya Services:
          services.viya.sas (services)
-EOF
-  fi
-
-cat <<EOF >> "$OUTFILE"
        CAS Controller:
          controller.viya.sas (controller)
 EOF
@@ -107,23 +88,9 @@ create_success_message () {
 
      From the ansible controller, you can ssh into these VMs:
 EOF
-  if [ {{DeploymentSize}} = medium ]
-  then cat <<EOF >> "$OUTFILE"
-       Visual Services:
-         visual.viya.sas (visual)
-       Programming Services:
-         prog.viya.sas (prog)
-       Stateful Services:
-         stateful.viya.sas (stateful)
-EOF
-  elif [ {{DeploymentSize}} == small ]
-  then cat <<EOF >> "$OUTFILE"
+cat <<EOF >> "$OUTFILE"
        Viya Services:
          services.viya.sas (services)
-EOF
-  fi
-
-cat <<EOF >> "$OUTFILE"
        CAS Controller:
          controller.viya.sas (controller)
 EOF
@@ -424,15 +391,6 @@ until [ $(echo "$STATUS" | wc -w) = $(echo "$STATUS" | sed 's/CREATE_COMPLETE/CR
 done
 
 echo "Getting IP addresses" >> "$CMDLOG"
-VisualServicesID=$(aws --region "{{AWSRegion}}" cloudformation describe-stack-resources --stack-name "{{CloudFormationStack}}" --logical-resource-id VisualServices --query StackResources[*].PhysicalResourceId --output text)
-[ -n "$VisualServicesID" ] && VisualServicesIP=$(aws ec2 --region "{{AWSRegion}}" describe-instances --instance-id "$VisualServicesID" --query Reservations[*].Instances[*].PrivateIpAddress --output text)
-
-ProgrammingServicesID=$(aws --region "{{AWSRegion}}" cloudformation describe-stack-resources --stack-name "{{CloudFormationStack}}" --logical-resource-id ProgrammingServices --query StackResources[*].PhysicalResourceId --output text)
-[ -n "$ProgrammingServicesID" ] && ProgrammingServicesIP=$(aws --region "{{AWSRegion}}" ec2 describe-instances --instance-id "$ProgrammingServicesID" --query Reservations[*].Instances[*].PrivateIpAddress --output text)
-
-StatefulServicesID=$(aws --region "{{AWSRegion}}" cloudformation describe-stack-resources --stack-name "{{CloudFormationStack}}" --logical-resource-id StatefulServices --query StackResources[*].PhysicalResourceId --output text)
-[ -n "$StatefulServicesID" ] && StatefulServicesIP=$(aws --region "{{AWSRegion}}" ec2 describe-instances --instance-id "$StatefulServicesID" --query Reservations[*].Instances[*].PrivateIpAddress --output text)
-
 ViyaServicesID=$(aws --region "{{AWSRegion}}" cloudformation describe-stack-resources --stack-name "{{CloudFormationStack}}" --logical-resource-id ViyaServices --query StackResources[*].PhysicalResourceId --output text)
 [ -n "$ViyaServicesID" ] && ViyaServicesIP=$(aws ec2 --no-paginate --region "{{AWSRegion}}" describe-instances --instance-id "$ViyaServicesID" --query Reservations[*].Instances[*].PrivateIpAddress --output text)
 
@@ -440,38 +398,10 @@ CASControllerID=$(aws --region "{{AWSRegion}}" cloudformation describe-stack-res
 CASControllerIP=$(aws --region "{{AWSRegion}}" ec2 describe-instances --instance-id "$CASControllerID" --query Reservations[*].Instances[*].PrivateIpAddress --output text)
 
 
-# set instances on load balancer
-ELBNAME=$(aws --no-paginate --region "{{AWSRegion}}" cloudformation describe-stack-resources --stack-name "{{CloudFormationStack}}" --logical-resource-id ElasticLoadBalancer --query StackResources[*].PhysicalResourceId --output text)
-
-if [ -n "$ViyaServicesID" ];
-then
-   # if ViyaServices is set, it must be a small deployment
-   aws --region "{{AWSRegion}}" elb register-instances-with-load-balancer \
-       --load-balancer-name $ELBNAME \
-       --instances $ViyaServicesID
-else
-   # otherwise it is a medium deployment
-   aws --region "{{AWSRegion}}" elb register-instances-with-load-balancer \
-       --load-balancer-name $ELBNAME \
-       --instances $VisualServicesID $ProgrammingServicesID $StatefulServicesID
-fi
-
-
-
-
 echo "Generating inventory.ini" >> "$CMDLOG"
 # prepare host list for ansible inventory.ini file
 {
-    if [ -n "$ViyaServicesIP" ];
-    then
-      # if ViyaServices is set, it must be a small deployment
-      echo services ansible_host="$ViyaServicesIP"
-    else
-      # otherwise it is a medium deployment
-      echo visual ansible_host="$VisualServicesIP"
-      echo prog ansible_host="$ProgrammingServicesIP"
-      echo stateful ansible_host="$StatefulServicesIP"
-    fi
+    echo services ansible_host="$ViyaServicesIP"
     echo controller ansible_host="$CASControllerIP"
     echo
 
@@ -485,16 +415,8 @@ cat /tmp/inventory.pre >> /tmp/inventory.head
 
 # prepare host entries for /etc/hosts
 {
-    if [ -n "$ViyaServicesIP" ];
-    then
-        # for small deployments, point all aliases to the main services host
-        echo "$ViyaServicesIP services.viya.sas services visual.viya.sas visual prog.viya.sas prog stateful.viya.sas stateful"
-    else
-        # for medium deployments, each host has a separate ip
-        echo "$VisualServicesIP visual.viya.sas visual"
-        echo "$ProgrammingServicesIP prog.viya.sas prog"
-        echo "$StatefulServicesIP stateful.viya.sas stateful"
-    fi
+    #echo "$ViyaServicesIP services.viya.sas services visual.viya.sas visual prog.viya.sas prog stateful.viya.sas stateful"
+    echo "$ViyaServicesIP services.viya.sas services"
     echo "$CASControllerIP controller.viya.sas controller"
 
 } > /tmp/hostnames.txt
@@ -559,7 +481,7 @@ ansible-playbook /tmp/ansible.pre.deployment.yml -e "AWSRegion='{{AWSRegion}}'" 
 MIRRORURL=
 if [[ $(echo -n "{{DeploymentMirror}}" | cut -c1-2 | tr [:lower:] [:upper:]) == S3 ]]; then
   ansible-playbook ~/deployment-scripts/create.mirror.yml -i /tmp/inventory.head
-  MIRRORURL=http://stateful.viya.sas:8008/repo_mirror
+  MIRRORURL=http://services.viya.sas:8008/repo_mirror
 elif [[ $(echo -n "{{DeploymentMirror}}" | cut -c1-4 | tr [:lower:] [:upper:]) == HTTP ]]; then
   MIRRORURL="{{DeploymentMirror}}"
 elif [ ! -z "{{DeploymentMirror}}" ]; then
@@ -629,7 +551,7 @@ pushd sas_viya_playbook
   mv /tmp/ansible.* .
 
   # add hosts to inventory
-  ansible-playbook ansible.update.inventory.yml -e "DeploymentSize={{DeploymentSize}}" -i /tmp/inventory.head
+  ansible-playbook ansible.update.inventory.yml -i /tmp/inventory.head
 
   # set prereqs on hosts
   echo " " >> "$CMDLOG"
@@ -662,7 +584,7 @@ pushd sas_viya_playbook
   export ANSIBLE_LOG_PATH="$LOGDIR/deployment-main.log"
 
   # update vars file
-  ansible-playbook ansible.update.config.yml -e "sasboot_pw='$ADMINPASS'" -e "DeploymentSize={{DeploymentSize}}"
+  ansible-playbook ansible.update.config.yml -e "sasboot_pw='$ADMINPASS'"
 
   # main deployment
   try 3 ansible-playbook site.yml

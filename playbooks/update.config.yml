@@ -90,24 +90,6 @@
       replace: '  {{ groups["PostgresPrimaryServer"]|first }}'
       backup: yes
 
-  - name: add additional pg hosts
-    blockinfile:
-      dest: vars.yml
-      marker: '# {mark} add additional pg hosts {{ item.1 }}'
-      insertafter: '^INVOCATION_VARIABLES:'
-      block: |2
-          {{ item.1 }}:
-            sasdatasvrc:
-            - NODE_NUMBER: '{{ item.0 + 1 |int }}'
-              NODE_TYPE: S
-              PG_PORT: '5432'
-              SANMOUNT: '{{ SAS_CONFIG_ROOT }}/data/sasdatasvrc'
-              SERVICE_NAME: postgres
-    when: DeploymentSize == 'medium'
-    with_indexed_items:
-      - "{{ groups['VisualServicesServers']|unique }}"
-      - "{{ groups['ProgrammingServicesServers']|unique }}"
-
   - name: Create sitedefault file, if it doesnt exist already
     file:
       path: roles/consul/files/sitedefault.yml
@@ -156,7 +138,7 @@
       block: |2
                  sas.reportrenderer.properties:
                      custom:
-                         baseUrl: http://visual.viya.sas
+                         baseUrl: http://services.viya.sas
 
   - name: set sasboot password in sitedefault.yml
     blockinfile:
