@@ -1052,7 +1052,7 @@ Resources:
           commands:
             01-setup:
               command: !Sub
-                - INSTALL_USER=ec2-user NFS_SERVER=${ANSIBLE_CONTROLLER_IP} /tmp/prereqs.sh &>/tmp/prereqs.log
+                - INSTALL_USER=ec2-user NFS_SERVER=${ANSIBLE_CONTROLLER_IP} HOST=services /tmp/prereqs.sh &>/tmp/prereqs.log
                 - ANSIBLE_CONTROLLER_IP: !GetAtt AnsibleController.PrivateIp
     Properties:
       KeyName: !Ref KeyPairName
@@ -1132,7 +1132,7 @@ Resources:
           commands:
             01-setup:
               command: !Sub
-                - INSTALL_USER=ec2-user NFS_SERVER=${ANSIBLE_CONTROLLER_IP} /tmp/prereqs.sh &>/tmp/prereqs.log
+                - INSTALL_USER=ec2-user NFS_SERVER=${ANSIBLE_CONTROLLER_IP} HOST=controller /tmp/prereqs.sh &>/tmp/prereqs.log
                 - ANSIBLE_CONTROLLER_IP: !GetAtt AnsibleController.PrivateIp
     Properties:
       KeyName: !Ref KeyPairName
@@ -1164,13 +1164,7 @@ Resources:
             pip install awscli --ignore-installed six &> /dev/null
             easy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
             cfn-init --stack ${AWS::StackName} --resource CASController --configsets quickstart --region ${AWS::Region}
-            #RC=$?
-            #if ! [ $RC = 0 ]; then
-            #  cfn-signal -e $RC --success False --stack ${AWS::StackName} --resource CASController --region ${AWS::Region}
-            #fi
-            # Send a signal only if there is an issue.
-            # The final signal for the CAS Controller will be sent by the AnsibleController,
-            # after the Viya deployment. That signal should be the last signal sent, and complete the Stack creation.
+            # Signal the status from cfn-init
             cfn-signal -e $? --stack ${AWS::StackName} --resource CASController --region ${AWS::Region}
 
 
@@ -1409,11 +1403,13 @@ Resources:
             - !Ref DeploymentDataLocation
       'AWS::CloudFormation::Init':
         configSets:
-          startup:
-            - config
+          bootstrap:
+            - prereqs
+          predeployment:
+            - setup
           deployment:
             - sasinstall
-        config:
+        prereqs:
           files:
             /tmp/prereqs.sh:
               source: !Sub
@@ -1426,8 +1422,6 @@ Resources:
               owner: root
               group: root
               authentication: S3AccessCreds
-              context:
-                InstallUser: ec2-user
             /tmp/prereqs.yml:
               source: !Sub
                 - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}common/playbooks/ansiblecontroller_prereqs.yml
@@ -1473,7 +1467,24 @@ Resources:
                 cat /tmp/cloudwatch.conf >> /etc/awslogs/awslogs.conf;
                 service awslogs restart
             03-prereqs:
-              command: /tmp/prereqs.sh &>/tmp/prereqs.log
+              command: INSTALL_USER=ec2-user /tmp/prereqs.sh &>/tmp/prereqs.log
+        setup:
+          files:
+           /sas/install/playbooks/predeploy.yml:
+              source: !Sub
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}common/playbooks/predeploy.yml
+                - QSS3Region: !If
+                    - GovCloudCondition
+                    - s3-us-gov-west-1
+                    - s3
+              mode: '000550'
+              owner: ec2-user
+              group: ec2-user
+              authentication: S3AccessCreds
+          commands:
+            01-predeploy:
+              command: ansible-playbook /sas/install/playbooks/predeploy.yml
+
         sasinstall:
           files:
             /home/ec2-user/deployment-scripts/install.sh:
@@ -1741,10 +1752,18 @@ Resources:
             EIP_LIST=${AnsibleControllerEIP}
 
             # Install prereqs
-            cfn-init --stack ${AWS::StackName} --resource AnsibleController --configsets startup --region ${AWS::Region}
+            cfn-init --stack ${AWS::StackName} --resource AnsibleController --configsets bootstrap --region ${AWS::Region}
             # This signal will complete the ansible controller creation and allow the other VMs to start
             # their creation, using the ansible controller private ip as input
             cfn-signal -e $? --stack ${AWS::StackName} --resource AnsibleController --region ${AWS::Region}
+
+            # Do environment preparation
+            cfn-init --stack ${AWS::StackName} --resource AnsibleController --configsets predeployment --region ${AWS::Region}
+            # If something goes wrong here, we do not need to continue
+            RC=$?
+            if ! [ $RC = 0 ]; then
+              cfn-signal -e $RC --success False --stack ${AWS::StackName} --resource WaitCondition --region ${AWS::Region}
+            fi
 
             # Start the actual Viya deployment
             cfn-init --stack ${AWS::StackName} --resource AnsibleController --configsets deployment --region ${AWS::Region}

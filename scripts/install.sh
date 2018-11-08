@@ -362,13 +362,13 @@ fi
 #
 # make sure the Viya VMs are all up
 #
-echo "Checking Viya VMs" >> "$CMDLOG"
-STATUS="status"
-until [ $(echo "$STATUS" | wc -w) = $(echo "$STATUS" | sed 's/CREATE_COMPLETE/CREATE_COMPLETE\n/g' | grep -c "CREATE_COMPLETE") ]; do
-  sleep 3
-  STATUS=$(aws --no-paginate --region "{{AWSRegion}}" cloudformation describe-stack-resources --stack-name "{{CloudFormationStack}}"  --query 'StackResources[?ResourceType ==`AWS::EC2::Instance`]|[?LogicalResourceId != `AnsibleController`].ResourceStatus' --output text)
-  if [ "$(echo "$STATUS" | grep "CREATE_FAILED")" ]; then exit 1; fi
-done
+#echo "Checking Viya VMs" >> "$CMDLOG"
+#STATUS="status"
+#until [ $(echo "$STATUS" | wc -w) = $(echo "$STATUS" | sed 's/CREATE_COMPLETE/CREATE_COMPLETE\n/g' | grep -c "CREATE_COMPLETE") ]; do
+#  sleep 3
+#  STATUS=$(aws --no-paginate --region "{{AWSRegion}}" cloudformation describe-stack-resources --stack-name "{{CloudFormationStack}}"  --query 'StackResources[?ResourceType ==`AWS::EC2::Instance`]|[?LogicalResourceId != `AnsibleController`].ResourceStatus' --output text)
+#  if [ "$(echo "$STATUS" | grep "CREATE_FAILED")" ]; then exit 1; fi
+#done
 
 #
 # make sure all the volume attachments are complete
@@ -405,16 +405,6 @@ echo "Generating inventory.ini" >> "$CMDLOG"
 # the correct inventory.pre for the deployment size is uploaded by the cf template
 cat /tmp/inventory.pre >> /tmp/inventory.head
 
-
-
-# prepare host entries for /etc/hosts
-{
-    #echo "$ViyaServicesIP services.viya.sas services visual.viya.sas visual prog.viya.sas prog stateful.viya.sas stateful"
-    echo "$ViyaServicesIP services.viya.sas services"
-    echo "$CASControllerIP controller.viya.sas controller"
-    echo "$AnsibleControllerPrivateIP ansiblecontroller ansiblecontroller.viya.sas ansible ansible.viya.sas"
-
-} > /tmp/hostnames.txt
 
 # update hosts list on ansible controller
 cat /tmp/hostnames.txt | sudo tee -a /etc/hosts
