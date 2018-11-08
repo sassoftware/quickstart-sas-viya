@@ -8,7 +8,6 @@
   - name: update hostname
     shell: "hostnamectl set-hostname --static {{inventory_hostname}}.viya.sas"
 
-
   - name: create viya installation subdir
     file:
       path: /opt/sas
