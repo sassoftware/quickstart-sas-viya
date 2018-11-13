@@ -19,8 +19,6 @@ test -n {{CloudFormationStack}}
 test -n {{CloudWatchLogs}}
 test -n {{S3FileRoot}}
 
-ViyaServicesIP=
-CASControllerIP=
 DomainName=
 FAILMSG=
 
@@ -160,23 +158,6 @@ cleanup () {
   fi
 }
 
-#
-# seed .ssh/known_hosts file
-#
-seed_known_hosts_file () {
-
-  # log into each VM once with each ip or hostname.
-  # That seeds that hosts ~/.ssh/known_hosts file.
-  # All subsequent ssh attempts will then not get the "unkown host" interactive message
-  # That is primarily as a convenience for admin tasks later on
-
-  hosts=($(cat /etc/hosts | grep -v localhost | grep -v "$AnsibleControllerPrivateIP" ))
-  for host in "${hosts[@]}"
-  do
-    ssh -o StrictHostKeyChecking=no $host exit
-  done
-
-}
 
 #
 # reconfigure ELB to use self-signed cert
@@ -359,16 +340,6 @@ fi
 # pre-deployment steps
 #
 
-#
-# make sure the Viya VMs are all up
-#
-#echo "Checking Viya VMs" >> "$CMDLOG"
-#STATUS="status"
-#until [ $(echo "$STATUS" | wc -w) = $(echo "$STATUS" | sed 's/CREATE_COMPLETE/CREATE_COMPLETE\n/g' | grep -c "CREATE_COMPLETE") ]; do
-#  sleep 3
-#  STATUS=$(aws --no-paginate --region "{{AWSRegion}}" cloudformation describe-stack-resources --stack-name "{{CloudFormationStack}}"  --query 'StackResources[?ResourceType ==`AWS::EC2::Instance`]|[?LogicalResourceId != `AnsibleController`].ResourceStatus' --output text)
-#  if [ "$(echo "$STATUS" | grep "CREATE_FAILED")" ]; then exit 1; fi
-#done
 
 #
 # make sure all the volume attachments are complete
@@ -383,20 +354,12 @@ until [ $(echo "$STATUS" | wc -w) = $(echo "$STATUS" | sed 's/CREATE_COMPLETE/CR
   check_stack_status
 done
 
-echo "Getting IP addresses" >> "$CMDLOG"
-ViyaServicesID=$(aws --region "{{AWSRegion}}" cloudformation describe-stack-resources --stack-name "{{CloudFormationStack}}" --logical-resource-id ViyaServices --query StackResources[*].PhysicalResourceId --output text)
-[ -n "$ViyaServicesID" ] && ViyaServicesIP=$(aws ec2 --no-paginate --region "{{AWSRegion}}" describe-instances --instance-id "$ViyaServicesID" --query Reservations[*].Instances[*].PrivateIpAddress --output text)
-
-CASControllerID=$(aws --region "{{AWSRegion}}" cloudformation describe-stack-resources --stack-name "{{CloudFormationStack}}" --logical-resource-id CASController --query StackResources[*].PhysicalResourceId --output text)
-CASControllerIP=$(aws --region "{{AWSRegion}}" ec2 describe-instances --instance-id "$CASControllerID" --query Reservations[*].Instances[*].PrivateIpAddress --output text)
-
-AnsibleControllerPrivateIP=$(hostname -i)
 
 echo "Generating inventory.ini" >> "$CMDLOG"
 # prepare host list for ansible inventory.ini file
 {
-    echo services ansible_host="$ViyaServicesIP"
-    echo controller ansible_host="$CASControllerIP"
+    echo services
+    echo controller
     echo
 
 } > /tmp/inventory.head
@@ -406,8 +369,6 @@ echo "Generating inventory.ini" >> "$CMDLOG"
 cat /tmp/inventory.pre >> /tmp/inventory.head
 
 
-# update hosts list on ansible controller
-cat /tmp/hostnames.txt | sudo tee -a /etc/hosts
 
 echo "Checking for ELB" >> "$CMDLOG"
 # make sure the ELB has been created
@@ -420,7 +381,7 @@ while [[ "$ELBNAME"  == "" ]]; do
 done
 
 #
-# Beging Viya software installation
+# Begin Viya software installation
 #
 if [ -z "{{DomainName}}" ]; then
   ID=$(aws --no-paginate --region "{{AWSRegion}}" cloudformation describe-stack-resources --stack-name "{{CloudFormationStack}}" --logical-resource-id ElasticLoadBalancer --query StackResources[*].PhysicalResourceId --output text)
@@ -443,7 +404,6 @@ fi
 
 configure_self_signed_cert
 
-seed_known_hosts_file
 
 #
 # pre deployment

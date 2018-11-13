@@ -1,3 +1,6 @@
+services
+controller
+
 [ViyaServicesServers]
 services
 
@@ -15,6 +18,12 @@ services
 
 [CASControllerServer]
 controller
+
+[AnsibleControllerServers]
+localhost
+
+[NeedMountOptDrive:children]
+sas-servers
 
 [sas-services:children]
 ViyaServicesServers

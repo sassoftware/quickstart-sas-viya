@@ -26,7 +26,6 @@ openldap/roles/gel.openldapserver/templates/sasldap.ldif.j2|644
 openldap/roles/gel.openldapserver/templates/sitedefault.yml.j2|755
 openldap/roles/gel.openldapserver/templates/sssd.conf.j2|644
 openldap/update.inventory.yml|755
-playbooks/ansible.cfg|644
 playbooks/post.deployment.yml|755
 playbooks/create.mirror.yml|755
 playbooks/update.config.yml|755
@@ -48,6 +47,13 @@ scripts/start_viya_vms.sh|755
 scripts/stop_viya_vms.sh|755
 common/playbooks/ansiblecontroller_prereqs.yml|755
 common/playbooks/group_vars/all.yml|755
-common/playbooks/predeploy.yml|755
+common/playbooks/main.yml|755
+common/playbooks/wait_for_viya_vms.yml|755
+common/playbooks/roles/distribute_hosts_file/tasks/main.yml|755
+common/playbooks/roles/initialize_known_hosts/tasks/main.yml|755
+common/playbooks/prepare_host_routing.yml|755
+common/playbooks/ansible.cfg|644
+common/playbooks/inventory.ini|755
 common/scripts/ansiblecontroller_prereqs.sh|755
 common/scripts/viyanodes_prereqs.sh|755
+common/scripts/make_file_tree_file.sh|755

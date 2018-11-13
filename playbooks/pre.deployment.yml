@@ -17,11 +17,6 @@
   - name: mount viya installation volume
     mount: name=/opt/sas fstype=xfs state=mounted src=/dev/xvdg
 
-  - name: Set hosts
-    blockinfile:
-      dest=/etc/hosts
-      block="{{ lookup('file', '/tmp/hostnames.txt') }}"
-      marker="# {mark} ADD HOSTS"
 
   - name: Tag EBS volumes
     shell: |
