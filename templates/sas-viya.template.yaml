@@ -379,7 +379,7 @@ Conditions:
 
 Resources:
 
-  WaitCondition:
+  StackComplete:
     Type: AWS::CloudFormation::WaitCondition
     CreationPolicy:
       ResourceSignal:
@@ -1406,7 +1406,7 @@ Resources:
           bootstrap:
             - prereqs
           predeployment:
-            - setup
+            - predeployment
           deployment:
             - sasinstall
         prereqs:
@@ -1468,7 +1468,7 @@ Resources:
             03-prereqs:
               command: INSTALL_USER=ec2-user /tmp/prereqs.sh &>/tmp/prereqs.log
 
-        setup:
+        predeployment:
           files:
             /tmp/file_tree.txt:
               source: !Sub
@@ -1499,20 +1499,17 @@ Resources:
                 - INSTALL_USER=ec2-user S3_FILE_ROOT=${S3_FILE_ROOT} /tmp/download_file_tree.sh &>/tmp/download_file_tree.log
                 - S3_FILE_ROOT: !Sub "${QSS3BucketName}/${QSS3KeyPrefix}"
 
-            02-waitforvms:
-              command: |-
-                 sudo su -l ec2-user -c '
-                 export ANSIBLE_LOG_PATH=/sas/install/logs/wait_for_viya_vms.log
-                 export ANSIBLE_CONFIG=/sas/install/playbooks/ansible.cfg
-                 ansible-playbook /sas/install/playbooks/wait_for_viya_vms.yml
-                 '
-            03-preparehostrouting:
-              command: |-
-                 sudo su -l ec2-user -c '
-                 export ANSIBLE_LOG_PATH=/sas/install/logs/prepare_host_routing.log
-                 export ANSIBLE_CONFIG=/sas/install/playbooks/ansible.cfg
-                 ansible-playbook /sas/install/playbooks/prepare_host_routing.yml -e "INSTALL_USER=ec2-user"
-                 '
+            02-predeployment:
+              command:
+                Fn::Sub: |
+                  sudo su -l ec2-user -c '
+                  export ANSIBLE_LOG_PATH=/sas/install/logs/predeployment.log
+                  export ANSIBLE_CONFIG=/sas/install/playbooks/ansible.cfg
+                  ansible-playbook /sas/install/playbooks/predeployment.yml \
+                    -e "INSTALL_USER=ec2-user" \
+                    -e "AWSRegion=${AWS::Region}" \
+                    -e "CloudFormationStack=${AWS::StackName}"
+                  '
         sasinstall:
           commands:
             01-orchestration:
@@ -1557,13 +1554,14 @@ Resources:
             # If something goes wrong here, we do not need to continue
             RC=$?
             if ! [ $RC = 0 ]; then
-              cfn-signal -e $RC --success False --stack ${AWS::StackName} --resource WaitCondition --region ${AWS::Region}
+              cfn-signal -e $RC --success false --stack ${AWS::StackName} --resource StackComplete --region ${AWS::Region} \
+                         --reason "Predeployment failed on ansible controller"
             fi
 
             # Start the actual Viya deployment
             cfn-init --stack ${AWS::StackName} --resource AnsibleController --configsets deployment --region ${AWS::Region}
-            # Update the WaitCondition (this concludes the Stack creation)
-            cfn-signal -e $? --stack ${AWS::StackName} --resource WaitCondition --region ${AWS::Region}
+            # Update the StackComplete (this concludes the Stack creation)
+            cfn-signal -e $? --stack ${AWS::StackName} --resource StackComplete --region ${AWS::Region}
 
 Outputs:
   SASDrive:
