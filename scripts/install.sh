@@ -405,20 +405,20 @@ fi
 configure_self_signed_cert
 
 
+##
+## pre deployment
+##
+#echo " " >> "$CMDLOG"
+#echo "$(date) Start Pre-Deployment tasks (see deployment-pre.log)" >> "$CMDLOG"
 #
-# pre deployment
+## set log file for pre deployment steps
+#export ANSIBLE_LOG_PATH="$LOGDIR/deployment-pre.log"
 #
-echo " " >> "$CMDLOG"
-echo "$(date) Start Pre-Deployment tasks (see deployment-pre.log)" >> "$CMDLOG"
-
-# set log file for pre deployment steps
-export ANSIBLE_LOG_PATH="$LOGDIR/deployment-pre.log"
-
-# set hostnames, mount drives
-ansible-playbook /tmp/ansible.pre.deployment.yml -e "AWSRegion='{{AWSRegion}}'" \
-                                          -e "RAIDScript='{{RAIDScript}}'" \
-                                          -e "CloudFormationStack='{{CloudFormationStack}}'" \
-                                          -i /tmp/inventory.head
+## set hostnames, mount drives
+#ansible-playbook /tmp/ansible.pre.deployment.yml -e "AWSRegion='{{AWSRegion}}'" \
+#                                          -e "RAIDScript='{{RAIDScript}}'" \
+#                                          -e "CloudFormationStack='{{CloudFormationStack}}'" \
+#                                          -i /tmp/inventory.head
 
 #
 # mirror repository
