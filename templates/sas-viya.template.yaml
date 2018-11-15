@@ -1070,11 +1070,13 @@ Resources:
       PlacementGroupName: !Ref ViyaPlacementGroup
       BlockDeviceMappings:
         - DeviceName: /dev/sda1
+          # root disk
           Ebs:
             VolumeSize: '20'
             VolumeType: gp2
             DeleteOnTermination: true
         - DeviceName: /dev/sdg
+          # SAS Install disk /opt/sas
           Ebs:
             VolumeSize: '100'
             VolumeType: gp2
@@ -1182,6 +1184,7 @@ Resources:
   CASViyaAttachment:
     Type: AWS::EC2::VolumeAttachment
     Properties:
+      # SAS Install drive /opt/sas
       Device: /dev/sdg
       InstanceId: !Ref CASController
       VolumeId: !Ref CASViyaVolume
@@ -1201,6 +1204,7 @@ Resources:
   CASLibAttachment:
     Type: AWS::EC2::VolumeAttachment
     Properties:
+      # User library /opt/sas/viya/config/data/cas
       Device: /dev/sdl
       InstanceId: !Ref CASController
       VolumeId: !Ref CASLibVolume
@@ -1500,16 +1504,21 @@ Resources:
                 - S3_FILE_ROOT: !Sub "${QSS3BucketName}/${QSS3KeyPrefix}"
 
             02-predeployment:
-              command:
-                Fn::Sub: |
+              command: !Sub
+                - |
                   sudo su -l ec2-user -c '
-                  export ANSIBLE_LOG_PATH=/sas/install/logs/predeployment.log
+                  export ANSIBLE_LOG_PATH=/var/log/sas/install/predeployment.log
                   export ANSIBLE_CONFIG=/sas/install/playbooks/ansible.cfg
-                  ansible-playbook /sas/install/playbooks/predeployment.yml \
+                  ansible-playbook -v /sas/install/playbooks/predeployment.yml \
                     -e "INSTALL_USER=ec2-user" \
-                    -e "AWSRegion=${AWS::Region}" \
-                    -e "CloudFormationStack=${AWS::StackName}"
+                    -e "USERLIB_DISK=/dev/xvdl" \
+                    -e "SAS_INSTALL_DISK=/dev/xvdg" \
+                    ${CASCACHE_DISK}
                   '
+                - CASCACHE_DISK: !If
+                   - IsNotI3
+                   - '-e "CASCACHE_DISK=/dev/xvdd"'
+                   - ''
         sasinstall:
           commands:
             01-orchestration:
