@@ -36,15 +36,14 @@ playbooks/inventory.pre|755
 playbooks/dataagent2dataprep.yml|755
 playbooks/dataprep2dataagent.yml|755
 scripts/addldapuser.sh|755
+scripts/download_file_tree.sh|755
 scripts/install.sh|755
 scripts/cloudwatch.ansiblecontroller.conf|755
-scripts/download_file_tree.sh|755
 scripts/recover_cascontroller.sh|755
 scripts/bastion_bootstrap.sh|644
 scripts/addaccess.sh|755
 scripts/start_viya_vms.sh|755
 scripts/stop_viya_vms.sh|755
-common/playbooks/ansiblecontroller_prereqs.yml|755
 common/playbooks/group_vars/all.yml|755
 common/playbooks/predeployment.yml|755
 common/playbooks/roles/predeployment/create_saswork_dir/tasks/main.yml|755
@@ -56,5 +55,6 @@ common/playbooks/roles/predeployment/wait_for_viya_vms/tasks/main.yml|755
 common/playbooks/ansible.cfg|755
 common/playbooks/inventory.ini|755
 common/scripts/ansiblecontroller_prereqs.sh|755
-common/scripts/viyanodes_prereqs.sh|755
 common/scripts/make_file_tree_file.sh|755
+common/scripts/sasnodes_prereqs.sh|755
+common/README.md|755

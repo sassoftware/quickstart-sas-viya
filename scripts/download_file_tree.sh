@@ -7,7 +7,6 @@
 # The script expects the following environment variables to be set:
 #
 # S3_FILE_ROOT - the s3 bucket and path with the project files (default aws-quickstart/quickstart-sas-viya)
-# INSTALL_USER - the install user and owner of /sas/install
 #
 # The script expects the file /tmp/tree_file.txt with one line for each file, in the form
 # <relative path name>|permissions
@@ -16,10 +15,12 @@
 #
 # Note: that file is being created by common/scripts/make_file_tree.sh
 
+set -e
+
 test -n $S3_FILE_ROOT
-test -n $INSTALL_USER
 TREE_FILE=/tmp/file_tree.txt
 DOWNLOAD_DIR=/sas/install
+INSTALL_USER=$(whoami)
 
 
 pushd $DOWNLOAD_DIR
@@ -34,8 +35,8 @@ pushd $DOWNLOAD_DIR
         # make sure the directory exists
         # set the install user as directory owner
         directory=$(dirname $file_name)
-        mkdir -p $directory
-        chown ${INSTALL_USER}:${INSTALL_USER} $directory
+        sudo mkdir -p $directory
+        sudo chown ${INSTALL_USER}:${INSTALL_USER} $directory
 
         # download the file
         aws s3 cp s3://${S3_FILE_ROOT}$file_name $file_name
@@ -49,7 +50,7 @@ pushd $DOWNLOAD_DIR
     done < ${TREE_FILE}
 
     # merge the "common" file structure into the top level
-    cp -r common/* .
-    rm -rf common
+#    cp -r common/* .
+#    rm -rf common
 
 popd
