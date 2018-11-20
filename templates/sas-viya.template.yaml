@@ -1038,21 +1038,21 @@ Resources:
           files:
             /tmp/prereqs.sh:
               source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}common/scripts/viyanodes_prereqs.sh
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}common/scripts/sasnodes_prereqs.sh
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
                     - s3
               mode: '000550'
-              owner: root
-              group: root
+              owner: ec2-user
+              group: ec2-user
               authentication: S3AccessCreds
 
 
           commands:
             01-setup:
               command: !Sub
-                - INSTALL_USER=ec2-user NFS_SERVER=${ANSIBLE_CONTROLLER_IP} HOST=services /tmp/prereqs.sh &>/tmp/prereqs.log
+                - su -l ec2-user -c 'NFS_SERVER=${ANSIBLE_CONTROLLER_IP} HOST=services /tmp/prereqs.sh &>/tmp/prereqs.log'
                 - ANSIBLE_CONTROLLER_IP: !GetAtt AnsibleController.PrivateIp
     Properties:
       KeyName: !Ref KeyPairName
@@ -1121,20 +1121,20 @@ Resources:
           files:
             /tmp/prereqs.sh:
               source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}common/scripts/viyanodes_prereqs.sh
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}common/scripts/sasnodes_prereqs.sh
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
                     - s3
               mode: '000550'
-              owner: root
-              group: root
+              owner: ec2-user
+              group: ec2-user
               authentication: S3AccessCreds
 
           commands:
             01-setup:
               command: !Sub
-                - INSTALL_USER=ec2-user NFS_SERVER=${ANSIBLE_CONTROLLER_IP} HOST=controller /tmp/prereqs.sh &>/tmp/prereqs.log
+                - su -l ec2-user -c 'NFS_SERVER=${ANSIBLE_CONTROLLER_IP} HOST=controller /tmp/prereqs.sh &>/tmp/prereqs.log'
                 - ANSIBLE_CONTROLLER_IP: !GetAtt AnsibleController.PrivateIp
     Properties:
       KeyName: !Ref KeyPairName
@@ -1423,17 +1423,6 @@ Resources:
                     - s3-us-gov-west-1
                     - s3
               mode: '000550'
-              owner: root
-              group: root
-              authentication: S3AccessCreds
-            /tmp/prereqs.yml:
-              source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}common/playbooks/ansiblecontroller_prereqs.yml
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
               owner: ec2-user
               group: ec2-user
               authentication: S3AccessCreds
@@ -1461,6 +1450,7 @@ Resources:
               authentication: S3AccessCreds
               context:
                 LogGroup: !Ref CloudWatchLogGroup
+
           commands:
             01-bootstrap:
               command: /tmp/bastion_bootstrap.sh --enable false
@@ -1470,7 +1460,7 @@ Resources:
                 cat /tmp/cloudwatch.conf >> /etc/awslogs/awslogs.conf;
                 service awslogs restart
             03-prereqs:
-              command: INSTALL_USER=ec2-user /tmp/prereqs.sh &>/tmp/prereqs.log
+              command: su -l ec2-user -c '/tmp/prereqs.sh &>/tmp/prereqs.log'
 
         predeployment:
           files:
@@ -1500,20 +1490,19 @@ Resources:
           commands:
             01-download:
               command: !Sub
-                - INSTALL_USER=ec2-user S3_FILE_ROOT=${S3_FILE_ROOT} /tmp/download_file_tree.sh &>/tmp/download_file_tree.log
+                - su -l ec2-user -c 'S3_FILE_ROOT=${S3_FILE_ROOT} /tmp/download_file_tree.sh &>/tmp/download_file_tree.log'
                 - S3_FILE_ROOT: !Sub "${QSS3BucketName}/${QSS3KeyPrefix}"
 
             02-predeployment:
               command: !Sub
                 - |
-                  sudo su -l ec2-user -c '
-                  export ANSIBLE_LOG_PATH=/var/log/sas/install/predeployment.log
-                  export ANSIBLE_CONFIG=/sas/install/playbooks/ansible.cfg
-                  ansible-playbook -v /sas/install/playbooks/predeployment.yml \
-                    -e "INSTALL_USER=ec2-user" \
-                    -e "USERLIB_DISK=/dev/xvdl" \
-                    -e "SAS_INSTALL_DISK=/dev/xvdg" \
-                    ${CASCACHE_DISK}
+                  su -l ec2-user -c '
+                    export ANSIBLE_LOG_PATH=/var/log/sas/install/predeployment.log
+                    export ANSIBLE_CONFIG=/sas/install/common/playbooks/ansible.cfg
+                    ansible-playbook -v /sas/install/common/playbooks/predeployment.yml \
+                      -e "USERLIB_DISK=/dev/xvdl" \
+                      -e "SAS_INSTALL_DISK=/dev/xvdg" \
+                      ${CASCACHE_DISK}
                   '
                 - CASCACHE_DISK: !If
                    - IsNotI3
