@@ -1493,13 +1493,13 @@ Resources:
                 - su -l ec2-user -c 'S3_FILE_ROOT=${S3_FILE_ROOT} /tmp/download_file_tree.sh &>/tmp/download_file_tree.log'
                 - S3_FILE_ROOT: !Sub "${QSS3BucketName}/${QSS3KeyPrefix}"
 
-            02-predeployment:
+            02-node-prep:
               command: !Sub
                 - |
                   su -l ec2-user -c '
-                    export ANSIBLE_LOG_PATH=/var/log/sas/install/predeployment.log
+                    export ANSIBLE_LOG_PATH=/var/log/sas/install/prepare_nodes.log
                     export ANSIBLE_CONFIG=/sas/install/common/playbooks/ansible.cfg
-                    ansible-playbook -v /sas/install/common/playbooks/predeployment.yml \
+                    ansible-playbook -v /sas/install/common/playbooks/prepare_nodes.yml \
                       -e "USERLIB_DISK=/dev/xvdl" \
                       -e "SAS_INSTALL_DISK=/dev/xvdg" \
                       ${CASCACHE_DISK}
@@ -1529,7 +1529,12 @@ Resources:
         sasinstall:
           commands:
             01-orchestration:
-              command: ":"
+              command: |
+                su -l ec2-user -c '
+                  export ANSIBLE_LOG_PATH=/var/log/sas/install/prepare_deployment.log
+                  export ANSIBLE_CONFIG=/sas/install/common/playbooks/ansible.cfg
+                  ansible-playbook -v /sas/install/common/playbooks/prepare_deployment.yml
+                '              
 
     Properties:
       KeyName: !Ref KeyPairName
