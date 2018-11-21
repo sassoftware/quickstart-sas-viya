@@ -1508,6 +1508,24 @@ Resources:
                    - IsNotI3
                    - '-e "CASCACHE_DISK=/dev/xvdd"'
                    - ''
+
+            03-openldap:
+              command: !Sub
+                - |
+                  if [ -n "${ADMINPASS}" ]  && [ -n "${USERPASS}" ]; then
+                    su -l ec2-user -c '
+                      export ANSIBLE_LOG_PATH=/var/log/sas/install/openldap.log
+                      export ANSIBLE_CONFIG=/sas/install/common/playbooks/ansible.cfg
+                      ansible-playbook -v /sas/install/common/playbooks/openldapsetup.yml \
+                        -e "OLCROOTPW='${ADMINPASS}'" \
+                        -e "OLCUSERPW='${USERPASS}'"
+                    '
+                  fi
+                - USERPASS: !Base64
+                    "Ref": SASUserPass
+                  ADMINPASS: !Base64
+                    "Ref": SASAdminPass
+
         sasinstall:
           commands:
             01-orchestration:

@@ -209,31 +209,7 @@ EOF
   fi
 }
 
-install_openldap () {
 
-  # list of files created with:
-  # find openldap -type f | tail -n+1 | grep -v files.txt > openldap/files.txt
-
-  # pull down openLDAP files
-  pushd ~
-    while read file; do
-      aws s3 cp s3://{{S3FileRoot}}$file $file
-    done </tmp/openldapfiles.txt
-  popd
-
-  # set up OpenLDAP
-  pushd ~/openldap
-
-    # set log file
-    export ANSIBLE_LOG_PATH=$LOGDIR/deployment-openldap.log
-
-    # add hosts
-    ansible-playbook update.inventory.yml -i /tmp/inventory.head
-
-    # openldap and sssd setup
-    ansible-playbook openldapsetup.yml -e "OLCROOTPW='$ADMINPASS' OLCUSERPW='$USERPASS'"
-  popd
-}
 
 # sometimes there are ssh connection errors (53) during the install
 # this function allows to retry N times
@@ -508,11 +484,6 @@ pushd sas_viya_playbook
   popd
   ansible-playbook virk/playbooks/pre-install-playbook/viya_pre_install_playbook.yml --skip-tags skipmemfail,skipcoresfail,skipstoragefail,skipnicssfail,bandwidth -e 'use_pause=false'
 
-  if [ -n "$USERPASS" ]; then
-    echo " " >> "$CMDLOG"
-    echo "$(date) Install and set up OpenLDAP (see deployment-openldap.log)" >> "$CMDLOG"
-    install_openldap
-  fi
 
   #
   # main deployment
