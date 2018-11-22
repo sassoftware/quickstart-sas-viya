@@ -1500,6 +1500,7 @@ Resources:
                     export ANSIBLE_LOG_PATH=/var/log/sas/install/prepare_nodes.log
                     export ANSIBLE_CONFIG=/sas/install/common/playbooks/ansible.cfg
                     ansible-playbook -v /sas/install/common/playbooks/prepare_nodes.yml \
+                      -e "VIYA_VERSION=${VIYA_VERSION}" \
                       -e "USERLIB_DISK=/dev/xvdl" \
                       -e "SAS_INSTALL_DISK=/dev/xvdg" \
                       ${CASCACHE_DISK}
@@ -1508,6 +1509,7 @@ Resources:
                    - IsNotI3
                    - '-e "CASCACHE_DISK=/dev/xvdd"'
                    - ''
+                  VIYA_VERSION: !GetAtt LicenseInfo.ViyaVersion
 
             03-openldap:
               command: !Sub
@@ -1534,7 +1536,7 @@ Resources:
                   export ANSIBLE_LOG_PATH=/var/log/sas/install/prepare_deployment.log
                   export ANSIBLE_CONFIG=/sas/install/common/playbooks/ansible.cfg
                   ansible-playbook -v /sas/install/common/playbooks/prepare_deployment.yml
-                '              
+                '
 
     Properties:
       KeyName: !Ref KeyPairName

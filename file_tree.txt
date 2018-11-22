@@ -48,6 +48,7 @@ common/playbooks/roles/prepare_nodes/initialize_known_hosts/tasks/main.yml|755
 common/playbooks/roles/prepare_nodes/mount_cascache/tasks/main.yml|755
 common/playbooks/roles/prepare_nodes/set_host_routing/tasks/main.yml|755
 common/playbooks/roles/prepare_nodes/wait_for_viya_vms/tasks/main.yml|755
+common/playbooks/roles/prepare_nodes/get_and_run_virk/tasks/main.yml|755
 common/playbooks/roles/prepare_deployment/download_orchestration_cli/tasks/main.yml|755
 common/playbooks/ansible.cfg|755
 common/playbooks/inventory.ini|755

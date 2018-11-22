@@ -22,6 +22,25 @@ TREE_FILE=/tmp/file_tree.txt
 DOWNLOAD_DIR=/sas/install
 INSTALL_USER=$(whoami)
 
+# recurse the directory tree and set permissions on each level
+set_directory_permission () {
+
+  # retrieve the directory from the filename
+  directory=$(dirname $1)
+
+  # make sure the directory exists
+  sudo mkdir -p $directory
+
+  # set the ownership
+  sudo chown ${INSTALL_USER}:${INSTALL_USER} $directory
+
+  if [ ! $directory == . ]; then
+    set_directory_permission $directory
+  fi
+
+}
+
+echo Downloading from ${S3_FILE_ROOT} as ${INSTALL_USER}
 
 pushd $DOWNLOAD_DIR
     #
@@ -31,12 +50,7 @@ pushd $DOWNLOAD_DIR
         # retrieve the file name
         file_name="$(echo "$line" | cut -f1 -d'|')"
 
-        # retrieve the directory from the filename
-        # make sure the directory exists
-        # set the install user as directory owner
-        directory=$(dirname $file_name)
-        sudo mkdir -p $directory
-        sudo chown ${INSTALL_USER}:${INSTALL_USER} $directory
+        set_directory_permission $file_name
 
         # download the file
         aws s3 cp s3://${S3_FILE_ROOT}$file_name $file_name
@@ -54,3 +68,7 @@ pushd $DOWNLOAD_DIR
 #    rm -rf common
 
 popd
+
+
+
+
