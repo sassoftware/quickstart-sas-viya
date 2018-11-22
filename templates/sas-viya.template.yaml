@@ -1520,7 +1520,7 @@ Resources:
                       export ANSIBLE_CONFIG=/sas/install/common/playbooks/ansible.cfg
                       ansible-playbook -v /sas/install/common/playbooks/openldapsetup.yml \
                         -e "OLCROOTPW='${ADMINPASS}'" \
-                        -e "OLCUSERPW='${USERPASS}'"
+                        -e "OLCUSERPW='${USERPASS}'" \
                     '
                   fi
                 - USERPASS: !Base64
@@ -1531,12 +1531,14 @@ Resources:
         sasinstall:
           commands:
             01-orchestration:
-              command: |
-                su -l ec2-user -c '
-                  export ANSIBLE_LOG_PATH=/var/log/sas/install/prepare_deployment.log
-                  export ANSIBLE_CONFIG=/sas/install/common/playbooks/ansible.cfg
-                  ansible-playbook -v /sas/install/common/playbooks/prepare_deployment.yml
-                '
+              command: !Sub |
+                  su -l ec2-user -c '
+                    export ANSIBLE_LOG_PATH=/var/log/sas/install/prepare_deployment.log
+                    export ANSIBLE_CONFIG=/sas/install/common/playbooks/ansible.cfg
+                    ansible-playbook -v /sas/install/common/playbooks/prepare_deployment.yml \
+                      -e "DEPLOYMENT_MIRROR=${DeploymentMirror}"
+                    '
+
 
     Properties:
       KeyName: !Ref KeyPairName
