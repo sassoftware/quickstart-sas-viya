@@ -47,10 +47,8 @@ common/playbooks/roles/prepare_nodes/mount_disk/tasks/main.yml|755
 common/playbooks/roles/prepare_nodes/initialize_known_hosts/tasks/main.yml|755
 common/playbooks/roles/prepare_nodes/mount_cascache/tasks/main.yml|755
 common/playbooks/roles/prepare_nodes/set_host_routing/tasks/main.yml|755
-common/playbooks/roles/prepare_nodes/create_shared_backup_dir/tasks/main.yml|755
+common/playbooks/roles/prepare_nodes/get_virk/tasks/main.yml|755
 common/playbooks/roles/prepare_nodes/wait_for_viya_vms/tasks/main.yml|755
-common/playbooks/roles/prepare_nodes/get_and_run_virk/tasks/main.yml|755
-common/playbooks/roles/prepare_nodes/mount_shared_backup_dir/tasks/main.yml|755
 common/playbooks/roles/prepare_deployment/download_orchestration_cli/tasks/main.yml|755
 common/playbooks/roles/prepare_deployment/create_viya_playbook/tasks/main.yml|755
 common/playbooks/roles/prepare_deployment/deployment_mirror/tasks/main.yml|755
@@ -58,9 +56,12 @@ common/playbooks/roles/prepare_deployment/download_soe_file/tasks/main.yml|755
 common/playbooks/roles/prepare_deployment/update_inventory/tasks/main.yml|755
 common/playbooks/roles/prepare_deployment/update_sitedefault/tasks/main.yml|755
 common/playbooks/roles/prepare_deployment/update_vars/tasks/main.yml|755
+common/playbooks/roles/post_deployment/create_shared_backup_dir/tasks/main.yml|755
+common/playbooks/roles/post_deployment/mount_shared_backup_dir/tasks/main.yml|755
 common/playbooks/ansible.cfg|755
 common/playbooks/inventory.ini|755
 common/playbooks/prepare_nodes.yml|755
+common/playbooks/post_deployment.yml|755
 common/scripts/ansiblecontroller_prereqs.sh|755
 common/scripts/make_file_tree_file.sh|755
 common/scripts/sasnodes_prereqs.sh|755

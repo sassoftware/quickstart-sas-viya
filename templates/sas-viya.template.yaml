@@ -1434,7 +1434,7 @@ Resources:
                       ansible-playbook -v /sas/install/common/playbooks/openldapsetup.yml \
                         -e "OLCROOTPW='${ADMINPASS}'" \
                         -e "OLCUSERPW='${USERPASS}'" \
-                    '
+                  '
                   fi
                 - USERPASS: !Base64
                     "Ref": SASUserPass
@@ -1452,14 +1452,30 @@ Resources:
                     -e "DEPLOYMENT_MIRROR=${DeploymentMirror}" \
                     -e "DEPLOYMENT_DATA_LOCATION=${DeploymentDataLocation}" \
                     -e "ADMINPASS=${SASAdminPass}"
-                  '
-            02-install:
-              command: !Sub |
+                '
+            02-virk:
+              command: |
+                su -l ec2-user -c '
+                  export ANSIBLE_LOG_PATH=/var/log/sas/install/virk.log
+                  export ANSIBLE_INVENTORY=/sas/install/sas_viya_playbook/inventory.ini
+                  ansible-playbook -v /sas/install/virk/playbooks/pre-install-playbook/viya_pre_install_playbook.yml \
+                     -e "use_pause=false" \
+                     --skip-tags skipmemfail,skipcoresfail,skipstoragefail,skipnicssfail,bandwidth
+                '
+            03-install:
+              command: |
                 su -l ec2-user -c '
                   export ANSIBLE_LOG_PATH=/var/log/sas/install/viya_deployment.log
                   pushd /sas/install/sas_viya_playbook
                     ansible-playbook -v site.yml
-                  '
+                '
+            04-post-install:
+              command: |
+                su -l ec2-user -c '
+                  export ANSIBLE_LOG_PATH=/var/log/sas/install/post_deployment.log
+                  export ANSIBLE_CONFIG=/sas/install/common/playbooks/ansible.cfg
+                  ansible-playbook -v /sas/install/common/playbooks/post_deployment.yml
+                '
     Properties:
       KeyName: !Ref KeyPairName
       SubnetId: !Ref PublicSubnetID
@@ -1501,6 +1517,7 @@ Resources:
             if ! [ $RC = 0 ]; then
               cfn-signal -e $RC --success false --stack ${AWS::StackName} --resource StackComplete --region ${AWS::Region} \
                          --reason "Predeployment failed on ansible controller"
+              exit 1
             fi
 
             # Start the actual Viya deployment
