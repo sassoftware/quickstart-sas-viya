@@ -47,8 +47,10 @@ common/playbooks/roles/prepare_nodes/mount_disk/tasks/main.yml|755
 common/playbooks/roles/prepare_nodes/initialize_known_hosts/tasks/main.yml|755
 common/playbooks/roles/prepare_nodes/mount_cascache/tasks/main.yml|755
 common/playbooks/roles/prepare_nodes/set_host_routing/tasks/main.yml|755
+common/playbooks/roles/prepare_nodes/create_shared_backup_dir/tasks/main.yml|755
 common/playbooks/roles/prepare_nodes/wait_for_viya_vms/tasks/main.yml|755
 common/playbooks/roles/prepare_nodes/get_and_run_virk/tasks/main.yml|755
+common/playbooks/roles/prepare_nodes/mount_shared_backup_dir/tasks/main.yml|755
 common/playbooks/roles/prepare_deployment/download_orchestration_cli/tasks/main.yml|755
 common/playbooks/roles/prepare_deployment/create_viya_playbook/tasks/main.yml|755
 common/playbooks/roles/prepare_deployment/deployment_mirror/tasks/main.yml|755
