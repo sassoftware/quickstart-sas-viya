@@ -723,8 +723,8 @@ Resources:
           Ref: CASController
 
 
-  ViyaPlacementGroup:
-    Type: AWS::EC2::PlacementGroup
+#  ViyaPlacementGroup:
+#    Type: AWS::EC2::PlacementGroup
 
   ELBSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -980,7 +980,7 @@ Resources:
         - - 'r4'
           - !Ref ServicesInstanceSize
       EbsOptimized: true
-      PlacementGroupName: !Ref ViyaPlacementGroup
+      #PlacementGroupName: !Ref ViyaPlacementGroup
       BlockDeviceMappings:
         - DeviceName: /dev/sda1
           # root disk
@@ -1063,7 +1063,7 @@ Resources:
         - - !Ref CASInstanceType
           - !GetAtt LicenseInfo.NodeInstanceSize
       EbsOptimized: true
-      PlacementGroupName: !Ref ViyaPlacementGroup
+      #PlacementGroupName: !Ref ViyaPlacementGroup
       SecurityGroupIds:
         - !Ref ViyaSecurityGroup
 
@@ -1390,7 +1390,7 @@ Resources:
               authentication: S3AccessCreds
             /tmp/download_file_tree.sh:
               source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/download_file_tree.sh
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}common/scripts/download_file_tree.sh
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -1403,7 +1403,7 @@ Resources:
           commands:
             01-download:
               command: !Sub
-                - su -l ec2-user -c 'S3_FILE_ROOT=${S3_FILE_ROOT} /tmp/download_file_tree.sh &>/tmp/download_file_tree.log'
+                - su -l ec2-user -c 'IAAS=aws FILE_ROOT=${S3_FILE_ROOT} /tmp/download_file_tree.sh &>/tmp/download_file_tree.log'
                 - S3_FILE_ROOT: !Sub "${QSS3BucketName}/${QSS3KeyPrefix}"
 
             02-node-prep:
@@ -1411,8 +1411,8 @@ Resources:
                 - |
                   su -l ec2-user -c '
                     export ANSIBLE_LOG_PATH=/var/log/sas/install/prepare_nodes.log
-                    export ANSIBLE_CONFIG=/sas/install/common/playbooks/ansible.cfg
-                    ansible-playbook -v /sas/install/common/playbooks/prepare_nodes.yml \
+                    export ANSIBLE_CONFIG=/sas/install/common/ansible/playbooks/ansible.cfg
+                    ansible-playbook -v /sas/install/common/ansible/playbooks/prepare_nodes.yml \
                       -e "VIYA_VERSION=${VIYA_VERSION}" \
                       -e "USERLIB_DISK=/dev/xvdl" \
                       -e "SAS_INSTALL_DISK=/dev/xvdg" \
@@ -1430,8 +1430,8 @@ Resources:
                   if [ -n "${ADMINPASS}" ] && [ -n "${USERPASS}" ]; then
                     su -l ec2-user -c '
                       export ANSIBLE_LOG_PATH=/var/log/sas/install/openldap.log
-                      export ANSIBLE_CONFIG=/sas/install/common/playbooks/ansible.cfg
-                      ansible-playbook -v /sas/install/common/playbooks/openldapsetup.yml \
+                      export ANSIBLE_CONFIG=/sas/install/common/ansible/playbooks/ansible.cfg
+                      ansible-playbook -v /sas/install/common/ansible/playbooks/openldapsetup.yml \
                         -e "OLCROOTPW='${ADMINPASS}'" \
                         -e "OLCUSERPW='${USERPASS}'" \
                   '
@@ -1447,8 +1447,8 @@ Resources:
               command: !Sub |
                 su -l ec2-user -c '
                   export ANSIBLE_LOG_PATH=/var/log/sas/install/prepare_deployment.log
-                  export ANSIBLE_CONFIG=/sas/install/common/playbooks/ansible.cfg
-                  ansible-playbook -v /sas/install/common/playbooks/prepare_deployment.yml \
+                  export ANSIBLE_CONFIG=/sas/install/common/ansible/playbooks/ansible.cfg
+                  ansible-playbook -v /sas/install/common/ansible/playbooks/prepare_deployment.yml \
                     -e "DEPLOYMENT_MIRROR=${DeploymentMirror}" \
                     -e "DEPLOYMENT_DATA_LOCATION=${DeploymentDataLocation}" \
                     -e "ADMINPASS=${SASAdminPass}"
@@ -1457,8 +1457,8 @@ Resources:
               command: |
                 su -l ec2-user -c '
                   export ANSIBLE_LOG_PATH=/var/log/sas/install/virk.log
-                  export ANSIBLE_INVENTORY=/sas/install/sas_viya_playbook/inventory.ini
-                  ansible-playbook -v /sas/install/virk/playbooks/pre-install-playbook/viya_pre_install_playbook.yml \
+                  export ANSIBLE_INVENTORY=/sas/install/ansible/sas_viya_playbook/inventory.ini
+                  ansible-playbook -v /sas/install/ansible/virk/playbooks/pre-install-playbook/viya_pre_install_playbook.yml \
                      -e "use_pause=false" \
                      --skip-tags skipmemfail,skipcoresfail,skipstoragefail,skipnicssfail,bandwidth
                 '
@@ -1466,15 +1466,15 @@ Resources:
               command: |
                 su -l ec2-user -c '
                   export ANSIBLE_LOG_PATH=/var/log/sas/install/viya_deployment.log
-                  pushd /sas/install/sas_viya_playbook
+                  pushd /sas/install/ansible/sas_viya_playbook
                     ansible-playbook -v site.yml
                 '
             04-post-install:
               command: |
                 su -l ec2-user -c '
                   export ANSIBLE_LOG_PATH=/var/log/sas/install/post_deployment.log
-                  export ANSIBLE_CONFIG=/sas/install/common/playbooks/ansible.cfg
-                  ansible-playbook -v /sas/install/common/playbooks/post_deployment.yml
+                  export ANSIBLE_CONFIG=/sas/install/common/ansible/playbooks/ansible.cfg
+                  ansible-playbook -v /sas/install/common/ansible/playbooks/post_deployment.yml
                 '
     Properties:
       KeyName: !Ref KeyPairName
