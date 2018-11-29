@@ -344,9 +344,15 @@ Conditions:
   GovCloudCondition: !Equals
     - !Ref AWS::Region
     - us-gov-west-1
+
   SNSCondition: !Not
     - !Equals
       - !Ref OperatorEmail
+      - ''
+
+  MirrorCondition: !Not
+    - !Equals
+      - !Ref DeploymentMirror
       - ''
 
   IsI3: !Equals
@@ -1144,6 +1150,68 @@ Resources:
       VolumeId: !Ref CASCacheVolume
 
 
+
+  AnsibleControllerCertPolicy:
+    Condition: HasSSLCertificate
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+       # needed to verify if the SSLCertificateARN input parm is a valid certificate
+        Version: 2012-10-17
+        Statement:
+          - Action:
+              - "acm:describeCertificate"
+            Resource:
+              - !Ref SSLCertificateARN
+            Effect: Allow
+          - Action:
+               - 'iam:getServerCertificate'
+            Resource:
+              - !Ref SSLCertificateARN
+            Effect: Allow
+      PolicyName: ansiblecontroller-cert-verification-policy
+      Roles:
+        - !Ref AnsibleControllerRole
+
+  AnsibleControllerSNSPolicy:
+    Condition: SNSCondition
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action:
+              - 'SNS:Publish'
+            Resource: !Ref SNSTopic
+            Effect: Allow
+      PolicyName: ansiblecontroller-sns-policy
+      Roles:
+        - !Ref AnsibleControllerRole
+
+  AnsibleControllerMirrorPolicy:
+    Condition: MirrorCondition
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action:
+              - 's3:ListBucket'
+            Resource: !Sub
+             - 'arn:aws:s3:::${mirror_bucket_name}'
+             - mirror_bucket_name: !GetAtt LicenseInfo.s3_mirror_bucket
+            Effect: Allow
+          - Action:
+              - 's3:GetObject'
+            Resource: !Sub
+              - 'arn:aws:s3:::${mirror_bucket_name}${mirror_bucket_path}*'
+              - mirror_bucket_name: !GetAtt LicenseInfo.s3_mirror_bucket
+                mirror_bucket_path: !GetAtt LicenseInfo.s3_mirror_path
+            Effect: Allow
+      PolicyName: aws-mirror-s3-policy
+      Roles:
+        - !Ref AnsibleControllerRole
+
   AnsibleControllerRole:
     Type: AWS::IAM::Role
     Properties:
@@ -1158,24 +1226,9 @@ Resources:
 #                  - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}*/*"
 #                Effect: Allow
 #          PolicyName: ansiblecontroller-cfn-policy
-#        - PolicyDocument:
-#            Version: 2012-10-17
-#            Statement:
-#              - Action:
-#                  - "acm:DescribeCertificate"
-#                Resource:
-#                  - "arn:aws:acm:*:*:certificate/*"
-#                Effect: Allow
-#          PolicyName: ansiblecontroller-acm-policy
-        - PolicyDocument:
-            Version: 2012-10-17
-            Statement:
-              - Action:
-                  - 'SNS:Publish'
-                Resource: "*"
-                Effect: Allow
-          PolicyName: ansiblecontroller-sns-policy
-        - PolicyDocument:
+
+        - PolicyName: aws-quick-start-s3-policy
+          PolicyDocument:
             Version: 2012-10-17
             Statement:
               - Action:
@@ -1189,8 +1242,9 @@ Resources:
                   - !Sub 'arn:aws:s3:::${QSS3BucketName}/*'
 
                 Effect: Allow
-          PolicyName: aws-quick-start-s3-policy
-        - PolicyDocument:
+
+        - PolicyName: viya-playbook-s3-policy
+          PolicyDocument:
             Version: 2012-10-17
             Statement:
               - Action:
@@ -1198,25 +1252,10 @@ Resources:
                 Resource:
                   - !Sub 'arn:aws:s3:::${DeploymentDataLocation}'
                 Effect: Allow
-          PolicyName: viya-playbook-s3-policy
-        - PolicyDocument:
-            Version: 2012-10-17
-            Statement:
-              - Action:
-                  - 's3:ListBucket'
-                Resource: !Sub
-                 - 'arn:aws:s3:::${mirror_bucket_name}'
-                 - mirror_bucket_name: !GetAtt LicenseInfo.s3_mirror_bucket
-                Effect: Allow
-              - Action:
-                  - 's3:GetObject'
-                Resource: !Sub
-                  - 'arn:aws:s3:::${mirror_bucket_name}${mirror_bucket_path}*'
-                  - { mirror_bucket_name: !GetAtt LicenseInfo.s3_mirror_bucket,
-                      mirror_bucket_path: !GetAtt LicenseInfo.s3_mirror_path }
-                Effect: Allow
-          PolicyName: aws-mirror-s3-policy
-        - PolicyDocument:
+
+
+        - PolicyName: ansiblecontroller-ec2-policy
+          PolicyDocument:
             Version: 2012-10-17
             Statement:
               - Action:
@@ -1237,24 +1276,10 @@ Resources:
                 Resource:
                   - '*'
                 Effect: Allow
-          PolicyName: ansiblecontroller-ec2-policy
-#        - PolicyDocument:
-#            Version: 2012-10-17
-#            Statement:
-#              - Action:
-#                  - 'iam:uploadServerCertificate'
-#                  - 'iam:listServerCertificates'
-#                  - 'iam:getServerCertificate'
-#                Resource:
-#                  - '*'
-#                Effect: Allow
-#              - Action:
-#                  - 'iam:PassRole'
-#                Resource:
-#                  - !Sub arn:aws:iam::${AWS::AccountId}:role/${ViyaRole}
-#                Effect: Allow
-#          PolicyName: ansiblecontroller-iam-policy
-        - PolicyDocument:
+
+
+        - PolicyName: ansiblecontroller-route53-policy
+          PolicyDocument:
             Version: 2012-10-17
             Statement:
               - Action:
@@ -1263,8 +1288,9 @@ Resources:
                 Resource:
                   - '*'
                 Effect: Allow
-          PolicyName: ansiblecontroller-route53-policy
-        - PolicyDocument:
+
+        - PolicyName: ansiblecontroller-cloudwatch-logs-policy
+          PolicyDocument:
             Version: 2012-10-17
             Statement:
               - Action:
@@ -1276,14 +1302,9 @@ Resources:
                   - 'logs:PutRetentionPolicy'
                   - 'logs:PutMetricFilter'
                   - 'logs:CreateLogGroup'
-                Resource: !Sub
-                  - arn:${Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${CloudWatchLogGroup}:*
-                  - Partition: !If
-                      - GovCloudCondition
-                      - aws-us-gov
-                      - aws
+                Resource: !GetAtt CloudWatchLogGroup.Arn
                 Effect: Allow
-          PolicyName: ansiblecontroller-cloudwatch-logs-policy
+
       Path: /
       AssumeRolePolicyDocument:
         Statement:
@@ -1304,6 +1325,7 @@ Resources:
     Type: AWS::EC2::EIP
     Properties:
       Domain: vpc
+
   AnsibleController:
     Type: AWS::EC2::Instance
     CreationPolicy:
@@ -1321,12 +1343,12 @@ Resources:
       'AWS::CloudFormation::Init':
         configSets:
           bootstrap:
-            - prereqs
+            - bootstrap
           predeployment:
             - predeployment
           deployment:
-            - sasinstall
-        prereqs:
+            - deployment
+        bootstrap:
           files:
             /tmp/prereqs.sh:
               source: !Sub
@@ -1363,20 +1385,6 @@ Resources:
               authentication: S3AccessCreds
               context:
                 LogGroup: !Ref CloudWatchLogGroup
-
-          commands:
-            01-bootstrap:
-              command: /tmp/bastion_bootstrap.sh --enable false
-            02-cloudwatch:
-              command: >-
-                sed -i 's/{instance_id}/ansible-controller-commands.log/' /etc/awslogs/awslogs.conf;
-                cat /tmp/cloudwatch.conf >> /etc/awslogs/awslogs.conf;
-                service awslogs restart
-            03-prereqs:
-              command: su -l ec2-user -c '/tmp/prereqs.sh &>/tmp/prereqs.log'
-
-        predeployment:
-          files:
             /tmp/file_tree.txt:
               source: !Sub
                 - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}file_tree.txt
@@ -1399,14 +1407,85 @@ Resources:
               owner: ec2-user
               group: ec2-user
               authentication: S3AccessCreds
+            /tmp/parms.json:
+              # use this file later to apply pystache to any files downloaded via file_tree
+              content: !Sub |
+                {
+                 "SNSTopic": "{{SNSTopic}}",
+                 "KeyPairName": "{{KeyPairName}}",
+                 "AnsibleControllerIP": "{{AnsibleControllerIP}}",
+                 "StackName": "{{StackName}}",
+                 "StackId": "{{StackId}}",
+                 "CloudWatchLogs": "{{CloudWatchLogs}}",
+                 "SSLCertificateARN": "{{SSLCertificateARN}}"
+                 }
+              mode: '000500'
+              owner: ec2-user
+              group: ec2-user
+              context:
+                SNSTopic: !If [SNSCondition, !Ref SNSTopic, ""]
+                AWSRegion: !Ref AWS::Region
+                KeyPairName: !Ref KeyPairName
+                AnsibleControllerIP: !Ref AnsibleControllerEIP
+                StackName: !Ref AWS::StackName
+                StackId: !Ref AWS::StackId
+                CloudWatchLogs: !Sub "https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#logStream:group=${CloudWatchLogGroup}"
+                SSLCertificateARN: !Ref SSLCertificateARN
+#                SASStudio: !Join
+#                  - ''
+#                  - - 'https://'
+#                    - Fn::If:
+#                      - HasDNSEntry
+#                      - !Ref DomainName
+#                      - !GetAtt
+#                        - ElasticLoadBalancer
+#                        - DNSName
+#                    - !GetAtt LicenseInfo.SASStudioPath
+#                SASDrive: !Join
+#                  - ''
+#                  - - 'https://'
+#                    - Fn::If:
+#                      - HasDNSEntry
+#                      - !Ref DomainName
+#                      - !GetAtt
+#                        - ElasticLoadBalancer
+#                        - DNSName
+#                    - !GetAtt LicenseInfo.SASDrivePath
 
           commands:
-            01-download:
+            01-bastion_bootstrap:
+              command: /tmp/bastion_bootstrap.sh --enable false
+            02-cloudwatch:
+              command: >-
+                sed -i 's/{instance_id}/ansible-controller-commands.log/' /etc/awslogs/awslogs.conf;
+                cat /tmp/cloudwatch.conf >> /etc/awslogs/awslogs.conf;
+                service awslogs restart
+            03-ansible_prereqs:
+              command: su -l ec2-user -c '/tmp/prereqs.sh &>/tmp/prereqs.log'
+            04-download_file_tree:
               command: !Sub
-                - su -l ec2-user -c 'IAAS=aws FILE_ROOT=${S3_FILE_ROOT} /tmp/download_file_tree.sh &>/tmp/download_file_tree.log'
+                - |
+                  su -l ec2-user -c '
+                    #!/bin/bash
+                    IAAS=aws FILE_ROOT=${S3_FILE_ROOT} /tmp/download_file_tree.sh &>/tmp/download_file_tree.log
+                    # update any mustache parms
+                    update_parms () { pystache "$(cat $1)" /tmp/parms.json > $1; }
+                    update_parms /sas/install/scripts/send_sns_message.sh
+                    update_parms /sas/install/scripts/verify_parameters.sh
+                  '
+                - S3_FILE_ROOT: !Sub "${QSS3BucketName}/${QSS3KeyPrefix}"
+            05-verify_parms:
+              command: !Sub
+                - |
+                  FAILMSG=$(/sas/install/scripts/verify_parameters.sh)
+                  export RC=$?; export FAILMSG
+                  [ ! $RC = 0 ] && /sas/install/scripts/send_sns_message.sh failure
+                  exit $RC
                 - S3_FILE_ROOT: !Sub "${QSS3BucketName}/${QSS3KeyPrefix}"
 
-            02-node-prep:
+        predeployment:
+          commands:
+            01-nodeprep:
               command: !Sub
                 - |
                   su -l ec2-user -c '
@@ -1424,7 +1503,7 @@ Resources:
                    - ''
                   VIYA_VERSION: !GetAtt LicenseInfo.ViyaVersion
 
-            03-openldap:
+            02-openldap:
               command: !Sub
                 - |
                   if [ -n "${ADMINPASS}" ] && [ -n "${USERPASS}" ]; then
@@ -1441,7 +1520,7 @@ Resources:
                   ADMINPASS: !Base64
                     "Ref": SASAdminPass
 
-        sasinstall:
+        deployment:
           commands:
             01-orchestration:
               command: !Sub |
@@ -1508,22 +1587,36 @@ Resources:
             cfn-init --stack ${AWS::StackName} --resource AnsibleController --configsets bootstrap --region ${AWS::Region}
             # This signal will complete the ansible controller creation and allow the other VMs to start
             # their creation, using the ansible controller private ip as input
-            cfn-signal -e $? --stack ${AWS::StackName} --resource AnsibleController --region ${AWS::Region}
+            RC=$?
+            cfn-signal -e $RC --stack ${AWS::StackName} --resource AnsibleController --region ${AWS::Region}
+
+            if ! [ $RC = 0 ]; then
+              exit $RC
+            fi
 
             # Do environment preparation
+            /sas/install/scripts/send_sns_message.sh starting
             cfn-init --stack ${AWS::StackName} --resource AnsibleController --configsets predeployment --region ${AWS::Region}
             # If something goes wrong here, we do not need to continue
             RC=$?
             if ! [ $RC = 0 ]; then
+              /sas/install/scripts/send_sns_message.sh failure
               cfn-signal -e $RC --success false --stack ${AWS::StackName} --resource StackComplete --region ${AWS::Region} \
                          --reason "Predeployment failed on ansible controller"
               exit 1
             fi
 
             # Start the actual Viya deployment
+
             cfn-init --stack ${AWS::StackName} --resource AnsibleController --configsets deployment --region ${AWS::Region}
             # Update the StackComplete (this concludes the Stack creation)
-            cfn-signal -e $? --stack ${AWS::StackName} --resource StackComplete --region ${AWS::Region}
+            RC=$?
+            cfn-signal -e $RC --stack ${AWS::StackName} --resource StackComplete --region ${AWS::Region}
+            if [ $RC = 0 ]; then
+              /sas/install/scripts/send_sns_message.sh success
+            else
+              /sas/install/scripts/send_sns_message.sh failure
+            fi
 
 Outputs:
   SASDrive:
@@ -1534,9 +1627,7 @@ Outputs:
         - Fn::If:
           - HasDNSEntry
           - !Ref DomainName
-          - !GetAtt
-            - ElasticLoadBalancer
-            - DNSName
+          - !GetAtt ElasticLoadBalancer.DNSName
         - !GetAtt LicenseInfo.SASDrivePath
   SASStudio:
     Description: SAS Studio
@@ -1546,9 +1637,7 @@ Outputs:
         - Fn::If:
           - HasDNSEntry
           - !Ref DomainName
-          - !GetAtt
-            - ElasticLoadBalancer
-            - DNSName
+          - !GetAtt ElasticLoadBalancer.DNSName
         - !GetAtt LicenseInfo.SASStudioPath
   AnsibleControllerIP:
     Description: Ansible Controller IP address
