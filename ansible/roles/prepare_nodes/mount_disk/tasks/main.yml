@@ -1,0 +1,67 @@
+---
+
+- name: create {{ MOUNT_DIR }} directory
+  file:
+    path: "{{ MOUNT_DIR }}"
+    state: directory
+    owner: "{{ ansible_user_id }}"
+    group: "{{ ansible_user_id }}"
+    mode: 0777
+
+- name: wait for {{ MOUNT_DISK }} device to become available
+  # in some cases, the volume attachments to the VMs happen after other initializaiton code only
+  wait_for:
+    path: "{{ MOUNT_DISK }}"
+    state: present
+    timeout: 300
+    sleep: 1
+
+- name: Ensure that the primary partition is present on the new disk
+  parted:
+    device: "{{ MOUNT_DISK }}"
+    number: 1
+    state: present
+
+- name: check for {{ MOUNT_DISK }} device
+  stat:
+    path: "{{ MOUNT_DISK }}"
+  register: source_disk_stat
+
+- block:
+  - name: format new volume
+    filesystem:
+      fstype: xfs
+      dev: "{{ MOUNT_DISK }}"
+
+
+  - name: mount viya installation volume {{ MOUNT_DISK }} on {{ MOUNT_DIR }}
+    mount:
+      name: "{{ MOUNT_DIR }}"
+      src: "{{ MOUNT_DISK }}"
+      fstype: xfs
+      state: mounted
+
+  when: source_disk_stat.stat.exists == true
+
+
+- name: tag volumes
+  shell: |
+
+    # get the instance id from the instance metadata
+    INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )
+
+    # get the aws region from the instance metadata
+    AWS_AVAIL_ZONE=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)
+    AWS_REGION=$(echo ${AWS_AVAIL_ZONE}  | sed "s/[a-z]$//")
+
+    # get the stack name from the automatic instance tag "aws:cloudformation:stack-name"
+    STACK_NAME=$(aws --region $AWS_REGION ec2 describe-tags --filter "Name=resource-id,Values=$INSTANCE_ID" --query 'Tags[?Key==`aws:cloudformation:stack-name`].Value' --output text)
+
+    # retrieve all attached volumes
+    DISK_IDS=$(aws --region $AWS_REGION ec2 describe-volumes  --filter "Name=attachment.instance-id, Values=$INSTANCE_ID" --query "Volumes[].VolumeId" --out text)
+
+    # set the Name tag to "<stackname> <hostname>" and the Stack tag to "<stackname>"
+    aws ec2  --region $AWS_REGION  create-tags --resources $DISK_IDS --tags Key=Name,Value="$STACK_NAME $(hostname -s)" Key=Stack,Value="$STACK_NAME"
+
+
+
