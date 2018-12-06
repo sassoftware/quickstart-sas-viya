@@ -1127,7 +1127,7 @@ Resources:
       VolumeType: gp2
       Encrypted: true
       AvailabilityZone: !GetAtt CASController.AvailabilityZone
-`
+
   CASLibAttachment:
     Type: AWS::EC2::VolumeAttachment
     Properties:
@@ -1296,6 +1296,7 @@ Resources:
                   - ec2:StartInstances
                   - ec2:AttachVolume
                   - ec2:CreateTags
+                  - ec2:describeTags
                   - ec2:AuthorizeSecurityGroupIngress
                   - ec2:DescribeSecurityGroups
                   - elasticloadbalancing:DescribeLoadBalancers
@@ -1531,8 +1532,9 @@ Resources:
               command: |
                 su -l ec2-user -c '
                   export ANSIBLE_LOG_PATH=/var/log/sas/install/virk.log
+                  export ANSIBLE_CONFIG=/sas/install/common/ansible/playbooks/ansible.cfg
                   export ANSIBLE_INVENTORY=/sas/install/ansible/sas_viya_playbook/inventory.ini
-                  ansible-playbook -v /sas/install/ansible/virk/playbooks/pre-install-playbook/viya_pre_install_playbook.yml \
+                  ansible-playbook -v /sas/install/ansible/sas_viya_playbook/virk/playbooks/pre-install-playbook/viya_pre_install_playbook.yml \
                      -e "use_pause=false" \
                      --skip-tags skipmemfail,skipcoresfail,skipstoragefail,skipnicssfail,bandwidth
                 '
