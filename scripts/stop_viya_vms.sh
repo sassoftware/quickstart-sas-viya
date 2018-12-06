@@ -11,7 +11,8 @@
 # execute the virk stop services playbook
 #
 echo "Stopping Viya services..."
-pushd ~/sas_viya_playbook
+
+pushd /sas/install/ansible/sas_viya_playbook
    # It is necessary to disable the automatic service restarts.
    # Without disabling the service restart, the services will come up as each VM restarts.
    # Instead, we want to control the order at restart.
@@ -20,14 +21,27 @@ pushd ~/sas_viya_playbook
    ansible-playbook virk/playbooks/service-management/viya-services-stop.yml
 popd
 
+
 #
 # get all the VMs of the stack, except the ansible controller
 #
 echo "Getting list of VMs..."
-IDS=$(aws --region {{AWSRegion}} cloudformation describe-stack-resources --stack-name {{CloudFormationStack}} --query 'StackResources[?ResourceType==`AWS::EC2::Instance`  && LogicalResourceId!=`AnsibleController`].PhysicalResourceId' --output text)
+
+# get the instance id from the instance metadata
+INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )
+
+# get the aws region from the instance metadata
+AWS_AVAIL_ZONE=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)
+AWS_REGION=$(echo ${AWS_AVAIL_ZONE}  | sed "s/[a-z]$//")
+
+# get the stack name from the automatic instance tag "aws:cloudformation:stack-name"
+STACK_NAME=$(aws --region $AWS_REGION ec2 describe-tags --filter "Name=resource-id,Values=$INSTANCE_ID" --query 'Tags[?Key==`aws:cloudformation:stack-name`].Value' --output text)
+
+
+IDS=$(aws --region $AWS_REGION cloudformation describe-stack-resources --stack-name $STACK_NAME --query 'StackResources[?ResourceType==`AWS::EC2::Instance`  && LogicalResourceId!=`AnsibleController`].PhysicalResourceId' --output text)
 
 #
 # stop the VMs
 #
 echo "Stopping VMs..."
-aws --region {{AWSRegion}} ec2 stop-instances --instance-ids ${IDS}
+aws --region $AWS_REGION ec2 stop-instances --instance-ids ${IDS}
