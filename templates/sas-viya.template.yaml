@@ -900,7 +900,8 @@ Resources:
               - 'sts:AssumeRole'
       Path: /
       Policies:
-        - PolicyDocument:
+        - PolicyName: aws-mirror-s3-policy
+          PolicyDocument:
             Version: 2012-10-17
             Statement:
               - Action:
@@ -916,15 +917,30 @@ Resources:
                   - { mirror_bucket_name: !GetAtt LicenseInfo.s3_mirror_bucket,
                       mirror_bucket_path: !GetAtt LicenseInfo.s3_mirror_path }
                 Effect: Allow
-          PolicyName: aws-mirror-s3-policy
-        - PolicyDocument:
+
+
+        - PolicyName: aws-quick-start-s3-policy
+          PolicyDocument:
             Version: 2012-10-17
             Statement:
               - Action:
                   - 's3:GetObject'
                 Resource: !Sub 'arn:aws:s3:::${QSS3BucketName}/${QSS3KeyPrefix}*'
                 Effect: Allow
-          PolicyName: aws-quick-start-s3-policy
+
+        # needed for tagging the inline ebs volumes
+        - PolicyName: viya-ec2-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Action:
+                  - ec2:describeVolumes
+                  - ec2:describeTags
+                  - ec2:createTags
+                Resource:
+                  - '*'
+                Effect: Allow
+
 
   ViyaProfile:
     Type: AWS::IAM::InstanceProfile
@@ -1094,9 +1110,6 @@ Resources:
       VolumeType: gp2
       Encrypted: true
       AvailabilityZone: !GetAtt CASController.AvailabilityZone
-      Tags:
-        - Key: Name
-          Value: !Sub ${AWS::StackName} CAS Controller Viya Install
 
   CASViyaAttachment:
     Type: AWS::EC2::VolumeAttachment
@@ -1114,10 +1127,7 @@ Resources:
       VolumeType: gp2
       Encrypted: true
       AvailabilityZone: !GetAtt CASController.AvailabilityZone
-      Tags:
-        - Key: Name
-          Value: !Sub ${AWS::StackName} CAS Controller CASLib
-
+`
   CASLibAttachment:
     Type: AWS::EC2::VolumeAttachment
     Properties:
@@ -1135,9 +1145,6 @@ Resources:
       VolumeType: gp2
       Encrypted: true
       AvailabilityZone: !GetAtt CASController.AvailabilityZone
-      Tags:
-        - Key: Name
-          Value: !Sub ${AWS::StackName} CAS Controller CAS Cache
 
   CASCacheAttachment:
     Condition: IsNotI3
@@ -1291,7 +1298,6 @@ Resources:
                   - ec2:CreateTags
                   - ec2:AuthorizeSecurityGroupIngress
                   - ec2:DescribeSecurityGroups
-                  - ec2:*
                   - elasticloadbalancing:DescribeLoadBalancers
                 Resource:
                   - '*'
