@@ -1543,7 +1543,7 @@ Resources:
                 su -l ec2-user -c '
                   export ANSIBLE_LOG_PATH=/var/log/sas/install/viya_deployment.log
                   pushd /sas/install/ansible/sas_viya_playbook
-                    ansible-playbook -v site.yml
+                    ansible-playbook site.yml
                 '
             04-post-install:
               command: |
