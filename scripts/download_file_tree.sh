@@ -33,7 +33,8 @@ pushd $DOWNLOAD_DIR
       --exclude 'ci/*'
 
    chown -R ${INSTALL_USER}:${INSTALL_USER} .
-   chmod -R 755 ansible bin common scripts
+   chmod -R 755 ansible bin common
+   chmod -R 700 scripts
 popd
 
 
