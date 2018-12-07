@@ -46,6 +46,12 @@
         ./sas-admin identities create-group --id "DataAgentPowerUsers" --name "Data Agent Power Users" --description "Data Agent Power Users group"
         ./sas-admin identities add-member --group-id "DataAgentAdministrators" --user-member-id "{{ adminuser }}"
 
+  - name: register hostname
+    shell: hostname
+    register: coreserviceshostname
+  - set_fact:
+      corehost: "{{ coreserviceshostname.stdout }}"
+
 - hosts: [DataServices]
   gather_facts: False
   become: yes
@@ -71,5 +77,5 @@
       shell:
         chdir: /opt/sas/viya/home/bin
         cmd: |
-          ./da_reg_server.sh --customerid shared --remotehost {{ data_agent_host }}  --remoteport 443 --sasadministratoruser {{ adminuser }} --sasadministratorpassword {{ adminpw }} --secret {{ secret }} --sas-endpoint https://{{hostvars[groups["CoreServices"]|first]['ansible_host']}}:443 --regoverwrite Y
+          ./da_reg_server.sh --customerid shared --remotehost {{ data_agent_host }}  --remoteport 443 --sasadministratoruser {{ adminuser }} --sasadministratorpassword {{ adminpw }} --secret {{ secret }} --sas-endpoint https://{{hostvars[groups['CoreServices']|first]['corehost']}}:443 --regoverwrite Y
 
