@@ -48,102 +48,147 @@
 #
 # get private ip address of cas controller
 #
-PRIVATE_IP=$(cat /etc/hosts | grep controller | cut -d" " -f1)
+CONTROLLER_IP=$(cat /etc/hosts | grep controller | cut -d" " -f1)
+
+#
+# get ansible controller private IP
+#
+ANSIBLE_IP=$(hostname -i)
+
+
+#
+# get the aws region from the instance metadata
+#
+AWS_AVAIL_ZONE=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)
+AWS_REGION=$(echo ${AWS_AVAIL_ZONE}  | sed "s/[a-z]$//")
+
+#
+# get the stack name from the automatic instance tag "aws:cloudformation:stack-name"
+#
+INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )
+STACK_NAME=$(aws --region $AWS_REGION ec2 describe-tags --filter "Name=resource-id,Values=$INSTANCE_ID" --query 'Tags[?Key==`aws:cloudformation:stack-name`].Value' --output text)
+
 
 #
 # get CAS controller volume ids
 #
-CASLIB_VOLUME=$(aws --region "{{AWSRegion}}" cloudformation describe-stack-resources --stack-name {{Stack}} --query 'StackResources[?LogicalResourceId==`CASLibVolume`].PhysicalResourceId' --output text)
-CASVIYA_VOLUME=$(aws --region "{{AWSRegion}}" cloudformation describe-stack-resources --stack-name {{Stack}} --query 'StackResources[?LogicalResourceId==`CASViyaVolume`].PhysicalResourceId' --output text)
+CASLIB_VOLUME=$(aws --region "$AWS_REGION" cloudformation describe-stack-resources --stack-name $STACK_NAME --query 'StackResources[?LogicalResourceId==`CASLibVolume`].PhysicalResourceId' --output text)
+CASVIYA_VOLUME=$(aws --region "$AWS_REGION" cloudformation describe-stack-resources --stack-name $STACK_NAME --query 'StackResources[?LogicalResourceId==`CASViyaVolume`].PhysicalResourceId' --output text)
 
 #
 # check that we have values for all required variables
 #
-test -n {{ImageId}}
-test -n {{InstanceType}}
-test -n {{KeyName}}
+test -n {{ControllerImageId}}
+test -n {{ControllerInstanceType}}
+test -n {{KeyPairName}}
 test -n {{PlacementGroupName}}
-test -n {{SecurityGroupIds}}
+test -n {{SecurityGroupId}}
 test -n {{SubnetId}}
 test -n {{IamInstanceProfile}}
-test -n {{RAIDScript}}
-test -n $PRIVATE_IP
+test -n {{S3_FILE_ROOT}}
+test -n $CONTROLLER_IP
+test -n $ANSIBLE_IP
 test -n $CASLIB_VOLUME
 test -n $CASVIYA_VOLUME
+test -n $STACK_NAME
+test -n $AWS_REGION
 
 #
 # create new instance
 #
-NEW_ID=$(aws --region "{{AWSRegion}}"  ec2 run-instances \
---image-id {{ImageId}} \
---instance-type {{InstanceType}} \
---key-name {{KeyName}} \
+NEW_ID=$(aws --region "$AWS_REGION"  ec2 run-instances \
+--image-id {{ControllerImageId}} \
+--instance-type {{ControllerInstanceType}} \
+--key-name {{KeyPairName}} \
 --placement GroupName={{PlacementGroupName}} \
---security-group-ids {{SecurityGroupIds}} \
+--security-group-ids {{SecurityGroupId}} \
 --subnet-id {{SubnetId}} \
 --iam-instance-profile Name={{IamInstanceProfile}} \
---private-ip-address $PRIVATE_IP \
+--private-ip-address $CONTROLLER_IP \
 --user-data \
   '#!/bin/bash
    export PATH=$PATH:/usr/local/bin
-   # install aws cli
    curl -O https://bootstrap.pypa.io/get-pip.py && python get-pip.py &> /dev/null
    pip install awscli --ignore-installed six &> /dev/null
-   KEY=$(aws ssm get-parameter --region "{{AWSRegion}}" --name "viya-ansiblekey-{{Stack}}" --query Parameter.Value --output text)
-   echo "$KEY" | su ec2-user bash -c "tee -a ~/.ssh/authorized_keys"' \
---tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value={{Stack}} CAS Controller}]" \
+
+   aws s3 cp s3://{{S3_FILE_ROOT}}common/scripts/sasnodes_prereqs.sh /tmp/prereqs.sh
+   chmod +x /tmp/prereqs.sh
+   su -l ec2-user -c "NFS_SERVER='${ANSIBLE_IP}' HOST=controller /tmp/prereqs.sh &>/tmp/prereqs.log"
+  ' \
+--tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$STACK_NAME CAS Controller}]" \
 --query 'Instances[0].InstanceId' --output text
 )
 
+
+
 echo NEW_ID=$NEW_ID
-time aws --region "{{AWSRegion}}" ec2 wait instance-running --instance-ids $NEW_ID
+time aws --region "$AWS_REGION" ec2 wait instance-running --instance-ids $NEW_ID
 
 # attach volumes
-aws --region "{{AWSRegion}}" ec2 attach-volume --instance-id $NEW_ID --device /dev/sdg --volume-id $CASLIB_VOLUME
-aws --region "{{AWSRegion}}" ec2 attach-volume --instance-id $NEW_ID --device /dev/sdl --volume-id $CASVIYA_VOLUME
+aws --region "$AWS_REGION" ec2 attach-volume --instance-id $NEW_ID --device /dev/sdg --volume-id $CASLIB_VOLUME
+aws --region "$AWS_REGION" ec2 attach-volume --instance-id $NEW_ID --device /dev/sdl --volume-id $CASVIYA_VOLUME
 
 
 # remove old host key from ansible controller
-ssh-keygen -R $PRIVATE_IP
+ssh-keygen -R $CONTROLLER_IP
 ssh-keygen -R controller.viya.sas
 ssh-keygen -R controller
 
 # wait for sshd on the new VM to become available
-while ! ssh -o StrictHostKeyChecking=no $PRIVATE_IP 'exit' 2>/dev/null
+while ! ssh -o StrictHostKeyChecking=no $CONTROLLER_IP 'exit' 2>/dev/null
 do
   sleep 1
 done
 
 # seed known_hosts file on ansible-controller
-ssh -o StrictHostKeyChecking=no $PRIVATE_IP exit
+ssh -o StrictHostKeyChecking=no $CONTROLLER_IP exit
 ssh -o StrictHostKeyChecking=no controller.viya.sas exit
 ssh -o StrictHostKeyChecking=no controller exit
 
-# reconfigure
-pushd ~/sas_viya_playbook
-  # mount volumes, update /etc/hosts/ file
-  ansible-playbook ansible.pre.deployment.yml -e "AWSRegion='{{AWSRegion}}'" \
-                                              -e "RAIDScript='{{RAIDScript}}'" \
-                                              -e "CloudFormationStack='{{Stack}}'" \
-                                              --limit=controller
+#
+# confingure VM and reinstall viya
+#
 
-  # apply prereqs
-  ansible-playbook virk/playbooks/pre-install-playbook/viya_pre_install_playbook.yml \
-      --skip-tags skipmemfail,skipcoresfail,skipstoragefail,skipnicssfail,bandwidth -e 'use_pause=false' --limit=controller
+# set log file
+export ANSIBLE_LOG_PATH=/var/log/sas/install/recover_cascontroller.log
 
-  # re-install services
-  ansible-playbook site.yml
+#
+# node setup
+#
+export ANSIBLE_CONFIG=/sas/install/common/ansible/playbooks/ansible.cfg
+ansible-playbook -v /sas/install/common/ansible/playbooks/prepare_nodes.yml \
+  -e "USERLIB_DISK=/dev/xvdl" \
+  -e "SAS_INSTALL_DISK=/dev/xvdg" \
+  -l CASControllerServer
 
-  # configure PAM and set up users
-  if [ -d ~/openldap ]; then
-    pushd ~/openldap
+
+#
+# OpenLDAP/PAM configuration
+#
+if [ -n "{{{SASUserPass}}}" ] && [ -n "{{{SASAdminPass}}}" ]; then
     USERPASS=$(echo -n '{{{SASUserPass}}}' | base64)
     ADMINPASS=$(echo -n '{{{SASAdminPass}}}' | base64)
-    ansible-playbook openldapsetup.yml -e "OLCROOTPW='$ADMINPASS' OLCUSERPW='$USERPASS'" --tags common,client
-    popd
-  fi
+    ansible-playbook -v /sas/install/common/ansible/playbooks/openldapsetup.yml \
+      -e "OLCROOTPW='${ADMINPASS}'" \
+      -e "OLCUSERPW='${USERPASS}'" \
+      --tags openldapcommon,openldapclients
+fi
 
+unset ANSIBLE_CONFIG
+pushd /sas/install/ansible/sas_viya_playbook
+    #
+    # VM prereqs
+    #
+    ansible-playbook -v virk/playbooks/pre-install-playbook/viya_pre_install_playbook.yml \
+         -e "use_pause=false" \
+         --skip-tags skipmemfail,skipcoresfail,skipstoragefail,skipnicssfail,bandwidth \
+         -l CASControllerServer
+    #
+    # rerun viya install
+    #
+    ansible-playbook site.yml
 popd
 
-
+export ANSIBLE_CONFIG=/sas/install/common/ansible/playbooks/ansible.cfg
+ansible-playbook -v /sas/install/common/ansible/playbooks/post_deployment.yml
 

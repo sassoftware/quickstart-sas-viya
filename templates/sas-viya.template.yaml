@@ -735,8 +735,8 @@ Resources:
           Ref: CASController
 
 
-#  ViyaPlacementGroup:
-#    Type: AWS::EC2::PlacementGroup
+  ViyaPlacementGroup:
+    Type: AWS::EC2::PlacementGroup
 
   ELBSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -1000,7 +1000,7 @@ Resources:
         - - 'r4'
           - !Ref ServicesInstanceSize
       EbsOptimized: true
-      #PlacementGroupName: !Ref ViyaPlacementGroup
+      PlacementGroupName: !Ref ViyaPlacementGroup
       BlockDeviceMappings:
         - DeviceName: /dev/sda1
           # root disk
@@ -1083,7 +1083,7 @@ Resources:
         - - !Ref CASInstanceType
           - !GetAtt LicenseInfo.NodeInstanceSize
       EbsOptimized: true
-      #PlacementGroupName: !Ref ViyaPlacementGroup
+      PlacementGroupName: !Ref ViyaPlacementGroup
       SecurityGroupIds:
         - !Ref ViyaSecurityGroup
 
@@ -1321,6 +1321,17 @@ Resources:
                 Resource: !GetAtt CloudWatchLogGroup.Arn
                 Effect: Allow
 
+        - PolicyName: ansiblecontroller-iam-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              # needed for recover_cascontroller
+              - Action:
+                  - 'iam:PassRole'
+                Resource:
+                  - !Sub arn:aws:iam::${AWS::AccountId}:role/${ViyaRole}
+                Effect: Allow
+
       Path: /
       AssumeRolePolicyDocument:
         Statement:
@@ -1433,7 +1444,16 @@ Resources:
                  "SSLCertificateARN": "{{SSLCertificateARN}}",
                  "AWSHostedZoneID": "{{AWSHostedZoneID}}",
                  "DomainName": "{{DomainName}}",
-                 "DeploymentMirror": "{{DeploymentMirror}}"
+                 "DeploymentMirror": "{{DeploymentMirror}}",
+                 "ControllerImageId": "{{ControllerImageId}}",
+                 "ControllerInstanceType": "{{ControllerInstanceType}}",
+                 "PlacementGroupName": "{{PlacementGroupName}}",
+                 "SecurityGroupId": "{{SecurityGroupId}}",
+                 "SubnetId": "{{SubnetId}}",
+                 "IamInstanceProfile": "{{IamInstanceProfile}}",
+                 "S3_FILE_ROOT": "{{S3_FILE_ROOT}}",
+                 "SASUserPass": "{{{SASUserPass}}}",
+                 "SASAdminPass": "{{{SASAdminPass}}}"
                  }
               mode: '000500'
               owner: ec2-user
@@ -1450,6 +1470,22 @@ Resources:
                 AWSHostedZoneID: !Ref AWSHostedZoneID
                 DomainName: !Ref DomainName
                 DeploymentMirror: !Ref DeploymentMirror
+                ControllerImageId: !FindInMap
+                                     - AWSAMIRegionMap
+                                     - !Ref AWS::Region
+                                     - RHEL74HVM
+                ControllerInstanceType: !Join
+                                          - '.'
+                                          - - !Ref CASInstanceType
+                                            - !GetAtt LicenseInfo.NodeInstanceSize
+                PlacementGroupName: !Ref ViyaPlacementGroup
+                SecurityGroupId: !Ref ViyaSecurityGroup
+                SubnetId: !Ref PrivateSubnetID
+                IamInstanceProfile: !Ref ViyaProfile
+                S3_FILE_ROOT: !Sub "${QSS3BucketName}/${QSS3KeyPrefix}"
+                SASUserPass: !Ref SASUserPass
+                SASAdminPass: !Ref SASAdminPass
+
           commands:
             01-download_file_tree:
               command: !Sub
@@ -1461,6 +1497,7 @@ Resources:
                     update_parms () { pystache "$(cat $1)" /tmp/parms.json > $1; }
                     update_parms /sas/install/scripts/send_sns_message.sh
                     update_parms /sas/install/scripts/validate_parameters.sh
+                    update_parms /sas/install/scripts/recover_cascontroller.sh
                   '
                 - S3_FILE_ROOT: !Sub "${QSS3BucketName}/${QSS3KeyPrefix}"
 
@@ -1487,7 +1524,6 @@ Resources:
                     export ANSIBLE_LOG_PATH=/var/log/sas/install/prepare_nodes.log
                     export ANSIBLE_CONFIG=/sas/install/common/ansible/playbooks/ansible.cfg
                     ansible-playbook -v /sas/install/common/ansible/playbooks/prepare_nodes.yml \
-                      -e "VIYA_VERSION=${VIYA_VERSION}" \
                       -e "USERLIB_DISK=/dev/xvdl" \
                       -e "SAS_INSTALL_DISK=/dev/xvdg" \
                       ${CASCACHE_DISK}
@@ -1496,7 +1532,6 @@ Resources:
                    - IsNotI3
                    - '-e "CASCACHE_DISK=/dev/xvdd"'
                    - ''
-                  VIYA_VERSION: !GetAtt LicenseInfo.ViyaVersion
 
             06-openldap:
               command: !Sub
@@ -1519,15 +1554,20 @@ Resources:
         deployment:
           commands:
             01-orchestration:
-              command: !Sub |
-                su -l ec2-user -c '
-                  export ANSIBLE_LOG_PATH=/var/log/sas/install/prepare_deployment.log
-                  export ANSIBLE_CONFIG=/sas/install/common/ansible/playbooks/ansible.cfg
-                  ansible-playbook -v /sas/install/common/ansible/playbooks/prepare_deployment.yml \
-                    -e "DEPLOYMENT_MIRROR=${DeploymentMirror}" \
-                    -e "DEPLOYMENT_DATA_LOCATION=${DeploymentDataLocation}" \
-                    -e "ADMINPASS=${SASAdminPass}"
-                '
+              command: !Sub
+                - |
+                  su -l ec2-user -c '
+                    export ANSIBLE_LOG_PATH=/var/log/sas/install/prepare_deployment.log
+                    export ANSIBLE_CONFIG=/sas/install/common/ansible/playbooks/ansible.cfg
+                    ansible-playbook -v /sas/install/common/ansible/playbooks/prepare_deployment.yml \
+                      -e "DEPLOYMENT_MIRROR=${DeploymentMirror}" \
+                      -e "DEPLOYMENT_DATA_LOCATION=${DeploymentDataLocation}" \
+                      -e "ADMINPASS=${SASAdminPass}" \
+                      -e "VIYA_VERSION=${VIYA_VERSION}"
+                    '
+                - VIYA_VERSION: !GetAtt LicenseInfo.ViyaVersion
+
+
             02-virk:
               command: |
                 su -l ec2-user -c '
@@ -1614,7 +1654,7 @@ Resources:
             if [ $RC = 0 ]; then
               /sas/install/scripts/send_sns_message.sh success
             else
-              RC=&RC /sas/install/scripts/send_sns_message.sh failure
+              RC=$RC /sas/install/scripts/send_sns_message.sh failure
             fi
             cfn-signal -e $RC --stack ${AWS::StackName} --resource StackComplete --region ${AWS::Region}
 Outputs:
