@@ -47,10 +47,8 @@ MESSAGE='
 #
 elif [ $TYPE = success ]; then
     if [ -z "{{DomainName}}" ]; then
-      EC2_AVAIL_ZONE=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)
-      EC2_REGION=$(echo ${EC2_AVAIL_ZONE}  | sed "s/[a-z]$//")
-      ID=$(aws --no-paginate --region "$EC2_REGION" cloudformation describe-stack-resources --stack-name "{{StackName}}" --logical-resource-id ElasticLoadBalancer --query StackResources[*].PhysicalResourceId --output text)
-      DomainName=$(aws --no-paginate --region "$EC2_REGION" elb describe-load-balancers --load-balancer-name "$ID" --query LoadBalancerDescriptions[*].DNSName --output text)
+      ID=$(aws --region "$EC2_REGION" cloudformation describe-stack-resources --stack-name "{{StackName}}" --logical-resource-id ElasticLoadBalancer --query StackResources[*].PhysicalResourceId --output text)
+      DomainName=$(aws --region "$EC2_REGION" elb describe-load-balancers --load-balancer-name "$ID" --query LoadBalancerDescriptions[*].DNSName --output text)
     else
       DomainName="{{DomainName}}"
     fi

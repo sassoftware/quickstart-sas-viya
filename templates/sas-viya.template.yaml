@@ -382,13 +382,6 @@ Conditions:
     Fn::Not:
     - Condition: NoSSLCertificate
 
-  NeedsStackAccess:
-    Fn::And:
-      - Condition: NoDNSEntry
-      - Condition: SNSCondition
-
-
-
 Resources:
 
   StackComplete:
@@ -935,7 +928,6 @@ Resources:
             Statement:
               - Action:
                   - ec2:describeVolumes
-                  - ec2:describeTags
                   - ec2:createTags
                 Resource:
                   - '*'
@@ -1193,6 +1185,10 @@ Resources:
               - SNS:Publish
             Resource: !Ref SNSTopic
             Effect: Allow
+          # permission needed to retreive the endpoint of the ELB
+          - Action: elasticloadbalancing:DescribeLoadBalancers
+            Resource: '*'
+            Effect: Allow
       PolicyName: ansiblecontroller-sns-policy
       Roles:
         - !Ref AnsibleControllerRole
@@ -1241,28 +1237,15 @@ Resources:
 #      Roles:
 #        - !Ref AnsibleControllerRole
 
-  AnsibleControllerELBPolicy:
-    # this is only needed to retrieve the endpoints for the success message
-    Condition: NeedsStackAccess
-    Type: AWS::IAM::Policy
-    Properties:
-      PolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Action:
-             - cloudformation:DescribeStackResources
-            Resource:
-              - !Ref AWS::StackId
-              - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}/*"
-            Effect: Allow
-      PolicyName: ansiblecontroller-cfn-policy
-      Roles:
-        - !Ref AnsibleControllerRole
+
+
 
   AnsibleControllerRole:
     Type: AWS::IAM::Role
     Properties:
       Policies:
+
+        # Permissions for accessing Quickstart files
         - PolicyName: aws-quick-start-s3-policy
           PolicyDocument:
             Version: 2012-10-17
@@ -1274,7 +1257,7 @@ Resources:
                 Resource: !Sub arn:aws:s3:::${QSS3BucketName}/*
                 Effect: Allow
 
-
+        # Permissions for accessing SAS SOE file
         - PolicyName: viya-playbook-s3-policy
           PolicyDocument:
             Version: 2012-10-17
@@ -1283,23 +1266,44 @@ Resources:
                 Resource: !Sub arn:aws:s3:::${DeploymentDataLocation}
                 Effect: Allow
 
+        # Permissions for accessing stack information (for various utility scripts)
+        - PolicyName: ansible-controller-stack-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Action: cloudformation:DescribeStackResources
+                Resource:
+                  - !Ref AWS::StackId
+                  - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}/*"
+                Effect: Allow
+
+        # Permissions for utility script
         - PolicyName: ansiblecontroller-ec2-policy
           PolicyDocument:
             Version: 2012-10-17
             Statement:
               - Action:
-                  - ec2:AssociateAddress
-                  - ec2:DescribeAddresses
+                  # permissions for restart scripts
                   - ec2:DescribeInstances
-                  - ec2:RunInstances
                   - ec2:StopInstances
                   - ec2:StartInstances
+
+                  # permission for recover_cascontroller script
+                  - ec2:RunInstances
                   - ec2:AttachVolume
                   - ec2:CreateTags
-                  - ec2:describeTags
+
+                  # permissions for addaccess script
                   - ec2:AuthorizeSecurityGroupIngress
+                  - ec2:RevokeSecurityGroupIngress
                   - ec2:DescribeSecurityGroups
-                  - elasticloadbalancing:DescribeLoadBalancers
+
+                  # used in most scripts to retrieve stack name
+                  - ec2:describeTags
+
+                  # permissions for assigning EIP in script
+                  - ec2:AssociateAddress
+                  - ec2:DescribeAddresses
                 Resource:
                   - '*'
                 Effect: Allow
