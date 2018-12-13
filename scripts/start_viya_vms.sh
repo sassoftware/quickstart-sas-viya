@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e  # stop script on error
+
 # Run this script to start all the Viya VMs and Viya services.
 #
 # Use this script in combination with stop_viya_vms.sh to save AWS resource costs
