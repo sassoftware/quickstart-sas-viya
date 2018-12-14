@@ -1,0 +1,14 @@
+---
+
+- name: configure self-signed cert for ELB
+  hosts: [AnsibleController]
+  gather_facts: False
+  roles:
+    - role: post_deployment/configure_cert
+      when: SSLCertificateARN | default("") == ""
+  tags:
+    - configure_cert
+
+
+
+
