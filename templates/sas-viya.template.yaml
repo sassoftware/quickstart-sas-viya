@@ -1550,6 +1550,9 @@ Resources:
               owner: ec2-user
               group: ec2-user
               authentication: S3AccessCreds
+              context:
+                CASInstanceType: !Ref CASInstanceType
+                OperatorEmail: !Ref OperatorEmail
             /tmp/parms.json:
               # use this file later to apply pystache to any files downloaded via file_tree
               content: !Sub |
@@ -1574,7 +1577,7 @@ Resources:
                  "SASUserPass": "{{{SASUserPass}}}",
                  "SASAdminPass": "{{{SASAdminPass}}}"
                  }
-              mode: '000500'
+              mode: '000400'
               owner: ec2-user
               group: ec2-user
               context:
@@ -1613,7 +1616,7 @@ Resources:
                     #!/bin/bash
                     FILE_ROOT=${S3_FILE_ROOT} /tmp/download_file_tree.sh &>/tmp/download_file_tree.log
                     # update any mustache parms
-                    update_parms () { pystache "$(cat $1)" /tmp/parms.json > $1; }
+                    update_parms () { [ -e $1 ] && pystache "$(cat $1)" /tmp/parms.json > $1 || return 0; }
                     update_parms /sas/install/scripts/send_sns_message.sh
                     update_parms /sas/install/scripts/validate_parameters.sh
                     update_parms /sas/install/scripts/recover_cascontroller.sh
@@ -1766,7 +1769,7 @@ Resources:
             RC=$?
             # If something goes wrong here, we do not need to continue
             if ! [ $RC = 0 ]; then
-              RC=&RC FAILMSG="ERROR: Predeployment failed on ansible controller" /sas/install/scripts/send_sns_message.sh failure
+              RC=$RC FAILMSG="ERROR: Predeployment failed on ansible controller" /sas/install/scripts/send_sns_message.sh failure
               cfn-signal -e $RC --success false --stack ${AWS::StackName} --resource StackComplete --region ${AWS::Region}
               exit 1
             fi
