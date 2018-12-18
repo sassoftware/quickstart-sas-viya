@@ -32,9 +32,33 @@ pushd $DOWNLOAD_DIR
       --exclude '*/.*' \
       --exclude 'ci/*'
 
+   # delete files that were uploaded earlier via cfn-init
+   rm -f scripts/cloudwatch.ansiblecontroller.conf
+   rm -f scripts/bastion_bootstrap.sh
+
+   # delete email script if not needed
+   if [ -z "{{OperatorEmail}}" ]; then
+     rm -f scripts/send_sns_message.sh
+   fi
+
+   # delete cas recovery script if not applicable
+   if [ "{{CASInstanceType}}" = "r4" ]; then
+     rm -f scripts/recover_cascontroller.sh
+   fi
+
+   #
+   # set file permissions
+   #
+   # set owner
    chown -R ${INSTALL_USER}:${INSTALL_USER} .
-   chmod -R 755 ansible bin common
-   chmod -R 700 scripts
+   # set default rw-r--r--
+   DIRS="scripts bin ansible common"
+   find $DIRS -type d | xargs chmod 700
+   find $DIRS -type f | xargs chmod 600
+   # make all scripts files executable and for owner only
+   find $DIRS -name *.sh | xargs chmod 700
+
+
 popd
 
 
