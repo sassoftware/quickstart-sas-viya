@@ -1015,6 +1015,7 @@ Resources:
               - Action:
                   - ec2:describeVolumes
                   - ec2:createTags
+                  - ec2:describeTags
                 Resource:
                   - '*'
                 Effect: Allow

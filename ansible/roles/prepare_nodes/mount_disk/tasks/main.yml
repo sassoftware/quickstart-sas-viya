@@ -4,8 +4,8 @@
   file:
     path: "{{ MOUNT_DIR }}"
     state: directory
-    owner: "{{ ansible_user_id }}"
-    group: "{{ ansible_user_id }}"
+    owner: "{{ ansible_env.SUDO_UID }}"
+    group: "{{ ansible_env.SUDO_GID }}"
     mode: 0777
 
 - name: wait for {{ MOUNT_DISK }} device to become available
@@ -34,12 +34,21 @@
       dev: "{{ MOUNT_DISK }}"
 
 
-  - name: mount viya installation volume {{ MOUNT_DISK }} on {{ MOUNT_DIR }}
+  - name: mount   volume {{ MOUNT_DISK }} on {{ MOUNT_DIR }}
     mount:
       name: "{{ MOUNT_DIR }}"
       src: "{{ MOUNT_DISK }}"
       fstype: xfs
       state: mounted
+
+  - name: reapply permissions for {{ MOUNT_DIR }} directory
+    file:
+      path: "{{ MOUNT_DIR }}"
+      state: directory
+      owner: "{{ ansible_env.SUDO_UID }}"
+      group: "{{ ansible_env.SUDO_GID }}"
+      mode: 0777
+
 
   when: source_disk_stat.stat.exists == true
 
