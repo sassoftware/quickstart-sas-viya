@@ -1553,7 +1553,6 @@ Resources:
               authentication: S3AccessCreds
               context:
                 CASInstanceType: !Ref CASInstanceType
-                OperatorEmail: !Ref OperatorEmail
             /tmp/parms.json:
               # use this file later to apply pystache to any files downloaded via file_tree
               content: !Sub |

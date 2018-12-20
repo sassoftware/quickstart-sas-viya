@@ -36,11 +36,6 @@ pushd $DOWNLOAD_DIR
    rm -f scripts/cloudwatch.ansiblecontroller.conf
    rm -f scripts/bastion_bootstrap.sh
 
-   # delete email script if not needed
-   if [ -z "{{OperatorEmail}}" ]; then
-     rm -f scripts/send_sns_message.sh
-   fi
-
    # delete cas recovery script if not applicable
    if [ "{{CASInstanceType}}" = "r4" ]; then
      rm -f scripts/recover_cascontroller.sh
