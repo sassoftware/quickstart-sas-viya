@@ -38,6 +38,7 @@ aws --region $AWS_REGION ec2 start-instances --instance-ids ${IDS}
 # wait for the VMs to be up
 #
 STATUS=
+set +e # disable fail on error to allow the ssh login attempt
 while [ "$STATUS" = "" ]; do
    sleep 3
    if [ -z "$(aws --region $AWS_REGION ec2 describe-instances --instance-ids $IDS --query Reservations[*].Instances[*].State.Name --output text | grep -q -v 'running')" ] ; then
@@ -56,7 +57,7 @@ while [ "$STATUS" = "" ]; do
       done
    done
 done
-
+set -e # set fail on error back
 
 #
 # execute the virk start services playbook
