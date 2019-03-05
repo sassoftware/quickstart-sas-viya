@@ -18,6 +18,7 @@ set -e
 test -n $FILE_ROOT
 DOWNLOAD_DIR=/sas/install
 INSTALL_USER=$(whoami)
+COMMON_CODE_TAG=AWSVIYA-1.4
 
 echo Downloading from ${FILE_ROOT} as ${INSTALL_USER}
 
@@ -40,6 +41,11 @@ pushd $DOWNLOAD_DIR
    if [ "{{CASInstanceType}}" = "r4" ]; then
      rm -f scripts/recover_cascontroller.sh
    fi
+
+   # get common code
+   git clone https://github.com/sassoftware/quickstart-sas-viya-common.git common
+   pushd common &&  git checkout tags/$COMMON_CODE_TAG -b $COMMON_CODE_TAG && popd
+
 
    #
    # set file permissions

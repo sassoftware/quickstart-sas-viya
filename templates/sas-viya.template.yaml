@@ -1050,7 +1050,7 @@ Resources:
           files:
             /tmp/prereqs.sh:
               source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}common/scripts/sasnodes_prereqs.sh
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/sasnodes_prereqs.sh
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -1133,7 +1133,7 @@ Resources:
           files:
             /tmp/prereqs.sh:
               source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}common/scripts/sasnodes_prereqs.sh
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/sasnodes_prereqs.sh
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
@@ -1503,7 +1503,7 @@ Resources:
           files:
             /tmp/prereqs.sh:
               source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}common/scripts/ansiblecontroller_prereqs.sh
+                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/ansiblecontroller_prereqs.sh
                 - QSS3Region: !If
                     - GovCloudCondition
                     - s3-us-gov-west-1
