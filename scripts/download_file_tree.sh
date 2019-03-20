@@ -44,7 +44,7 @@ pushd $DOWNLOAD_DIR
 
    # get common code
    git clone https://github.com/sassoftware/quickstart-sas-viya-common.git common
-   pushd common &&  git checkout tags/$COMMON_CODE_TAG -b $COMMON_CODE_TAG && popd
+   pushd common &&  git checkout tags/$COMMON_CODE_TAG -b $COMMON_CODE_TAG && rm -rf .git* && popd
 
 
    #
