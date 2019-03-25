@@ -1580,8 +1580,8 @@ Resources:
                  "SubnetId": "{{SubnetId}}",
                  "IamInstanceProfile": "{{IamInstanceProfile}}",
                  "S3_FILE_ROOT": "{{S3_FILE_ROOT}}",
-                 "SASUserPass": "{{{SASUserPass}}}",
-                 "SASAdminPass": "{{{SASAdminPass}}}"
+                 "SASUserPass": "{{SASUserPass}}",
+                 "SASAdminPass": "{{SASAdminPass}}"
                  }
               mode: '000400'
               owner: ec2-user
@@ -1611,8 +1611,10 @@ Resources:
                 SubnetId: !Ref PrivateSubnetID
                 IamInstanceProfile: !Ref ViyaProfile
                 S3_FILE_ROOT: !Sub "${QSS3BucketName}/${QSS3KeyPrefix}"
-                SASUserPass: !Ref SASUserPass
-                SASAdminPass: !Ref SASAdminPass
+                SASUserPass: !Base64
+                  "Ref": SASUserPass
+                SASAdminPass: !Base64
+                  "Ref": SASAdminPass
 
           commands:
             01-download_file_tree:
@@ -1620,14 +1622,17 @@ Resources:
                 - |
                   su -l ec2-user -c '
                     #!/bin/bash
+                    set -e
+                    # download the project files into /sas/install
                     FILE_ROOT=${S3_FILE_ROOT} /tmp/download_file_tree.sh &>/tmp/download_file_tree.log
                     # update any mustache parms
                     update_parms () { [ -e $1 ] && pystache "$(cat $1)" /tmp/parms.json > $1 || return 0; }
-                    update_parms /sas/install/scripts/send_sns_message.sh
-                    update_parms /sas/install/scripts/validate_parameters.sh
-                    update_parms /sas/install/scripts/recover_cascontroller.sh
+                    update_parms /sas/install/scripts/send_sns_message.sh &>/tmp/update_parms.log
+                    update_parms /sas/install/scripts/validate_parameters.sh &>>/tmp/update_parms.log
+                    update_parms /sas/install/scripts/recover_cascontroller.sh &>>/tmp/update_parms.log
                   '
                 - S3_FILE_ROOT: !Sub "${QSS3BucketName}/${QSS3KeyPrefix}"
+                  
 
             02-validate_parms:
               command: !Sub |
@@ -1688,10 +1693,12 @@ Resources:
                     ansible-playbook -v /sas/install/common/ansible/playbooks/prepare_deployment.yml \
                       -e "DEPLOYMENT_MIRROR=${DeploymentMirror}" \
                       -e "DEPLOYMENT_DATA_LOCATION=${DeploymentDataLocation}" \
-                      -e "ADMINPASS=${SASAdminPass}" \
+                      -e "ADMINPASS=${ADMINPASS}" \
                       -e "VIYA_VERSION=${VIYA_VERSION}"
                     '
                 - VIYA_VERSION: !GetAtt LicenseInfo.ViyaVersion
+                  ADMINPASS: !Base64
+                    "Ref": SASAdminPass
 
 
             02-virk:

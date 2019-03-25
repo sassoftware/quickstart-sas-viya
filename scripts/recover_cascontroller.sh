@@ -165,12 +165,10 @@ ansible-playbook -v /sas/install/common/ansible/playbooks/prepare_nodes.yml \
 #
 # OpenLDAP/PAM configuration
 #
-if [ -n "{{{SASUserPass}}}" ] && [ -n "{{{SASAdminPass}}}" ]; then
-    USERPASS=$(echo -n '{{{SASUserPass}}}' | base64)
-    ADMINPASS=$(echo -n '{{{SASAdminPass}}}' | base64)
+if [ -n "{{SASUserPass}}" ] && [ -n "{{SASAdminPass}}" ]; then
     ansible-playbook -v /sas/install/common/ansible/playbooks/openldapsetup.yml \
-      -e "OLCROOTPW='${ADMINPASS}'" \
-      -e "OLCUSERPW='${USERPASS}'" \
+      -e "OLCROOTPW='{{SASAdminPass}}'" \
+      -e "OLCUSERPW='{{SASUserPass}}'" \
       --tags openldapcommon,openldapclients
 fi
 
