@@ -36,8 +36,3 @@ tests:
       - us-east-2
       - us-west-1
       - us-west-2
-  sas-viya-sa-east-1:
-    parameter_input: sas-viya-sa-east-1.json
-    template_file: sas-viya-master.template.yaml
-    regions:
-      - sa-east-1
