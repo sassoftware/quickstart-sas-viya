@@ -1,0 +1,53 @@
+---
+
+
+- name: create {{ MIRROR_DIR }} directory
+  file:
+    path: "{{ MIRROR_DIR }}"
+    state: directory
+    owner: "{{ ansible_user_id }}"
+    group: "{{ ansible_user_id }}"
+    mode: 0777
+    setype: httpd_sys_content_t
+
+
+
+- name: Download mirror
+  shell: |
+    # lowercase initial s, remove trailing slash if it exists
+    DM=$(echo -n {{ DEPLOYMENT_MIRROR }} | sed "s/^S/s/" | sed "s+/$++" )
+
+    EC2_AVAIL_ZONE=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)
+    EC2_REGION=$(echo ${EC2_AVAIL_ZONE}  | sed "s/[a-z]$//")
+
+    aws --region ${EC2_REGION} s3 sync ${DM} /opt/sas/mirror
+
+
+- name: install httpd
+  yum: name=httpd
+
+- name: set httpd port to 8008
+  replace:
+    dest: /etc/httpd/conf/httpd.conf
+    regexp:  'Listen.*'
+    replace: 'Listen 8008'
+
+- name: configure httpd
+  blockinfile:
+    dest: /etc/httpd/conf.d/repo.conf
+    create: yes
+    marker: '# {mark} sas mirror repo'
+    block: |
+      <Directory "/opt/sas/mirror/">
+        Options All
+        AllowOverride All
+        Require all granted
+        Satisfy any
+      </Directory>
+      Alias "/repo_mirror" "/opt/sas/mirror/"
+
+- name: start httpd
+  service:
+    name: httpd
+    enabled: yes
+    state: started

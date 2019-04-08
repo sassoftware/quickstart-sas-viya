@@ -1,7 +1,46 @@
 #!/bin/bash -e
 
-# make sure we have at least java8 and ansible 2.3.2.0
+set -x
 
+# Run this script as install user (e.g. ec2-user on aws)
+
+INSTALL_DIR=/sas/install
+NFS_SHARE_DIR=${INSTALL_DIR}/nfs
+ANSIBLE_KEY_DIR=${NFS_SHARE_DIR}/ansible_key
+READINESS_FLAGS_DIR=${NFS_SHARE_DIR}/readiness_flags
+LOGS_DIR=/var/log/sas/install
+INSTALL_USER=$(whoami)
+UTILITIES_DIR="${INSTALL_DIR}/bin"
+#
+# create directories
+#
+sudo mkdir -p ${INSTALL_DIR}
+sudo chmod 755 ${INSTALL_DIR}
+sudo chown ${INSTALL_USER}:${INSTALL_USER} ${INSTALL_DIR}
+
+sudo mkdir -p ${NFS_SHARE_DIR}
+sudo chmod 777 ${NFS_SHARE_DIR}  # may not need to be 777 since it should be the same user everywhere. The user may have a different UID/GUI though.
+sudo chown ${INSTALL_USER}:${INSTALL_USER} ${NFS_SHARE_DIR}
+
+sudo mkdir -p ${ANSIBLE_KEY_DIR}
+sudo chmod 777 ${ANSIBLE_KEY_DIR}  # may not need to be 777 since it should be the same user everywhere. The user may have a different UID/GUI though.
+sudo chown ${INSTALL_USER}:${INSTALL_USER} ${ANSIBLE_KEY_DIR}
+
+sudo mkdir -p ${READINESS_FLAGS_DIR}
+sudo chmod 777 ${READINESS_FLAGS_DIR}   # may not need to be 777 since it should be the same user everywhere. The user may have a different UID/GUI though.
+sudo chown ${INSTALL_USER}:${INSTALL_USER} ${READINESS_FLAGS_DIR}
+
+sudo mkdir -p ${LOGS_DIR}
+sudo chmod 755 ${LOGS_DIR}
+sudo chown ${INSTALL_USER}:${INSTALL_USER} ${LOGS_DIR}
+
+sudo mkdir -p ${UTILITIES_DIR}
+sudo chmod 755 ${UTILITIES_DIR}
+sudo chown ${INSTALL_USER}:${INSTALL_USER} ${UTILITIES_DIR}
+
+#
+# Install or upgrade java to 1.8
+#
 install_java () {
    echo Install java 1.8
    sudo yum -y install java-1.8.0
@@ -29,25 +68,50 @@ if [[ "$_java" ]]; then
     fi
 fi
 
-
+#
+# install ansible
+#
 if ! type -p ansible;  then
    # install Ansible
-   pip install 'ansible==2.4.3'
+   sudo pip install 'ansible==2.4.3'
 fi
 
+#
+# install git
+#
 if ! type -p git; then
    # install git
    sudo yum install -y git
 fi
 
+#
+# NFS setup
+#
+echo -n "${NFS_SHARE_DIR} *(rw,sync)" | sudo tee /etc/exports
+sudo yum install -y nfs-utils nfs-utils-lib
 
-## make log accessible as web page
-## has been replaced by cloudwatch log configuration
-#yum -y install httpd
-#service httpd start
-#sudo mkdir -p /var/www/html/status
-#ln /var/log/cfn-init-cmd.log /var/www/html/status/cfn-init-cmd.log
-#ln /var/log/cfn-init.log /var/www/html/status/cfn-init.log
+if ! type -p systemctl; then
+    sudo service rpcbind start
+    sudo /sbin/chkconfig --add rpcbind
+    sudo service nfs start
+    sudo /sbin/chkconfig --add nfs
+else
+    sudo systemctl start rpcbind
+    sudo systemctl enable rpcbind
+    sudo systemctl start nfs
+    sudo systemctl enable nfs
+fi
+
+
+#
+#  Ansible Key
+#
+ssh-keygen -t rsa -f ~/.ssh/id_rsa -q -N ''
+cp ~/.ssh/id_rsa.pub ${ANSIBLE_KEY_DIR}/id_rsa.pub
+
+
+
+
 
 
 

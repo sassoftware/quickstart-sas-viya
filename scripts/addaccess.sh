@@ -56,19 +56,33 @@ do
 done
 
 
+#
+# get the aws region from the instance metadata
+#
+AWS_AVAIL_ZONE=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)
+AWS_REGION=$(echo ${AWS_AVAIL_ZONE}  | sed "s/[a-z]$//")
+
+#
+# get the stack name from the automatic instance tag "aws:cloudformation:stack-name"
+#
+INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )
+STACK_NAME=$(aws --region $AWS_REGION ec2 describe-tags --filter "Name=resource-id,Values=$INSTANCE_ID" --query 'Tags[?Key==`aws:cloudformation:stack-name`].Value' --output text)
+
+
+
 if [ -n "$ADMINCIDR" ]; then
 
   # check the value is a valid cidr notation
   ipcalc -c4 "$ADMINCIDR"
 
   # get the security group id from the stack metadata
-  BASTIONSG=$(aws --region {{AWSRegion}} cloudformation describe-stack-resources --stack-name {{StackName}} --query 'StackResources[?LogicalResourceId==`AnsibleControllerSecurityGroup`].PhysicalResourceId' --output text)
+  BASTIONSG=$(aws --region $AWS_REGION cloudformation describe-stack-resources --stack-name $STACK_NAME --query 'StackResources[?LogicalResourceId==`AnsibleControllerSecurityGroup`].PhysicalResourceId' --output text)
   # apply the value (for both port 22 and ICMP, for ping)
-  aws --region {{AWSRegion}} ec2 authorize-security-group-ingress --group-id $BASTIONSG --cidr $ADMINCIDR --protocol tcp --port 22
-  aws --region {{AWSRegion}} ec2 authorize-security-group-ingress --group-id $BASTIONSG --cidr $ADMINCIDR --protocol icmp --port -1
+  aws --region $AWS_REGION ec2 authorize-security-group-ingress --group-id $BASTIONSG --cidr $ADMINCIDR --protocol tcp --port 22
+  aws --region $AWS_REGION ec2 authorize-security-group-ingress --group-id $BASTIONSG --cidr $ADMINCIDR --protocol icmp --port -1
 
   echo "Current permitted ingress on port 22 for security group $BASTIONSG (AnsibleControllerSecurityGroup)"
-  aws --region {{AWSRegion}} ec2 describe-security-groups --group-id $BASTIONSG --query 'SecurityGroups[].IpPermissions[?FromPort==`22`].IpRanges[][].CidrIp' --output table
+  aws --region $AWS_REGION ec2 describe-security-groups --group-id $BASTIONSG --query 'SecurityGroups[].IpPermissions[?FromPort==`22`].IpRanges[][].CidrIp' --output table
 
 
 fi
@@ -79,13 +93,13 @@ if [ -n "$WEBCIDR" ]; then
   ipcalc -c4 "$WEBCIDR"
 
   # get the security group id from the stack metadata
-  ELBSG=$(aws --region {{AWSRegion}} cloudformation describe-stack-resources --stack-name {{StackName}} --query 'StackResources[?LogicalResourceId==`ELBSecurityGroup`].PhysicalResourceId' --output text)
+  ELBSG=$(aws --region $AWS_REGION cloudformation describe-stack-resources --stack-name $STACK_NAME --query 'StackResources[?LogicalResourceId==`ELBSecurityGroup`].PhysicalResourceId' --output text)
   # apply the value
-  aws --region {{AWSRegion}} ec2 authorize-security-group-ingress --group-id $ELBSG --cidr $WEBCIDR --protocol tcp --port 443
+  aws --region $AWS_REGION ec2 authorize-security-group-ingress --group-id $ELBSG --cidr $WEBCIDR --protocol tcp --port 443
 
   # echo the current settings
   echo "Current permitted ingress on port 443 for security group $ELBSG (ELBSecurityGroup)"
-  aws --region {{AWSRegion}} ec2 describe-security-groups --group-id $ELBSG --query 'SecurityGroups[].IpPermissions[?FromPort==`443`].IpRanges[][].CidrIp' --output table
+  aws --region $AWS_REGION ec2 describe-security-groups --group-id $ELBSG --query 'SecurityGroups[].IpPermissions[?FromPort==`443`].IpRanges[][].CidrIp' --output table
 
 
 fi

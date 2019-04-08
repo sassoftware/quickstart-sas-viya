@@ -1,0 +1,106 @@
+---
+
+# When we create the ELB, we configure the listener with the user-specified SSL Certificate (SSLCertificateARN)
+# If SSLCertificateARN is not set, we create a self-signed certificate with the default DNS of the ELB as
+# Subject Alternate Name.
+# BUT, to create the self-signed cert, we need an execution environment.
+# AND we need to ELB to be created first because we need the DNS name of the ELB.
+# All this can not be done as part of the CloudFormation template.
+# So, we create the ELB in the CloudFormation template with a listener that does not require a certificate
+# (Protocol TCP instead of HTTPS).
+# The we delete that listener here and replace it with one that uses HTTPS (And that is only because is not possible to
+# create an ELB without any listener, else we would do that).
+
+#
+# Retrieve the ELB Name and DNS using the aws cli
+# The ELB_NAME and ELB_DNS can not be passed into the playbook from the template because it creates circular
+# dependencies.
+#
+
+- name: set AWS_REGION fact
+  shell: |
+    #
+    # get the aws region from the instance metadata
+    #
+    AWS_AVAIL_ZONE=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)
+    AWS_REGION=$(echo ${AWS_AVAIL_ZONE}  | sed "s/[a-z]$//")
+    echo -n $AWS_REGION
+  register: aws_region
+- set_fact:
+    AWS_REGION: "{{ aws_region.stdout }}"
+
+- name: set STACK_NAME fact
+  shell: |
+    #
+    # get the stack name from the automatic instance tag "aws:cloudformation:stack-name"
+    #
+    INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )
+    STACK_NAME=$(aws --region {{AWS_REGION}} ec2 describe-tags --filter "Name=resource-id,Values=$INSTANCE_ID" --query 'Tags[?Key==`aws:cloudformation:stack-name`].Value' --output text)
+    echo -n $STACK_NAME
+  register: stack_name
+- set_fact:
+    STACK_NAME: "{{ stack_name.stdout }}"
+
+- name: set ELB_NAME fact
+  shell: |
+    ELB_NAME=$(aws --region {{AWS_REGION}} cloudformation describe-stack-resources --stack-name "{{STACK_NAME}}" --logical-resource-id ElasticLoadBalancer --query StackResources[*].PhysicalResourceId --output text)
+    echo -n $ELB_NAME
+  register: elb_name
+- set_fact:
+    ELB_NAME: "{{ elb_name.stdout }}"
+
+
+- name: set ELB_DNS fact
+  shell: |
+    ELB_DNS=$(aws --region {{AWS_REGION}} elb describe-load-balancers --load-balancer-name {{ELB_NAME}} --query LoadBalancerDescriptions[*].DNSName --output text)
+    echo -n $ELB_DNS
+  register: elb_dns
+- set_fact:
+    ELB_DNS: "{{ elb_dns.stdout }}"
+
+
+
+- name: delete existing http listener
+  shell: |
+     aws --region {{AWS_REGION}} elb delete-load-balancer-listeners --load-balancer-name {{ELB_NAME}} --load-balancer-ports 443
+
+
+- name: create certificate configuration file
+  template:
+    src: ssl.conf.j2
+    dest: /tmp/ssl.conf
+    mode: 0600
+    backup: yes
+
+- name: create cert
+  shell: |
+     openssl req -x509 -newkey rsa:4096 -keyout /tmp/key.pem -out /tmp/cert.pem -days 396 -nodes -config /tmp/ssl.conf -subj '/CN=*.elb.amazonaws.com'
+
+  # or https://docs.ansible.com/ansible/2.4/openssl_certificate_module.html
+
+- name: import cert into IAM
+  shell: |
+    CERT_NAME="{{STACK_NAME}}-selfsigned-cert"
+    aws --region {{AWS_REGION}} iam upload-server-certificate --server-certificate-name "$CERT_NAME" \
+                                                              --certificate-body file:///tmp/cert.pem \
+                                                              --private-key file:///tmp/key.pem &>/dev/null
+    CERT_ARN=$(aws --region {{AWS_REGION}} iam list-server-certificates --query 'ServerCertificateMetadataList[?ServerCertificateName==`"'$CERT_NAME'"`].Arn' --output text)
+    echo -n $CERT_ARN
+  register: cert_arn
+- set_fact:
+    CERT_ARN: "{{ cert_arn.stdout }}"
+
+
+- name: delete existing listener
+  shell: |
+    aws --region {{AWS_REGION}} elb delete-load-balancer-listeners --load-balancer-name "{{ELB_NAME}}" --load-balancer-ports 443
+
+- name: add https listener
+  shell: |
+    until aws --region {{AWS_REGION}} elb create-load-balancer-listeners --load-balancer-name "{{ELB_NAME}}" --listeners Protocol=HTTPS,LoadBalancerPort=443,InstanceProtocol=HTTPS,InstancePort=443,SSLCertificateId={{CERT_ARN}} 2>/dev/null
+    do
+      sleep 1
+    done
+    aws --region {{AWS_REGION}} elb set-load-balancer-policies-of-listener --load-balancer-name "{{ELB_NAME}}" --load-balancer-port 443 --policy-names AppCookieStickinessPolicy
+
+

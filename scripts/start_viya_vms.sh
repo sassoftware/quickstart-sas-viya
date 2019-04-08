@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e  # stop script on error
+
 # Run this script to start all the Viya VMs and Viya services.
 #
 # Use this script in combination with stop_viya_vms.sh to save AWS resource costs
@@ -7,11 +9,19 @@
 
 # Expect the script to run about 10 minutes
 
-#
-# get all the VMs of the stack, except the ansible controller
-#
 echo "Getting list of VMs..."
-IDS=$(aws --region {{AWSRegion}} cloudformation describe-stack-resources --stack-name {{CloudFormationStack}} --query 'StackResources[?ResourceType==`AWS::EC2::Instance`  && LogicalResourceId!=`AnsibleController`].PhysicalResourceId' --output text)
+# get the instance id from the instance metadata
+INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )
+
+# get the aws region from the instance metadata
+AWS_AVAIL_ZONE=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)
+AWS_REGION=$(echo ${AWS_AVAIL_ZONE}  | sed "s/[a-z]$//")
+
+# get the stack name from the automatic instance tag "aws:cloudformation:stack-name"
+STACK_NAME=$(aws --region $AWS_REGION ec2 describe-tags --filter "Name=resource-id,Values=$INSTANCE_ID" --query 'Tags[?Key==`aws:cloudformation:stack-name`].Value' --output text)
+
+# get all the VMs of the stack, except the ansible controller
+IDS=$(aws --region $AWS_REGION cloudformation describe-stack-resources --stack-name $STACK_NAME --query 'StackResources[?ResourceType==`AWS::EC2::Instance`  && LogicalResourceId!=`AnsibleController`].PhysicalResourceId' --output text)
 # transform into array
 IFS=" " IDs=(${IDS})
 unset IFS
@@ -21,22 +31,23 @@ unset IFS
 # start the VMs
 #
 echo "Starting VMs..."
-aws --region {{AWSRegion}} ec2 start-instances --instance-ids ${IDS}
+aws --region $AWS_REGION ec2 start-instances --instance-ids ${IDS}
 
 
 #
 # wait for the VMs to be up
 #
 STATUS=
+set +e # disable fail on error to allow the ssh login attempt
 while [ "$STATUS" = "" ]; do
    sleep 3
-   if [ -z "$(aws --region {{AWSRegion}} ec2 describe-instances --instance-ids $IDS --query Reservations[*].Instances[*].State.Name --output text | grep -q -v 'running')" ] ; then
+   if [ -z "$(aws --region $AWS_REGION ec2 describe-instances --instance-ids $IDS --query Reservations[*].Instances[*].State.Name --output text | grep -q -v 'running')" ] ; then
      STATUS='ok'
    fi
 
    # make sure sshd is up on each VM
    for ID in ${IDs[@]}; do
-      IP=$(aws ec2 --region {{AWSRegion}} describe-instances --instance-id $ID --query Reservations[*].Instances[*].PrivateIpAddress --output text)
+      IP=$(aws ec2 --region $AWS_REGION describe-instances --instance-id $ID --query Reservations[*].Instances[*].PrivateIpAddress --output text)
       RC=-1
       until [ $RC = 0 ]; do
         sleep 3
@@ -46,13 +57,14 @@ while [ "$STATUS" = "" ]; do
       done
    done
 done
-
+set -e # set fail on error back
 
 #
 # execute the virk start services playbook
 #
 echo "Starting Viya services..."
-pushd ~/sas_viya_playbook
-   ansible-playbook virk/playbooks/service-management/viya-services-start.yml
+pushd /sas/install/ansible/sas_viya_playbook
+    # start the services in the correct order
+    ansible-playbook virk/playbooks/service-management/viya-services-start.yml
 popd
 
