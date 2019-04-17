@@ -774,10 +774,10 @@ Resources:
       Namespace: AWS/EC2
       MetricName: StatusCheckFailed_System
       Statistic: Maximum
-      Period: '60'
-      EvaluationPeriods: '2'
+      Period: 60
+      EvaluationPeriods: 2
       ComparisonOperator: GreaterThanOrEqualToThreshold
-      Threshold: '1'
+      Threshold: 1
       AlarmActions:
         - !Sub "arn:aws:automate:${AWS::Region}:ec2:recover"
         - !If
@@ -797,10 +797,10 @@ Resources:
       Namespace: AWS/EC2
       MetricName: StatusCheckFailed_System
       Statistic: Maximum
-      Period: '60'
-      EvaluationPeriods: '2'
+      Period: 60
+      EvaluationPeriods: 2
       ComparisonOperator: GreaterThanOrEqualToThreshold
-      Threshold: '1'
+      Threshold: 1
       AlarmActions:
         - !Sub "arn:aws:automate:${AWS::Region}:ec2:recover"
         - !If
@@ -833,12 +833,12 @@ Resources:
       VpcId: !Ref VPCID
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: '22'
-          ToPort: '22'
+          FromPort: 22
+          ToPort: 22
           CidrIp: !Ref AdminIngressLocation
         - IpProtocol: icmp
-          FromPort: '-1'
-          ToPort: '-1'
+          FromPort: -1
+          ToPort: -1
           CidrIp: !Ref AdminIngressLocation
         # allow NFS from viya VMs
   ViyatoAnsibleNFSIngress:
@@ -846,8 +846,8 @@ Resources:
     Properties:
       GroupId: !Ref AnsibleControllerSecurityGroup
       IpProtocol: tcp
-      FromPort: '2049'
-      ToPort: '2049'
+      FromPort: 2049
+      ToPort: 2049
       SourceSecurityGroupId: !Ref ViyaSecurityGroup
 
 
@@ -858,12 +858,12 @@ Resources:
       VpcId: !Ref VPCID
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: '22'
-          ToPort: '22'
+          FromPort: 22
+          ToPort: 22
           SourceSecurityGroupId: !Ref AnsibleControllerSecurityGroup
         - IpProtocol: tcp
-          FromPort: '8008'
-          ToPort: '8008'
+          FromPort: 8008
+          ToPort: 8008
           SourceSecurityGroupId: !Ref AnsibleControllerSecurityGroup
 
   ProxySecurityGroup:
@@ -873,8 +873,8 @@ Resources:
       VpcId: !Ref VPCID
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: '443'
-          ToPort: '443'
+          FromPort: 443
+          ToPort: 443
           SourceSecurityGroupId: !Ref ELBSecurityGroup
 
 
@@ -886,16 +886,16 @@ Resources:
     Properties:
       GroupId: !Ref ViyaSecurityGroup
       IpProtocol: tcp
-      FromPort: '0'
-      ToPort: '65535'
+      FromPort: 0
+      ToPort: 65535
       SourceSecurityGroupId: !Ref ViyaSecurityGroup
   ViyatoviyaUDPIngress:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !Ref ViyaSecurityGroup
       IpProtocol: udp
-      FromPort: '0'
-      ToPort: '65535'
+      FromPort: 0
+      ToPort: 65535
       SourceSecurityGroupId: !Ref ViyaSecurityGroup
 
 
@@ -912,13 +912,13 @@ Resources:
         - CookieName: dummy
           PolicyName: AppCookieStickinessPolicy
       Listeners:
-        - LoadBalancerPort: 443
+        - LoadBalancerPort: '443'
           Protocol:
             Fn::If:
             - HasSSLCertificate
             - HTTPS
             - TCP
-          InstancePort: 443
+          InstancePort: '443'
           InstanceProtocol:
             Fn::If:
             - HasSSLCertificate
@@ -935,7 +935,7 @@ Resources:
               - AppCookieStickinessPolicy
               - Ref: AWS::NoValue
 
-      CrossZone: 'true'
+      CrossZone: true
       HealthCheck:
         Target: 'TCP:443'
         HealthyThreshold: '2'
@@ -1084,13 +1084,13 @@ Resources:
         - DeviceName: /dev/sda1
           # root disk
           Ebs:
-            VolumeSize: '20'
+            VolumeSize: 20
             VolumeType: gp2
             DeleteOnTermination: true
         - DeviceName: /dev/sdg
           # SAS Install disk /opt/sas
           Ebs:
-            VolumeSize: '100'
+            VolumeSize: 100
             VolumeType: gp2
             DeleteOnTermination: true
             Encrypted: true
@@ -1716,7 +1716,9 @@ Resources:
                 su -l ec2-user -c '
                   export ANSIBLE_LOG_PATH=/var/log/sas/install/viya_deployment.log
                   pushd /sas/install/ansible/sas_viya_playbook
-                    ansible-playbook site.yml
+                  count=0
+                  RC=1
+                  until [ $count -gt 3 ]; do ansible-playbook site.yml && RC=0 && break || let count=count+1; done
                 '
             04-post-install:
               command: |
