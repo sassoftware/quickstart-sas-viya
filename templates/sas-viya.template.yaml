@@ -107,7 +107,7 @@ Parameters:
       - "8xlarge"
     ConstraintDescription: Must be one of "2xlarge", "4xlarge", or "8xlarge"
     Default: "4xlarge"
-    Description: Determines the size of the r4 EC2 VM instance used for the Viya Services
+    Description: Determines the size of the r5 EC2 VM instance used for the Viya Services
     Type: String
 
   KeyPairName:
@@ -1076,7 +1076,7 @@ Resources:
       IamInstanceProfile: !Ref ViyaProfile
       InstanceType:  !Join
         - '.'
-        - - 'r4'
+        - - 'r5'
           - !Ref ServicesInstanceSize
       EbsOptimized: true
       PlacementGroupName: !Ref ViyaPlacementGroup
