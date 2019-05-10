@@ -48,7 +48,7 @@
   gather_facts: true
   roles:
     - role: prepare_nodes/mount_disk
-      when: SAS_INSTALL_DISK | default()
+      when: SAS_INSTALL_DISK_SERVICES | default()
   tags:
     - mount_sas_install_dir
   vars:
@@ -62,7 +62,7 @@
   gather_facts: true
   roles:
     - role: prepare_nodes/mount_disk
-      when: SAS_INSTALL_DISK | default()
+      when: SAS_INSTALL_DISK_CAS | default()
   tags:
     - mount_sas_install_dir
   vars:
