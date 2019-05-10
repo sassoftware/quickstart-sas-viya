@@ -38,7 +38,7 @@ pushd $DOWNLOAD_DIR
    rm -f scripts/bastion_bootstrap.sh
 
    # delete cas recovery script if not applicable
-   if [ "{{CASInstanceType}}" = "r4" ]; then
+   if [[ "{{CASInstanceType}}" =~ "^r" ]]; then
      rm -f scripts/recover_cascontroller.sh
    fi
 
