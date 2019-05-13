@@ -21,7 +21,7 @@ Metadata:
         - AdminIngressLocation
         - SASAdminPass
         - SASUserPass
-        - CASInstanceType
+        - CASInstanceSize
         - ServicesInstanceSize
         - DeploymentMirror
         - OperatorEmail
@@ -47,7 +47,7 @@ Metadata:
         default: Quick Start S3 Key Prefix
       DeploymentDataLocation:
         default: SAS Viya Software Order File
-      CASInstanceType:
+      CASInstanceSize:
         default: EC2 Instance Type for the CAS compute VM
       ServicesInstanceSize:
         default: EC2 Instance Size for the Viya Services VM
@@ -121,7 +121,7 @@ Parameters:
 #      - "r5d.metal"
     ConstraintDescription: Must contain either "i3" or "r5"
     Default: "i3.4xlarge"
-    Description: Type of EC2 instance for the Viya Compute Nodes (i3 for performance, r5 for auto-recovery)
+    Description: Size of EC2 instance for the Viya Compute Nodes (i3 for performance, r5 for auto-recovery)
     Type: String
 
   ServicesInstanceSize:
