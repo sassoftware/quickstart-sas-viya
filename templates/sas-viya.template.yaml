@@ -129,7 +129,7 @@ Parameters:
 #      - "r5d.metal"
     ConstraintDescription: Must contain either "i3" or "r5"
     Default: "i3.4xlarge"
-    Description: Type of EC2 instance for the Viya Compute Nodes (i3 for performance, r5 for auto-recovery)
+    Description: Szie of EC2 instance for the Viya Compute Nodes (i3 for performance, r5 for auto-recovery)
     Type: String
 
   ServicesInstanceSize:
