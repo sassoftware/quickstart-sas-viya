@@ -126,11 +126,15 @@ Parameters:
 
   ServicesInstanceSize:
     AllowedValues:
-      - "2xlarge"
-      - "4xlarge"
-      - "12xlarge"
+      - "r5.2xlarge"
+      - "r5.4xlarge"
+      - "r5.12xlarge"
+      - "r5.24xlarge"
+      - "r4.2xlarge"
+      - "r4.4xlarge"
+      - "r4.8xlarge"
     ConstraintDescription: Must be one of "2xlarge", "4xlarge", or "12xlarge"
-    Default: "4xlarge"
+    Default: "r5.4xlarge"
     Description: Determines the size of the r5 EC2 VM instance used for the Viya Services
     Type: String
 
