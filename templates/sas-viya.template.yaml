@@ -134,11 +134,15 @@ Parameters:
 
   ServicesInstanceSize:
     AllowedValues:
-      - "2xlarge"
-      - "4xlarge"
-      - "12xlarge"
+      - "r5.2xlarge"
+      - "r5.4xlarge"
+      - "r5.12xlarge"
+      - "r5.24xlarge"
+      - "r4.2xlarge"
+      - "r4.4xlarge"
+      - "r4.8xlarge"
     ConstraintDescription: Must be one of "2xlarge", "4xlarge", or "12xlarge"
-    Default: "4xlarge"
+    Default: "r5.4xlarge"
     Description: Determines the size of the r5 EC2 VM instance used for the Viya Services
     Type: String
 
@@ -1177,10 +1181,7 @@ Resources:
         - RHEL74HVM
       SubnetId: !Ref PrivateSubnetID
       IamInstanceProfile: !Ref ViyaProfile
-      InstanceType:  !Join
-        - '.'
-        - - 'r5'
-          - !Ref ServicesInstanceSize
+      InstanceType:  !Ref ServicesInstanceSize
       EbsOptimized: true
       PlacementGroupName: !Ref ViyaPlacementGroup
       BlockDeviceMappings:
@@ -1759,24 +1760,15 @@ Resources:
                   su -l ec2-user -c '
                     export ANSIBLE_LOG_PATH=/var/log/sas/install/prepare_nodes.log
                     export ANSIBLE_CONFIG=/sas/install/common/ansible/playbooks/ansible.cfg
-                    ansible-playbook -v /sas/install/ansible/playbooks/prepare_nodes.yml \
-                      -e "USERLIB_DISK=${USERLIB_DISK}" \
-                      -e "SAS_INSTALL_DISK_SERVICES=/dev/nvme1n1" \
-                      -e "SAS_INSTALL_DISK_CAS=${SAS_INSTALL_CAS_DISK}" \
+                    ansible-playbook -v /sas/install/common/ansible/playbooks/prepare_nodes.yml \
+                      -e "USERLIB_DISK=/dev/sdl" \
+                      -e "SAS_INSTALL_DISK=/dev/sdg" \
                       ${CASCACHE_DISK}
                   '
                 - CASCACHE_DISK: !If
                    - IsNotI3
-                   - '-e "CASCACHE_DISK=/dev/nvme3n1"'
+                   - '-e "CASCACHE_DISK=/dev/sdd"'
                    - ''
-                  SAS_INSTALL_CAS_DISK: !If
-                    - IsNotI3
-                    - '/dev/nvme2n1'
-                    - '/dev/xvdg'
-                  USERLIB_DISK: !If
-                    - IsNotI3
-                    - '/dev/nvme1n1'
-                    - '/dev/xvdl'
             06-openldap:
               command: !Sub
                 - |
