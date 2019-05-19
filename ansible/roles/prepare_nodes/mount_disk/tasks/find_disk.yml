@@ -1,0 +1,24 @@
+- name: rerun setup to make sure that the disk is found on retries
+  setup:
+
+- name: look through all the nvme disks that are Elastic Block Storage and get the block device name
+  shell:
+    cmd: >-
+      nvme id-ctrl -v /dev/{{ device.key }} | grep "^0000:" | cut -d'"' -f 2 | cut -d'.' -f1
+  with_dict: "{{ ansible_devices }}"
+  loop_control:
+    loop_var: device
+  when: "(device.value.partitions|length) == 0 and device.value.model == 'Amazon Elastic Block Store'"
+  register: nvme_search
+
+- name: find the target disk
+  set_fact:
+    SOURCE_DISK: "/dev/{{ device_output.device.key }}"
+  with_items: "{{ nvme_search.results }}"
+  loop_control:
+    loop_var: device_output
+  when: "'stdout' in device_output and device_output.stdout | regex_search(MOUNT_DISK | regex_replace('/dev/'))"
+
+- name: If not found disk, sleep for 60 seconds.
+  shell: sleep 60
+  when: "SOURCE_DISK == 'None'"
