@@ -19,6 +19,7 @@
     - name: innitalize variables
       set_fact:
         IS_NITRO: True
+        SOURCE_DISK: 'None'
 
     - name: "Check if machine actually is not a nitro machine (we do this by checking if there are any mountable devices that start with xvd)"
       set_fact:
@@ -49,28 +50,23 @@
             name: nvme-cli
             state: present
 
-        - name: look through all the nvme disks that are Elastic Block Storage and get the block device name
-          shell:
-            cmd: >-
-              nvme id-ctrl -v /dev/{{ device.key }} | grep "^0000:" | cut -d'"' -f 2 | cut -d'.' -f1
-          with_dict: "{{ ansible_devices }}"
-          loop_control:
-            loop_var: device
-          when: "(device.value.partitions|length) == 0 and device.value.model == 'Amazon Elastic Block Store'"
-          register: nvme_search
+        - include_tasks: find_disk.yml
+          when: "SOURCE_DISK == 'None'"
 
-        - debug:
-            var: nvme_search
+        - include_tasks: find_disk.yml
+          when: "SOURCE_DISK == 'None'"
 
+        - include_tasks: find_disk.yml
+          when: "SOURCE_DISK == 'None'"
 
+        - include_tasks: find_disk.yml
+          when: "SOURCE_DISK == 'None'"
 
-        - name: find the target disk
-          set_fact:
-            SOURCE_DISK: "/dev/{{ device_output.device.key }}"
-          with_items: "{{ nvme_search.results }}"
-          loop_control:
-            loop_var: device_output
-          when: "'stdout' in device_output and device_output.stdout | regex_search(MOUNT_DISK | regex_replace('/dev/'))"
+        - include_tasks: find_disk.yml
+          when: "SOURCE_DISK == 'None'"
+
+        - include_tasks: find_disk.yml
+          when: "SOURCE_DISK == 'None'"
 
       when: "IS_NITRO"
 
