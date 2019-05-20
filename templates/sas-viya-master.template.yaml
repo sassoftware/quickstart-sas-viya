@@ -133,9 +133,9 @@ Parameters:
       - "r4.2xlarge"
       - "r4.4xlarge"
       - "r4.8xlarge"
-    ConstraintDescription: Must be one of "2xlarge", "4xlarge", or "12xlarge"
+    ConstraintDescription: Must be one of the allowed r4 or r5 sizes
     Default: "r5.4xlarge"
-    Description: Determines the size of the r5 EC2 VM instance used for the Viya Services
+    Description: Determines the type and size of the EC2 VM instance used for the Viya Services
     Type: String
 
   KeyPairName:
