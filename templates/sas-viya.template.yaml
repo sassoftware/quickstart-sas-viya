@@ -1188,13 +1188,13 @@ Resources:
         - DeviceName: /dev/sda1
           # root disk
           Ebs:
-            VolumeSize: 20
+            VolumeSize: 32
             VolumeType: gp2
             DeleteOnTermination: true
         - DeviceName: /dev/sdg
           # SAS Install disk /opt/sas
           Ebs:
-            VolumeSize: 100
+            VolumeSize: 256
             VolumeType: gp2
             DeleteOnTermination: true
             Encrypted: true
