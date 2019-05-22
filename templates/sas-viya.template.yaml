@@ -1811,7 +1811,7 @@ Resources:
                   export ANSIBLE_LOG_PATH=/var/log/sas/install/virk.log
                   export ANSIBLE_CONFIG=/sas/install/common/ansible/playbooks/ansible.cfg
                   export ANSIBLE_INVENTORY=/sas/install/ansible/sas_viya_playbook/inventory.ini
-                  ansible-playbook -v /sas/install/ansible/sas_viya_playbook/virk/playbooks/pre-install-playbook/viya_pre_install_playbook.yml \
+                  ansible-playbook -v /sas/install/ansible/sas_viya_playbook/viya-ark/playbooks/pre-install-playbook/viya_pre_install_playbook.yml \
                      -e "use_pause=false" \
                      --skip-tags skipmemfail,skipcoresfail,skipstoragefail,skipnicssfail,bandwidth
                 '

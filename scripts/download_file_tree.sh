@@ -18,7 +18,7 @@ set -e
 test -n $FILE_ROOT
 DOWNLOAD_DIR=/sas/install
 INSTALL_USER=$(whoami)
-COMMON_CODE_TAG=AWSVIYA-1.4
+COMMON_CODE_TAG=86547d4a469e472293054eb20702b251ba3191bb
 
 echo Downloading from ${FILE_ROOT} as ${INSTALL_USER}
 
@@ -44,7 +44,7 @@ pushd $DOWNLOAD_DIR
 
    # get common code
    git clone https://github.com/sassoftware/quickstart-sas-viya-common.git common
-   pushd common &&  git checkout tags/$COMMON_CODE_TAG -b $COMMON_CODE_TAG && rm -rf .git* && popd
+   pushd common &&  git checkout $COMMON_CODE_TAG -b $COMMON_CODE_TAG && rm -rf .git* && popd
 
 
    #

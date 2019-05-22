@@ -16,9 +16,9 @@ pushd /sas/install/ansible/sas_viya_playbook
    # It is necessary to disable the automatic service restarts.
    # Without disabling the service restart, the services will come up as each VM restarts.
    # Instead, we want to control the order at restart.
-   ansible-playbook virk/playbooks/service-management/viya-services-disable.yml
+   ansible-playbook viya-ark/playbooks/service-management/viya-services-disable.yml
    # This stops the services in the correct order
-   ansible-playbook virk/playbooks/service-management/viya-services-stop.yml
+   ansible-playbook viya-ark/playbooks/service-management/viya-services-stop.yml
 popd
 
 
