@@ -65,6 +65,6 @@ set -e # set fail on error back
 echo "Starting Viya services..."
 pushd /sas/install/ansible/sas_viya_playbook
     # start the services in the correct order
-    ansible-playbook viya-ark/playbooks/service-management/viya-services-start.yml
+    ansible-playbook viya-ark/playbooks/viya-mmsu/viya-services-start.yml
 popd
 
