@@ -20,7 +20,7 @@ Metadata:
           - AdminIngressLocation
           - SASAdminPass
           - SASUserPass
-          - CASInstanceType
+          - CASInstanceSize
           - ServicesInstanceSize
           - DeploymentMirror
           - OperatorEmail
@@ -55,8 +55,8 @@ Metadata:
         default: Quick Start S3 Key Prefix
       DeploymentDataLocation:
         default: SAS Viya Software Order File
-      CASInstanceType:
-        default: EC2 Instance Type for the CAS compute VM
+      CASInstanceSize:
+        default: EC2 Instance Size for the CAS compute VM
       ServicesInstanceSize:
         default: EC2 Instance Size for the Viya Services VM
       VPCID:
@@ -91,23 +91,59 @@ Parameters:
     Type: String
     MinLength: '1'
     ConstraintDescription: must be a zip file in a valid S3 bucket location, e.g. mysasbucket/viya_deployment_data/SAS_Viya_deployment_data.zip
-  CASInstanceType:
+  CASInstanceSize:
     AllowedValues:
-      - "i3"
-      - "r4"
-    ConstraintDescription: Must contain either "i3" or "r4"
-    Default: "i3"
-    Description: Type of EC2 instance for the Viya Compute Nodes (i3 for performance, r4 for auto-recovery)
+      - "i3.large"
+      - "i3.xlarge"
+      - "i3.2xlarge"
+      - "i3.4xlarge"
+      - "i3.8xlarge"
+      - "i3.16xlarge"
+      - "i3.metal"
+      - "r5.large"
+      - "r5.xlarge"
+      - "r5.2xlarge"
+      - "r5.4xlarge"
+      - "r5.12xlarge"
+      - "r5.24xlarge"
+      - "r5.metal"
+      - "r5a.large"
+      - "r5a.xlarge"
+      - "r5a.2xlarge"
+      - "r5a.4xlarge"
+      - "r5a.12xlarge"
+      - "r5a.24xlarge"
+# These SKUs are not available because they mix and match nvme disks and we are not yet able to support that
+#      - "r5ad.large"
+#      - "r5ad.xlarge"
+#      - "r5ad.2xlarge"
+#      - "r5ad.4xlarge"
+#      - "r5ad.12xlarge"
+#      - "r5ad.24xlarge"
+#      - "r5d.large"
+#      - "r5d.xlarge"
+#      - "r5d.2xlarge"
+#      - "r5d.4xlarge"
+#      - "r5d.12xlarge"
+#      - "r5d.24xlarge"
+#      - "r5d.metal"
+    ConstraintDescription: Must contain either "i3" or "r5"
+    Default: "i3.4xlarge"
+    Description: Type and size of EC2 instance for the Viya Compute Node (choose i3 for performance or r5 for auto-recovery)
     Type: String
 
   ServicesInstanceSize:
     AllowedValues:
-      - "2xlarge"
-      - "4xlarge"
-      - "8xlarge"
-    ConstraintDescription: Must be one of "2xlarge", "4xlarge", or "8xlarge"
-    Default: "4xlarge"
-    Description: Determines the size of the r4 EC2 VM instance used for the Viya Services
+      - "r5.2xlarge"
+      - "r5.4xlarge"
+      - "r5.12xlarge"
+      - "r5.24xlarge"
+      - "r4.2xlarge"
+      - "r4.4xlarge"
+      - "r4.8xlarge"
+    ConstraintDescription: Must be one of the allowed r4 or r5 sizes
+    Default: "r5.4xlarge"
+    Description: Determines the type and size of the EC2 VM instance used for the Viya Services
     Type: String
 
   KeyPairName:
@@ -288,7 +324,106 @@ Mappings:
       Code: RHEL74HVM
     Amazon-Linux-HVM:
       Code: AMZNLINUXHVM
-
+  CasSizeToStorage:
+    "i3.large":
+      "CASCacheSize": 180
+      "CASLibSize": 500
+    "i3.xlarge":
+      "CASCacheSize": 180
+      "CASLibSize": 500
+    "i3.2xlarge":
+      "CASCacheSize": 180
+      "CASLibSize": 500
+    "i3.4xlarge":
+      "CASCacheSize": 360
+      "CASLibSize": 500
+    "i3.8xlarge":
+      "CASCacheSize": 720
+      "CASLibSize": 1000
+    "i3.16xlarge":
+      "CASCacheSize": 900
+      "CASLibSize": 1000
+    "i3.metal":
+      "CASCacheSize": 900
+      "CASLibSize": 1000
+    "r5.large":
+      "CASCacheSize": 180
+      "CASLibSize": 500
+    "r5.xlarge":
+      "CASCacheSize": 180
+      "CASLibSize": 500
+    "r5.2xlarge":
+      "CASCacheSize": 180
+      "CASLibSize": 500
+    "r5.4xlarge":
+      "CASCacheSize": 360
+      "CASLibSize": 500
+    "r5.12xlarge":
+      "CASCacheSize": 720
+      "CASLibSize": 1000
+    "r5.24xlarge":
+      "CASCacheSize": 900
+      "CASLibSize": 1000
+    "r5.metal":
+      "CASCacheSize": 900
+      "CASLibSize": 1000
+    "r5a.large":
+      "CASCacheSize": 180
+      "CASLibSize": 500
+    "r5a.xlarge":
+      "CASCacheSize": 180
+      "CASLibSize": 500
+    "r5a.2xlarge":
+      "CASCacheSize": 180
+      "CASLibSize": 500
+    "r5a.4xlarge":
+      "CASCacheSize": 360
+      "CASLibSize": 500
+    "r5a.12xlarge":
+      "CASCacheSize": 720
+      "CASLibSize": 1000
+    "r5a.24xlarge":
+      "CASCacheSize": 900
+      "CASLibSize": 1000
+    "r5ad.large":
+      "CASCacheSize": 180
+      "CASLibSize": 500
+    "r5ad.xlarge":
+      "CASCacheSize": 180
+      "CASLibSize": 500
+    "r5ad.2xlarge":
+      "CASCacheSize": 180
+      "CASLibSize": 500
+    "r5ad.4xlarge":
+      "CASCacheSize": 360
+      "CASLibSize": 500
+    "r5ad.12xlarge":
+      "CASCacheSize": 720
+      "CASLibSize": 1000
+    "r5ad.24xlarge":
+      "CASCacheSize": 900
+      "CASLibSize": 1000
+    "r5d.large":
+      "CASCacheSize": 180
+      "CASLibSize": 500
+    "r5d.xlarge":
+      "CASCacheSize": 180
+      "CASLibSize": 500
+    "r5d.2xlarge":
+      "CASCacheSize": 180
+      "CASLibSize": 500
+    "r5d.4xlarge":
+      "CASCacheSize": 360
+      "CASLibSize": 500
+    "r5d.12xlarge":
+      "CASCacheSize": 720
+      "CASLibSize": 1000
+    "r5d.24xlarge":
+      "CASCacheSize": 900
+      "CASLibSize": 1000
+    "r5d.metal":
+      "CASCacheSize": 900
+      "CASLibSize": 1000
 
 Rules:
   KeyPairsNotEmpty:
@@ -356,7 +491,11 @@ Conditions:
       - ''
 
   IsI3: !Equals
-    - Ref: CASInstanceType
+    - Fn::Select:
+      - 0
+      - Fn::Split:
+        - "."
+        - Ref: CASInstanceSize
     - i3
 
   IsNotI3:
@@ -454,40 +593,8 @@ Resources:
                     prodnum = row
               if prodnum is None:
                 raise ValueError('The CAS product number was not found in the license file.')
-              cascpu = prodnum[prodnum.find('CPU=')+4:prodnum.find(';')]
-              if cascpu is None:
-                raise ValueError('The CASCPU number was not found in the license file.')
-              for row in lf:
-                if "NAME="+cascpu in row:
-                  model = row
-              if model is None:
-                raise ValueError('The CPU detail row for the CAS cpu was not found in the license file.')
-              cpucount = int(model[model.find('SERIAL=')+9:][:3].replace("'",""))
-              if cpucount == 999:
-                cpucount = int(4)
-                if ddl.find("Core") > 0:
-                  cpucount = int(ddl[ddl.find("Core")-2:ddl.find("Core")].strip('_'))
-              rD['CPUCount'] = cpucount
               rS = SUCCESS
 
-            rD["CASLibSize"] = 500
-            rD["NodeInstanceSize"] = "2xlarge"
-            rD["CASCacheSize"] = 180
-            if cpucount <= 4:
-              pass
-            elif cpucount <= 8:
-              rD["NodeInstanceSize"] = "4xlarge"
-              rD["CASCacheSize"] = 360
-            elif cpucount <= 16:
-              rD['CPUCount'] = 16
-              rD["NodeInstanceSize"] = "8xlarge"
-              rD["CASLibSize"] = 1000
-              rD["CASCacheSize"] = 720
-            else:
-              rD['CPUCount'] = 32
-              rD["NodeInstanceSize"] = "16xlarge"
-              rD["CASLibSize"] = 1000
-              rD["CASCacheSize"] = 900
 
             send(event, context, rS, rD)
           def send(event, context, rS, rD, reason="", physicalResourceId=None, noEcho=False):
@@ -1074,23 +1181,20 @@ Resources:
         - RHEL74HVM
       SubnetId: !Ref PrivateSubnetID
       IamInstanceProfile: !Ref ViyaProfile
-      InstanceType:  !Join
-        - '.'
-        - - 'r4'
-          - !Ref ServicesInstanceSize
+      InstanceType:  !Ref ServicesInstanceSize
       EbsOptimized: true
       PlacementGroupName: !Ref ViyaPlacementGroup
       BlockDeviceMappings:
         - DeviceName: /dev/sda1
           # root disk
           Ebs:
-            VolumeSize: 20
+            VolumeSize: 32
             VolumeType: gp2
             DeleteOnTermination: true
         - DeviceName: /dev/sdg
           # SAS Install disk /opt/sas
           Ebs:
-            VolumeSize: 100
+            VolumeSize: 256
             VolumeType: gp2
             DeleteOnTermination: true
             Encrypted: true
@@ -1157,10 +1261,7 @@ Resources:
       SubnetId: !Ref PrivateSubnetID
       IamInstanceProfile: !Ref ViyaProfile
       # transform "Nxlarge (N cores)" to "r4.Nxlarge"
-      InstanceType: !Join
-        - '.'
-        - - !Ref CASInstanceType
-          - !GetAtt LicenseInfo.NodeInstanceSize
+      InstanceType: !Ref CASInstanceSize
       EbsOptimized: true
       PlacementGroupName: !Ref ViyaPlacementGroup
       SecurityGroupIds:
@@ -1202,7 +1303,10 @@ Resources:
   CASLibVolume:
     Type: AWS::EC2::Volume
     Properties:
-      Size: !GetAtt LicenseInfo.CASLibSize
+      Size: !FindInMap
+        - CasSizeToStorage
+        - !Ref CASInstanceSize
+        - CASLibSize
       VolumeType: gp2
       Encrypted: true
       AvailabilityZone: !GetAtt CASController.AvailabilityZone
@@ -1220,7 +1324,10 @@ Resources:
     Condition: IsNotI3
     Type: AWS::EC2::Volume
     Properties:
-      Size: !GetAtt LicenseInfo.CASCacheSize
+      Size: !FindInMap
+        - CasSizeToStorage
+        - !Ref CASInstanceSize
+        - CASCacheSize
       VolumeType: gp2
       Encrypted: true
       AvailabilityZone: !GetAtt CASController.AvailabilityZone
@@ -1558,7 +1665,7 @@ Resources:
               group: ec2-user
               authentication: S3AccessCreds
               context:
-                CASInstanceType: !Ref CASInstanceType
+                CASInstanceType: !Ref CASInstanceSize
             /tmp/parms.json:
               # use this file later to apply pystache to any files downloaded via file_tree
               content: !Sub |
@@ -1602,10 +1709,7 @@ Resources:
                                      - AWSAMIRegionMap
                                      - !Ref AWS::Region
                                      - RHEL74HVM
-                ControllerInstanceType: !Join
-                                          - '.'
-                                          - - !Ref CASInstanceType
-                                            - !GetAtt LicenseInfo.NodeInstanceSize
+                ControllerInstanceType: !Ref CASInstanceSize
                 PlacementGroupName: !Ref ViyaPlacementGroup
                 SecurityGroupId: !Ref ViyaSecurityGroup
                 SubnetId: !Ref PrivateSubnetID
@@ -1657,13 +1761,13 @@ Resources:
                     export ANSIBLE_LOG_PATH=/var/log/sas/install/prepare_nodes.log
                     export ANSIBLE_CONFIG=/sas/install/common/ansible/playbooks/ansible.cfg
                     ansible-playbook -v /sas/install/common/ansible/playbooks/prepare_nodes.yml \
-                      -e "USERLIB_DISK=/dev/xvdl" \
-                      -e "SAS_INSTALL_DISK=/dev/xvdg" \
+                      -e "USERLIB_DISK=/dev/sdl" \
+                      -e "SAS_INSTALL_DISK=/dev/sdg" \
                       ${CASCACHE_DISK}
                   '
                 - CASCACHE_DISK: !If
                    - IsNotI3
-                   - '-e "CASCACHE_DISK=/dev/xvdd"'
+                   - '-e "CASCACHE_DISK=/dev/sdd"'
                    - ''
             06-openldap:
               command: !Sub
@@ -1707,7 +1811,7 @@ Resources:
                   export ANSIBLE_LOG_PATH=/var/log/sas/install/virk.log
                   export ANSIBLE_CONFIG=/sas/install/common/ansible/playbooks/ansible.cfg
                   export ANSIBLE_INVENTORY=/sas/install/ansible/sas_viya_playbook/inventory.ini
-                  ansible-playbook -v /sas/install/ansible/sas_viya_playbook/virk/playbooks/pre-install-playbook/viya_pre_install_playbook.yml \
+                  ansible-playbook -v /sas/install/ansible/sas_viya_playbook/viya-ark/playbooks/pre-install-playbook/viya_pre_install_playbook.yml \
                      -e "use_pause=false" \
                      --skip-tags skipmemfail,skipcoresfail,skipstoragefail,skipnicssfail,bandwidth
                 '

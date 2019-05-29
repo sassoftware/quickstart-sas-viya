@@ -1,0 +1,113 @@
+---
+
+- name: create cascache subdir
+  file:
+    path: "{{ CASCACHE_DIR }}"
+    state: directory
+    owner: "{{ ansible_user_id }}"
+    group: "{{ ansible_user_id }}"
+    mode: 0777
+
+#- name: check if there are ephemeral drives
+#  shell: |
+#      drives=""
+#      drive_count=0
+#      found=""
+#      nvm_drives=$(lsblk  -d -n --output NAME | grep nvm || :)
+#      for device_name in $nvm_drives; do
+#        device_path="/dev/$device_name"
+#        if [ -b "$device_path" ]; then
+#          drive_count=$((drive_count + 1 ))
+#        fi
+#      done
+#      if [ "$drive_count" = 0 ]; then
+#         found="no"
+#      else
+#         found="yes"
+#      fi
+#      echo "$found"
+#
+#  register: ephemeral_drives_exist
+
+- name: innitalize variables
+  set_fact:
+    ephemeral_drives_exist: False
+    ephemeral_disk_set: []
+
+- name: "Check if machine actually is not a nitro machine (we do this by checking if there are any mountable devices that start with xvd)"
+  set_fact:
+    ephemeral_drives_exist: True
+    ephemeral_disk_set: "{{ ephemeral_disk_set + ['/dev/' + device.key] }}"
+  with_dict: "{{ ansible_devices }}"
+  loop_control:
+    loop_var: device
+  when: "(device.value.partitions|length) == 0 and device.value.model == 'Amazon EC2 NVMe Instance Storage'"
+
+- block:
+
+  - name: make sure mdadm is installed
+    yum:
+      name: mdadm
+      state: present
+
+  - name: Save code for mounting ephemeral drives
+    copy:
+      content: |
+        #!/bin/bash -e
+
+        # format (raid) ephemeral drives if needed
+        if  [ "$(blkid /dev/md0 | grep xfs)" = "" ]; then
+          # find the drive devices
+          drives="{{ ephemeral_disk_set | join(" ") }}"
+          drive_count={{ ephemeral_disk_set | length }}
+
+           # overwrite first few blocks in case there is a filesystem, otherwise mdadm will prompt for input
+          for drive in $drives; do
+            dd if=/dev/zero of="$drive" bs=4096 count=1024
+          done
+
+          # create RAID and filesystem
+          READAHEAD=16384
+          partprobe
+          mdadm --create --verbose /dev/md0 --level=0 -c256 --force --raid-devices=$drive_count $drives
+          echo DEVICE "$drives" | tee /etc/mdadm.conf
+          mdadm --detail --scan | tee -a /etc/mdadm.conf
+          blockdev --setra $READAHEAD /dev/md0
+
+          mkfs -t xfs /dev/md0
+
+          # in case it was mounted already...
+          umount {{ CASCACHE_DIR }} || true
+          ## for some instances, /mnt is the default instance store, already mounted. so we unmount it:
+          #umount /mnt || true
+
+          mount -t xfs -o noatime /dev/md0 {{ CASCACHE_DIR }}
+
+          chmod 777 {{ CASCACHE_DIR }}
+        fi
+      dest: /usr/sbin/disks_ephemeral.sh
+      mode: "0700"
+
+  - name: create disks_ephemeral service definition
+    copy:
+      dest: /etc/systemd/system/disks_ephemeral.service
+      content: |
+        [Unit]
+        Description=Format and Mount Ephemeral Disks
+        [Service]
+        ExecStart=/usr/sbin/disks_ephemeral.sh
+        [Install]
+        WantedBy=multi-user.target
+  - name: reload systemctl
+    command: systemctl daemon-reload
+  - name: ephemeral disks service
+    service:
+      name: disks_ephemeral
+      enabled: yes
+      state: started
+
+  when: "ephemeral_drives_exist"
+
+
+
+

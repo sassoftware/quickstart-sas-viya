@@ -18,7 +18,7 @@ set -e
 test -n $FILE_ROOT
 DOWNLOAD_DIR=/sas/install
 INSTALL_USER=$(whoami)
-COMMON_CODE_TAG=AWSVIYA-1.4
+COMMON_CODE_TAG=6ac38f84cd6c94071a4d2c767c4f6f9f63c48907
 
 echo Downloading from ${FILE_ROOT} as ${INSTALL_USER}
 
@@ -38,13 +38,13 @@ pushd $DOWNLOAD_DIR
    rm -f scripts/bastion_bootstrap.sh
 
    # delete cas recovery script if not applicable
-   if [ "{{CASInstanceType}}" = "r4" ]; then
+   if [[ "{{CASInstanceType}}" =~ "^r" ]]; then
      rm -f scripts/recover_cascontroller.sh
    fi
 
    # get common code
    git clone https://github.com/sassoftware/quickstart-sas-viya-common.git common
-   pushd common &&  git checkout tags/$COMMON_CODE_TAG -b $COMMON_CODE_TAG && rm -rf .git* && popd
+   pushd common &&  git checkout $COMMON_CODE_TAG -b $COMMON_CODE_TAG && rm -rf .git* && popd
 
 
    #
