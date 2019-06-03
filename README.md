@@ -5,7 +5,7 @@ This Quick Start automatically deploys a highly available, production-ready SAS 
 
 This Quick Start uses AWS CloudFormation templates to deploy the SAS Viya products into a virtual private cloud (VPC) in your AWS account. You can build a new VPC for SAS Viya or deploy the software into your existing VPC.
 
-![Quick Start SAS Viya Design Architecture](images/sas-viya-architecture-diagram.PNG)
+![Quick Start SAS Viya Design Architecture](https://d1.awsstatic.com/partner-network/QuickStart/datasheets/sas-viya-on-aws-arch-diagram.d05734ff41f5ad00535ccfb3b437988f484e3246.png)
 
 For architectural details, best practices, step-by-step instructions, and customization options, see the [deployment guide](https://fwd.aws/egGGR).
 
