@@ -57,7 +57,7 @@ pushd $DOWNLOAD_DIR
    find $DIRS -type d | xargs chmod 700
    find $DIRS -type f | xargs chmod 600
    # make all scripts files executable and for owner only
-   find $DIRS -name *.sh | xargs chmod 700
+   find $DIRS -name "*.sh" | xargs chmod 700
 
 
 popd
