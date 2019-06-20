@@ -1892,9 +1892,9 @@ Resources:
                 [ -x $MSG_SCRIPT ] && $MSG_SCRIPT success
               else
                 [ -x $MSG_SCRIPT ] && RC=$RC FAILMSG=$FAILMSG $MSG_SCRIPT failure
-                # update the StackComplete WaitCondition (this concludes the Stack creation)
-                cfn-signal -e $RC --stack ${AWS::StackName} --resource StackComplete --region ${AWS::Region}
               fi              
+              # update the StackComplete WaitCondition (this concludes the Stack creation)
+              cfn-signal -e $RC --stack ${AWS::StackName} --resource StackComplete --region ${AWS::Region}
               exit $RC
             }    
 
@@ -1940,9 +1940,6 @@ Resources:
             #
             FAILMSG="ERROR: Post-deployment steps failed."
             cfn-init --stack ${AWS::StackName} --resource AnsibleController --configsets post-deployment --region ${AWS::Region}
-
-            return
-
 
 Outputs:
   SASDrive:
