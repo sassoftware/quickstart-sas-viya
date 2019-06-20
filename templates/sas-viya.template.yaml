@@ -1941,8 +1941,7 @@ Resources:
             FAILMSG="ERROR: Post-deployment steps failed."
             cfn-init --stack ${AWS::StackName} --resource AnsibleController --configsets post-deployment --region ${AWS::Region}
 
-            return
-
+            exit
 
 Outputs:
   SASDrive:
