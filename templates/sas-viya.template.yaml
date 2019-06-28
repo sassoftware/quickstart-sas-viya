@@ -1803,8 +1803,8 @@ Resources:
             01-orchestration:
               command: !Sub
                 - |
+                  #!/bin/bash -e
                   su -l ec2-user -c '
-                    #!/bin/bash -e
                     export ANSIBLE_LOG_PATH=/var/log/sas/install/prepare_deployment.log
                     export ANSIBLE_CONFIG=/sas/install/common/ansible/playbooks/ansible.cfg
                     ansible-playbook -v /sas/install/common/ansible/playbooks/prepare_deployment.yml \
@@ -1842,6 +1842,7 @@ Resources:
         postdeployment:
           commands:
             01-post-install:
+              #!/bin/bash -e
               command: |
                 su -l ec2-user -c '
                   #!/bin/bash -e
@@ -1851,6 +1852,7 @@ Resources:
                 '
             02-post-install-02:
               command: !Sub |
+                #!/bin/bash -e
                 su -l ec2-user -c '
                   #!/bin/bash -e
                   export ANSIBLE_LOG_PATH=/var/log/sas/install/post_deployment.log
