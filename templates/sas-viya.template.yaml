@@ -1734,8 +1734,8 @@ Resources:
             01-download_file_tree:
               command: !Sub
                 - |
-                  #!/bin/bash -e
                   su -l ec2-user -c '
+                    #!/bin/bash -e
                     # download the project files into /sas/install
                     FILE_ROOT=${S3_FILE_ROOT} /tmp/download_file_tree.sh &>/tmp/download_file_tree.log
                     # update any mustache parms
@@ -1767,8 +1767,8 @@ Resources:
             01-nodeprep:
               command: !Sub
                 - |
-                  #!/bin/bash -e
                   su -l ec2-user -c '
+                    #!/bin/bash -e
                     export ANSIBLE_LOG_PATH=/var/log/sas/install/prepare_nodes.log
                     export ANSIBLE_CONFIG=/sas/install/common/ansible/playbooks/ansible.cfg
                     ansible-playbook -v /sas/install/common/ansible/playbooks/prepare_nodes.yml \
@@ -1783,8 +1783,8 @@ Resources:
             02-openldap:
               command: !Sub
                 - |
-                  #!/bin/bash -e
                   if [ -n "${ADMINPASS}" ] && [ -n "${USERPASS}" ]; then
+                    #!/bin/bash -e
                     su -l ec2-user -c '
                       export ANSIBLE_LOG_PATH=/var/log/sas/install/openldap.log
                       export ANSIBLE_CONFIG=/sas/install/common/ansible/playbooks/ansible.cfg
@@ -1803,8 +1803,8 @@ Resources:
             01-orchestration:
               command: !Sub
                 - |
-                  #!/bin/bash -e
                   su -l ec2-user -c '
+                    #!/bin/bash -e
                     export ANSIBLE_LOG_PATH=/var/log/sas/install/prepare_deployment.log
                     export ANSIBLE_CONFIG=/sas/install/common/ansible/playbooks/ansible.cfg
                     ansible-playbook -v /sas/install/common/ansible/playbooks/prepare_deployment.yml \
@@ -1820,8 +1820,8 @@ Resources:
 
             02-virk:
               command: |
-                #!/bin/bash -e
                 su -l ec2-user -c '
+                  #!/bin/bash -e
                   export ANSIBLE_LOG_PATH=/var/log/sas/install/virk.log
                   export ANSIBLE_CONFIG=/sas/install/common/ansible/playbooks/ansible.cfg
                   export ANSIBLE_INVENTORY=/sas/install/ansible/sas_viya_playbook/inventory.ini
@@ -1831,8 +1831,8 @@ Resources:
                 '
             03-install:
               command: |
-                #!/bin/bash -e
                 su -l ec2-user -c '
+                  #!/bin/bash -e
                   export ANSIBLE_LOG_PATH=/var/log/sas/install/viya_deployment.log
                   pushd /sas/install/ansible/sas_viya_playbook
                   count=0
@@ -1843,16 +1843,16 @@ Resources:
           commands:
             01-post-install:
               command: |
-                #!/bin/bash -e
                 su -l ec2-user -c '
+                  #!/bin/bash -e
                   export ANSIBLE_LOG_PATH=/var/log/sas/install/post_deployment.log
                   export ANSIBLE_CONFIG=/sas/install/common/ansible/playbooks/ansible.cfg
                   ansible-playbook -v /sas/install/common/ansible/playbooks/post_deployment.yml
                 '
             02-post-install-02:
               command: !Sub |
-                #!/bin/bash -e
                 su -l ec2-user -c '
+                  #!/bin/bash -e
                   export ANSIBLE_LOG_PATH=/var/log/sas/install/post_deployment.log
                   export ANSIBLE_CONFIG=/sas/install/common/ansible/playbooks/ansible.cfg
                   ansible-playbook -v /sas/install/ansible/playbooks/post_deployment.yml \
