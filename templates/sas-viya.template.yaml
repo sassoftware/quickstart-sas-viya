@@ -1171,7 +1171,9 @@ Resources:
           commands:
             01-setup:
               command: !Sub
-                - su -l ec2-user -c 'NFS_SERVER=${ANSIBLE_CONTROLLER_IP} HOST=services /tmp/prereqs.sh &>/tmp/prereqs.log'
+                - |
+                  #!/bin/bash -e
+                  su -l ec2-user -c 'NFS_SERVER=${ANSIBLE_CONTROLLER_IP} HOST=services /tmp/prereqs.sh &>/tmp/prereqs.log'
                 - ANSIBLE_CONTROLLER_IP: !GetAtt AnsibleController.PrivateIp
     Properties:
       KeyName: !Ref KeyPairName
@@ -1207,7 +1209,7 @@ Resources:
       UserData:
         Fn::Base64:
           Fn::Sub: |
-            #!/bin/bash
+            #!/bin/bash -e
             export PATH=$PATH:/usr/local/bin
             curl -O https://bootstrap.pypa.io/get-pip.py && python get-pip.py &> /dev/null
             pip install awscli --ignore-installed six &> /dev/null
@@ -1250,7 +1252,9 @@ Resources:
           commands:
             01-setup:
               command: !Sub
-                - su -l ec2-user -c 'NFS_SERVER=${ANSIBLE_CONTROLLER_IP} HOST=controller /tmp/prereqs.sh &>/tmp/prereqs.log'
+                - |
+                  #!/bin/bash -e
+                  su -l ec2-user -c 'NFS_SERVER=${ANSIBLE_CONTROLLER_IP} HOST=controller /tmp/prereqs.sh &>/tmp/prereqs.log'
                 - ANSIBLE_CONTROLLER_IP: !GetAtt AnsibleController.PrivateIp
     Properties:
       KeyName: !Ref KeyPairName
@@ -1273,7 +1277,7 @@ Resources:
       UserData:
         Fn::Base64:
           Fn::Sub: |
-            #!/bin/bash
+            #!/bin/bash -e
             export PATH=$PATH:/usr/local/bin
             curl -O https://bootstrap.pypa.io/get-pip.py && python get-pip.py &> /dev/null
             pip install awscli --ignore-installed six &> /dev/null
@@ -1602,10 +1606,14 @@ Resources:
         configSets:
           bootstrap:
             - bootstrap
+          fileprep:
+            - fileprep  
           predeployment:
             - predeployment
           deployment:
             - deployment
+          postdeployment:
+            - postdeployment
         bootstrap:
           files:
             /tmp/prereqs.sh:
@@ -1631,14 +1639,17 @@ Resources:
               group: root
               authentication: S3AccessCreds
 
+
           commands:
             01-bastion_bootstrap:
-              command: /tmp/bastion_bootstrap.sh --enable false
-            02-ansible_prereqs:
-              command: su -l ec2-user -c '/tmp/prereqs.sh &>/tmp/prereqs.log'
-
-
-        predeployment:
+              command: |
+                #!/bin/bash -e
+                /tmp/bastion_bootstrap.sh --enable false
+            02-ansible_prereqs: 
+              command: |
+                #!/bin/bash -e
+                su -l ec2-user -c '/tmp/prereqs.sh &>/tmp/prereqs.log'
+        fileprep:
           files:
             /tmp/cloudwatch.conf:
               source: !Sub
@@ -1719,14 +1730,12 @@ Resources:
                   "Ref": SASUserPass
                 SASAdminPass: !Base64
                   "Ref": SASAdminPass
-
           commands:
             01-download_file_tree:
               command: !Sub
                 - |
+                  #!/bin/bash -e
                   su -l ec2-user -c '
-                    #!/bin/bash
-                    set -e
                     # download the project files into /sas/install
                     FILE_ROOT=${S3_FILE_ROOT} /tmp/download_file_tree.sh &>/tmp/download_file_tree.log
                     # update any mustache parms
@@ -1736,33 +1745,35 @@ Resources:
                     update_parms /sas/install/scripts/recover_cascontroller.sh &>>/tmp/update_parms.log
                   '
                 - S3_FILE_ROOT: !Sub "${QSS3BucketName}/${QSS3KeyPrefix}"
-                  
             02-process_overrides:
               command: !Sub |
                 FAILMSG=$(/sas/install/scripts/process_overrides.sh)
                 export RC=$?; export FAILMSG
                 [ ! $RC = 0 ] && /sas/install/scripts/send_sns_message.sh failure
                 exit $RC
-
             03-validate_parms:
               command: !Sub |
-                FAILMSG=$(/sas/install/scripts/validate_parameters.sh)
+                #!/bin/bash -e
+                FAILMSG="$(/sas/install/scripts/validate_parameters.sh)"
                 export RC=$?; export FAILMSG
                 [ ! $RC = 0 ] && /sas/install/scripts/send_sns_message.sh failure
                 exit $RC
-
-            04-send_start_message:
-              command: /sas/install/scripts/send_sns_message.sh starting
-
-            05-cloudwatch:
-              command: >-
+            04-cloudwatch:
+              command: |
+                #!/bin/bash -e
                 sed -i 's/{instance_id}/ansible-controller-commands.log/' /etc/awslogs/awslogs.conf;
                 cat /tmp/cloudwatch.conf >> /etc/awslogs/awslogs.conf;
                 service awslogs restart
-
-            06-nodeprep:
+            05-send_start_message:
+              command: |
+                 #!/bin/bash -e
+                 /sas/install/scripts/send_sns_message.sh starting
+        predeployment:
+          commands:
+            01-nodeprep:
               command: !Sub
                 - |
+                  #!/bin/bash -e
                   su -l ec2-user -c '
                     export ANSIBLE_LOG_PATH=/var/log/sas/install/prepare_nodes.log
                     export ANSIBLE_CONFIG=/sas/install/common/ansible/playbooks/ansible.cfg
@@ -1775,9 +1786,10 @@ Resources:
                    - IsNotI3
                    - '-e "CASCACHE_DISK=/dev/sdd"'
                    - ''
-            07-openldap:
+            02-openldap:
               command: !Sub
                 - |
+                  #!/bin/bash -e
                   if [ -n "${ADMINPASS}" ] && [ -n "${USERPASS}" ]; then
                     su -l ec2-user -c '
                       export ANSIBLE_LOG_PATH=/var/log/sas/install/openldap.log
@@ -1797,6 +1809,7 @@ Resources:
             01-orchestration:
               command: !Sub
                 - |
+                  #!/bin/bash -e
                   su -l ec2-user -c '
                     export ANSIBLE_LOG_PATH=/var/log/sas/install/prepare_deployment.log
                     export ANSIBLE_CONFIG=/sas/install/common/ansible/playbooks/ansible.cfg
@@ -1813,6 +1826,7 @@ Resources:
 
             02-virk:
               command: |
+                #!/bin/bash -e
                 su -l ec2-user -c '
                   export ANSIBLE_LOG_PATH=/var/log/sas/install/virk.log
                   export ANSIBLE_CONFIG=/sas/install/common/ansible/playbooks/ansible.cfg
@@ -1823,6 +1837,7 @@ Resources:
                 '
             03-install:
               command: |
+                #!/bin/bash -e
                 su -l ec2-user -c '
                   export ANSIBLE_LOG_PATH=/var/log/sas/install/viya_deployment.log
                   pushd /sas/install/ansible/sas_viya_playbook
@@ -1830,15 +1845,19 @@ Resources:
                   RC=1
                   until [ $count -gt 3 ]; do ansible-playbook site.yml && RC=0 && break || let count=count+1; done
                 '
-            04-post-install:
+        postdeployment:
+          commands:
+            01-post-install:
               command: |
+                #!/bin/bash -e
                 su -l ec2-user -c '
                   export ANSIBLE_LOG_PATH=/var/log/sas/install/post_deployment.log
                   export ANSIBLE_CONFIG=/sas/install/common/ansible/playbooks/ansible.cfg
                   ansible-playbook -v /sas/install/common/ansible/playbooks/post_deployment.yml
                 '
-            05-post-install-02:
+            02-post-install-02:
               command: !Sub |
+                #!/bin/bash -e
                 su -l ec2-user -c '
                   export ANSIBLE_LOG_PATH=/var/log/sas/install/post_deployment.log
                   export ANSIBLE_CONFIG=/sas/install/common/ansible/playbooks/ansible.cfg
@@ -1863,7 +1882,27 @@ Resources:
       UserData:
         Fn::Base64:
           Fn::Sub: |
-            #!/bin/bash
+            #!/bin/bash -e
+
+            trap term EXIT
+
+            MSG_SCRIPT=/sas/install/scripts/send_sns_message.sh 
+            FAILMSG=
+
+            function term {
+              RC=$?
+              if [ $RC = 0 ]; then
+                [ -x $MSG_SCRIPT ] && $MSG_SCRIPT success
+              else
+                [ -x $MSG_SCRIPT ] && RC=$RC FAILMSG=$FAILMSG $MSG_SCRIPT failure
+              fi              
+
+              # update the StackComplete WaitCondition (this concludes the Stack creation)
+              cfn-signal -e $RC --stack ${AWS::StackName} --resource StackComplete --region ${AWS::Region}
+
+              exit $RC
+            }    
+
             export PATH=$PATH:/usr/local/bin:/opt/aws/bin
             pip install awscli --ignore-installed six &> /dev/null
             # remove pre-installed cfn bootstrap utilities
@@ -1877,39 +1916,40 @@ Resources:
             # Install prereqs
             #
             cfn-init --stack ${AWS::StackName} --resource AnsibleController --configsets bootstrap --region ${AWS::Region}
-            RC=$?
+            
+            #
             # This signal will complete the ansible controller creation and allow the other VMs to start
             # their creation, using the ansible controller private ip as input
             #
+            RC=$?
             cfn-signal -e $RC --stack ${AWS::StackName} --resource AnsibleController --region ${AWS::Region}
             if ! [ $RC = 0 ]; then
               exit $RC
             fi
 
             #
+            # file preparation
+            #
+            cfn-init --stack ${AWS::StackName} --resource AnsibleController --configsets fileprep --region ${AWS::Region}
+
+            #
             # environment preparation
             #
+            FAILMSG="ERROR: Pre-deployment steps failed." 
             cfn-init --stack ${AWS::StackName} --resource AnsibleController --configsets predeployment --region ${AWS::Region}
-            RC=$?
-            # If something goes wrong here, we do not need to continue
-            if ! [ $RC = 0 ]; then
-              RC=$RC FAILMSG="ERROR: Predeployment failed on ansible controller" /sas/install/scripts/send_sns_message.sh failure
-              cfn-signal -e $RC --success false --stack ${AWS::StackName} --resource StackComplete --region ${AWS::Region}
-              exit 1
-            fi
-
+          
             #
             # Start the actual Viya deployment
             #
+            FAILMSG="ERROR: Main Viya deployment failed."
             cfn-init --stack ${AWS::StackName} --resource AnsibleController --configsets deployment --region ${AWS::Region}
-            RC=$?
-            # update the StackComplete WaitCondition (this concludes the Stack creation)
-            if [ $RC = 0 ]; then
-              /sas/install/scripts/send_sns_message.sh success
-            else
-              RC=$RC /sas/install/scripts/send_sns_message.sh failure
-            fi
-            cfn-signal -e $RC --stack ${AWS::StackName} --resource StackComplete --region ${AWS::Region}
+
+            #
+            # Post deployment steps
+            #
+            FAILMSG="ERROR: Post-deployment steps failed."
+            cfn-init --stack ${AWS::StackName} --resource AnsibleController --configsets postdeployment --region ${AWS::Region}
+
 Outputs:
   SASDrive:
     Description: SAS Viya launch page for SAS solutions and SAS Environment Manager
