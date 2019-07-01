@@ -1737,24 +1737,30 @@ Resources:
                   '
                 - S3_FILE_ROOT: !Sub "${QSS3BucketName}/${QSS3KeyPrefix}"
                   
+            02-process_overrides:
+              command: !Sub |
+                FAILMSG=$(/sas/install/scripts/process_overrides.sh)
+                export RC=$?; export FAILMSG
+                [ ! $RC = 0 ] && /sas/install/scripts/send_sns_message.sh failure
+                exit $RC
 
-            02-validate_parms:
+            03-validate_parms:
               command: !Sub |
                 FAILMSG=$(/sas/install/scripts/validate_parameters.sh)
                 export RC=$?; export FAILMSG
                 [ ! $RC = 0 ] && /sas/install/scripts/send_sns_message.sh failure
                 exit $RC
 
-            03-send_start_message:
+            04-send_start_message:
               command: /sas/install/scripts/send_sns_message.sh starting
 
-            04-cloudwatch:
+            05-cloudwatch:
               command: >-
                 sed -i 's/{instance_id}/ansible-controller-commands.log/' /etc/awslogs/awslogs.conf;
                 cat /tmp/cloudwatch.conf >> /etc/awslogs/awslogs.conf;
                 service awslogs restart
 
-            05-nodeprep:
+            06-nodeprep:
               command: !Sub
                 - |
                   su -l ec2-user -c '
@@ -1769,7 +1775,7 @@ Resources:
                    - IsNotI3
                    - '-e "CASCACHE_DISK=/dev/sdd"'
                    - ''
-            06-openldap:
+            07-openldap:
               command: !Sub
                 - |
                   if [ -n "${ADMINPASS}" ] && [ -n "${USERPASS}" ]; then
