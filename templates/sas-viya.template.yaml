@@ -1747,10 +1747,13 @@ Resources:
                 - S3_FILE_ROOT: !Sub "${QSS3BucketName}/${QSS3KeyPrefix}"
             02-process_overrides:
               command: !Sub |
-                FAILMSG=$(/sas/install/scripts/process_overrides.sh)
-                export RC=$?; export FAILMSG
-                [ ! $RC = 0 ] && /sas/install/scripts/send_sns_message.sh failure
-                exit $RC
+                #!/bin/bash -e
+                su -l ec2-user -c '
+                  FAILMSG=$(/sas/install/scripts/process_overrides.sh)
+                  export RC=$?; export FAILMSG
+                  [ ! $RC = 0 ] && /sas/install/scripts/send_sns_message.sh failure
+                  exit $RC
+                '
             03-validate_parms:
               command: !Sub |
                 #!/bin/bash -e
