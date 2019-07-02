@@ -48,13 +48,13 @@ Metadata:
       DeploymentDataLocation:
         default: SAS Viya Software Order File
       CASInstanceSize:
-        default: EC2 Instance Type for the CAS compute VM
+        default: EC2 Instance Size for the CAS compute VM
       ServicesInstanceSize:
         default: EC2 Instance Size for the Viya Services VM
       DeploymentMirror:
         default: Mirror of SAS Viya Deployment Data
       AdminIngressLocation:
-        default: Permitted IP Range for Deployment Admin
+        default: Permitted IP Range for Deployment Administrator
       WebIngressLocation:
         default: Permitted IP Range for Application Access
       SASAdminPass:
