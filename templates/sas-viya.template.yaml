@@ -1745,20 +1745,29 @@ Resources:
                     update_parms /sas/install/scripts/recover_cascontroller.sh &>>/tmp/update_parms.log
                   '
                 - S3_FILE_ROOT: !Sub "${QSS3BucketName}/${QSS3KeyPrefix}"
-            02-validate_parms:
+            02-process_overrides:
+              command: !Sub |
+                #!/bin/bash -e
+                su -l ec2-user -c '
+                  FAILMSG=$(/sas/install/scripts/process_overrides.sh)
+                  export RC=$?; export FAILMSG
+                  [ ! $RC = 0 ] && /sas/install/scripts/send_sns_message.sh failure
+                  exit $RC
+                '
+            03-validate_parms:
               command: !Sub |
                 #!/bin/bash -e
                 FAILMSG="$(/sas/install/scripts/validate_parameters.sh)"
                 export RC=$?; export FAILMSG
                 [ ! $RC = 0 ] && /sas/install/scripts/send_sns_message.sh failure
                 exit $RC
-            03-cloudwatch:
+            04-cloudwatch:
               command: |
                 #!/bin/bash -e
                 sed -i 's/{instance_id}/ansible-controller-commands.log/' /etc/awslogs/awslogs.conf;
                 cat /tmp/cloudwatch.conf >> /etc/awslogs/awslogs.conf;
                 service awslogs restart
-            04-send_start_message:
+            05-send_start_message:
               command: |
                  #!/bin/bash -e
                  /sas/install/scripts/send_sns_message.sh starting
