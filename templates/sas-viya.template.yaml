@@ -31,7 +31,7 @@ Metadata:
           - PublicSubnetID
           - PrivateSubnetID
       - Label:
-          default: Server DNS Configuration (only required for custom DNS name and SSL)
+          default: Server DNS configuration (only required for custom DNS name and SSL)
         Parameters:
           - DomainName
           - AWSHostedZoneID
@@ -151,7 +151,7 @@ Parameters:
       Name of an existing EC2 key pair. This will allow you to access the Ansible Controller after it launches.
     Type: AWS::EC2::KeyPair::KeyName
     MinLength: '1'
-    ConstraintDescription: must be a existing AWS Key Pair name current AWS region.
+    ConstraintDescription: must be the name of an existing AWS Key Pair in the current AWS region
   WebIngressLocation:
       Description: >-
         Allow inbound HTTP traffic to the SAS Viya Environment from this CIDR block (IP address range). Must be a valid IP CIDR range of the form x.x.x.x/x.
