@@ -1867,6 +1867,14 @@ Resources:
                   ansible-playbook -v /sas/install/ansible/playbooks/post_deployment.yml \
                      -e "SSLCertificateARN=${SSLCertificateARN}"
                 '
+            03-post-install-03:
+              command: !Sub |
+                #!/bin/bash -e
+                su -l ec2-user -c '
+                  export ANSIBLE_LOG_PATH=/var/log/sas/install/post_service_restart.log
+                  export ANSIBLE_CONFIG=/sas/install/common/ansible/playbooks/ansible.cfg
+                  time ansible-playbook -v /sas/install/common/ansible/playbooks/restart_services.yml
+                '
 
     Properties:
       KeyName: !Ref KeyPairName
