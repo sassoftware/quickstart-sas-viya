@@ -10,4 +10,6 @@ This Quick Start uses AWS CloudFormation templates to deploy the SAS Viya produc
 For architectural details, best practices, step-by-step instructions, and customization options, see the [deployment guide](https://fwd.aws/egGGR).
 
 To post feedback, submit feature ideas, or report bugs, use the **Issues** section of this GitHub repo.
-If you'd like to submit code for this Quick Start, please review the [AWS Quick Start Contributor's Kit](https://aws-quickstart.github.io/).
+If you'd like to submit code for this Quick Start, please review the following:
+* [AWS Quick Start Contributor's Kit](https://aws-quickstart.github.io/)
+* [SAS contributor information](CONTRIBUTING.md)
