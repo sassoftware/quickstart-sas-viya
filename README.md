@@ -12,4 +12,6 @@ For architectural details, best practices, step-by-step instructions, and custom
 **Note:** For the current operational status of this Quickstart, click [here](https://github.com/sassoftware/quickstart-sas-viya/tree/master) to redirect to the SAS repository.
 
 To post feedback, submit feature ideas, or report bugs, use the **Issues** section of this GitHub repo.
-If you'd like to submit code for this Quick Start, please review the [AWS Quick Start Contributor's Kit](https://aws-quickstart.github.io/).
+If you'd like to submit code for this Quick Start, please review the following:
+* [AWS Quick Start Contributor's Kit](https://aws-quickstart.github.io/)
+* [SAS contributor information](CONTRIBUTING.md)
