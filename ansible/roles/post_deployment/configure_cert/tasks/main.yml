@@ -101,6 +101,6 @@
     do
       sleep 1
     done
-    aws --region {{AWS_REGION}} elb set-load-balancer-policies-of-listener --load-balancer-name "{{ELB_NAME}}" --load-balancer-port 443 --policy-names AppCookieStickinessPolicy
+    aws --region {{AWS_REGION}} elb set-load-balancer-policies-of-listener --load-balancer-name "{{ELB_NAME}}" --load-balancer-port 443 --policy-names '["AppCookieStickinessPolicy" ,"SASRestrictedSSL"]'
 
 
