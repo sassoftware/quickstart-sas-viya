@@ -1018,6 +1018,20 @@ Resources:
       AppCookieStickinessPolicy:
         - CookieName: dummy
           PolicyName: AppCookieStickinessPolicy
+      Policies:
+        - Attributes:
+            - Name: Protocol-TLSv1.2
+              Value: True
+            - Name: ECDHE-ECDSA-AES128-GCM-SHA256
+              Value: True
+            - Name: ECDHE-RSA-AES128-GCM-SHA256
+              Value: True
+            - Name: ECDHE-ECDSA-AES256-GCM-SHA384
+              Value: True
+            - Name: ECDHE-RSA-AES256-GCM-SHA384
+              Value: True
+          PolicyType: SSLNegotiationPolicyType
+          PolicyName: SASRestrictedSSL
       Listeners:
         - LoadBalancerPort: '443'
           Protocol:
@@ -1041,7 +1055,10 @@ Resources:
               - HasSSLCertificate
               - AppCookieStickinessPolicy
               - Ref: AWS::NoValue
-
+            - Fn::If:
+              - HasSSLCertificate
+              - SASRestrictedSSL
+              - Ref: AWS::NoValue
       CrossZone: true
       HealthCheck:
         Target: 'TCP:443'
