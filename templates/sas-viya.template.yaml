@@ -270,55 +270,60 @@ Parameters:
     Default: ''
 
 Mappings:
+  # regenerate this with the command:
+  #   while read region; do echo "${region}:"; echo "  RHEL74HVM: $(aws ec2 describe-images --filters "Name=name,Values=RHEL-7.6_HVM-20190618-x86_64-0-Hourly2-GP2" --query 'sort_by(Images, &CreationDate)[0].ImageId' --region $region --output text)"; echo "  AMZNLINUXHVM: $(aws ec2 describe-images --filters "Name=name,Values=amzn-ami-hvm-2018.03.0.20190611-x86_64-gp2" --query 'sort_by(Images, &CreationDate)[0].ImageId' --region $region --output text)"; done < <(aws ec2 describe-regions --query "Regions[].{Name:RegionName}" --output text)
   AWSAMIRegionMap:
     AMI:
-      AMZNLINUXHVM: amzn-ami-hvm-2017.09.1.20180115-x86_64-gp2
-      RHEL74HVM: RHEL-7.4_HVM-20180122-x86_64-1-Hourly2-GP2
-    ap-northeast-1:
-      AMZNLINUXHVM: ami-ceafcba8
-      RHEL74HVM: ami-36f09350
-    ap-northeast-2:
-      AMZNLINUXHVM: ami-863090e8
-      RHEL74HVM: ami-90a201fe
+      AMZNLINUXHVM: amzn-ami-hvm-2018.03.0.20190611-x86_64-gp2
+      RHEL74HVM: RHEL-7.6_HVM-20190618-x86_64-0-Hourly2-GP2
+    eu-north-1:
+      RHEL74HVM: ami-8833bbf6
+      AMZNLINUXHVM: ami-8c169ef2
     ap-south-1:
-      AMZNLINUXHVM: ami-531a4c3c
-      RHEL74HVM: ami-5c2f7e33
-    ap-southeast-1:
-      AMZNLINUXHVM: ami-68097514
-      RHEL74HVM: ami-8d90e9f1
-    ap-southeast-2:
-      AMZNLINUXHVM: ami-942dd1f6
-      RHEL74HVM: ami-e1996783
-    ca-central-1:
-      AMZNLINUXHVM: ami-a954d1cd
-      RHEL74HVM: ami-71018415
-    eu-central-1:
-      AMZNLINUXHVM: ami-5652ce39
-      RHEL74HVM: ami-8a21bfe5
-    eu-west-1:
-      AMZNLINUXHVM: ami-d834aba1
-      RHEL74HVM: ami-ccb7d2b5
-    eu-west-2:
-      AMZNLINUXHVM: ami-403e2524
-      RHEL74HVM: ami-b4b3a8d0
+      RHEL74HVM: ami-0b105c57e305d9064
+      AMZNLINUXHVM: ami-0b99c7725b9484f9e
     eu-west-3:
-      AMZNLINUXHVM: ami-8ee056f3
-      RHEL74HVM: ami-66d0661b
+      RHEL74HVM: ami-08295de7534115935
+      AMZNLINUXHVM: ami-05b93cd5a1b552734
+    eu-west-2:
+      RHEL74HVM: ami-06fe0c124aedcef5f
+      AMZNLINUXHVM: ami-0bdfa1adc3878cd23
+    eu-west-1:
+      RHEL74HVM: ami-04c89a19fea29f1f0
+      AMZNLINUXHVM: ami-0862aabda3fb488b5
+    ap-northeast-2:
+      RHEL74HVM: ami-0f84aff229263c1fc
+      AMZNLINUXHVM: ami-0be3e6f84d3b968cd
+    ap-northeast-1:
+      RHEL74HVM: ami-0e3e6ca71a19ccf06
+      AMZNLINUXHVM: ami-04b2d1589ab1d972c
     sa-east-1:
-      AMZNLINUXHVM: ami-84175ae8
-      RHEL74HVM: ami-1a064a76
+      RHEL74HVM: ami-06efd558d6a5fb959
+      AMZNLINUXHVM: ami-0bb96001cf2299257
+    ca-central-1:
+      RHEL74HVM: ami-0a43efe505004e592
+      AMZNLINUXHVM: ami-0a67d15f2858e33cb
+    ap-southeast-1:
+      RHEL74HVM: ami-031290b4bd9eaa715
+      AMZNLINUXHVM: ami-0fb6b6f9e81056553
+    ap-southeast-2:
+      RHEL74HVM: ami-06d2821bfc76dcda3
+      AMZNLINUXHVM: ami-075caa3491def750b
+    eu-central-1:
+      RHEL74HVM: ami-0fc86555914f6a9f2
+      AMZNLINUXHVM: ami-026d3b3672c6e7b66
     us-east-1:
-      AMZNLINUXHVM: ami-97785bed
-      RHEL74HVM: ami-76a3970c
+      RHEL74HVM: ami-08a7d2bfef687328f
+      AMZNLINUXHVM: ami-035b3c7efe6d061d5
     us-east-2:
-      AMZNLINUXHVM: ami-f63b1193
-      RHEL74HVM: ami-cebe94ab
+      RHEL74HVM: ami-0e166e72fda655c63
+      AMZNLINUXHVM: ami-02f706d959cedf892
     us-west-1:
-      AMZNLINUXHVM: ami-824c4ee2
-      RHEL74HVM: ami-c8020fa8
+      RHEL74HVM: ami-056efb42b219f9abb
+      AMZNLINUXHVM: ami-0fcdcdb074d2bac5f
     us-west-2:
-      AMZNLINUXHVM: ami-f2d3638a
-      RHEL74HVM: ami-1607ba6e
+      RHEL74HVM: ami-02deb4589e0f0d95e
+      AMZNLINUXHVM: ami-0f2176987ee50226e
   LinuxAMINameMap:
     RHEL-7.4-HVM:
       Code: RHEL74HVM
