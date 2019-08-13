@@ -1234,7 +1234,7 @@ Resources:
             #!/bin/bash -e
             export PATH=$PATH:/usr/local/bin
             curl -O https://bootstrap.pypa.io/get-pip.py && python get-pip.py &> /dev/null
-            pip install awscli --ignore-installed six &> /dev/null
+            pip install awscli==1.15.83 --ignore-installed six &> /dev/null
             easy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
             cfn-init --stack ${AWS::StackName} --resource ViyaServices --configsets quickstart --region ${AWS::Region}
             # Signal the status from cfn-init
@@ -1302,7 +1302,7 @@ Resources:
             #!/bin/bash -e
             export PATH=$PATH:/usr/local/bin
             curl -O https://bootstrap.pypa.io/get-pip.py && python get-pip.py &> /dev/null
-            pip install awscli --ignore-installed six &> /dev/null
+            pip install awscli==1.15.83 --ignore-installed six &> /dev/null
             easy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
             cfn-init --stack ${AWS::StackName} --resource CASController --configsets quickstart --region ${AWS::Region}
             # Signal the status from cfn-init
@@ -1937,7 +1937,7 @@ Resources:
             }    
 
             export PATH=$PATH:/usr/local/bin:/opt/aws/bin
-            pip install awscli --ignore-installed six &> /dev/null
+            pip install awscli==1.15.83 --ignore-installed six &> /dev/null
             # remove pre-installed cfn bootstrap utilities
             yum -y remove aws-cfn-bootstrap
             hash -d /opt/aws/bin/cfn-init
