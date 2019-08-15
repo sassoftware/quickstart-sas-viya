@@ -11,9 +11,7 @@ ANSIBLE_KEY="${NFS_MOUNT_POINT}/ansible_key/id_rsa.pub"
 NFS_SERVER=${NFS_SERVER:-ansible}
 READINESS_FLAG_FILE="${NFS_MOUNT_POINT}/readiness_flags/${HOST}"
 
-#sudo yum update -y
-sudo yum install systemd-219-62.el7
-echo "exclude=systemd*" | sudo tee -a /etc/yum.conf
+
 #
 # create mount dir
 #
