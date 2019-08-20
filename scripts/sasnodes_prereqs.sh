@@ -11,6 +11,7 @@ ANSIBLE_KEY="${NFS_MOUNT_POINT}/ansible_key/id_rsa.pub"
 NFS_SERVER=${NFS_SERVER:-ansible}
 READINESS_FLAG_FILE="${NFS_MOUNT_POINT}/readiness_flags/${HOST}"
 
+
 #
 # create mount dir
 #
