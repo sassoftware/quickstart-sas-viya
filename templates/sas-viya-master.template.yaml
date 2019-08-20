@@ -21,7 +21,7 @@ Metadata:
         - AdminIngressLocation
         - SASAdminPass
         - SASUserPass
-        - CASInstanceType
+        - CASInstanceSize
         - ServicesInstanceSize
         - DeploymentMirror
         - OperatorEmail
@@ -47,7 +47,7 @@ Metadata:
         default: Quick Start S3 Key Prefix
       DeploymentDataLocation:
         default: SAS Viya Software Order File
-      CASInstanceType:
+      CASInstanceSize:
         default: EC2 Instance Type for the CAS compute VM
       ServicesInstanceSize:
         default: EC2 Instance Size for the Viya Services VM
@@ -83,23 +83,59 @@ Parameters:
     MinLength: '1'
     ConstraintDescription: must be a zip file in a valid S3 bucket location, e.g. mysasbucket/viya_deployment_data/SAS_Viya_deployment_data.zip
 
-  CASInstanceType:
+  CASInstanceSize:
     AllowedValues:
-      - "i3"
-      - "r4"
-    ConstraintDescription: Must contain either "i3" or "r4"
-    Default: "i3"
-    Description: Type of EC2 instance for the Viya Compute Nodes (i3 for performance, r4 for auto-recovery)
+      - "i3.large"
+      - "i3.xlarge"
+      - "i3.2xlarge"
+      - "i3.4xlarge"
+      - "i3.8xlarge"
+      - "i3.16xlarge"
+      - "i3.metal"
+      - "r5.large"
+      - "r5.xlarge"
+      - "r5.2xlarge"
+      - "r5.4xlarge"
+      - "r5.12xlarge"
+      - "r5.24xlarge"
+      - "r5.metal"
+      - "r5a.large"
+      - "r5a.xlarge"
+      - "r5a.2xlarge"
+      - "r5a.4xlarge"
+      - "r5a.12xlarge"
+      - "r5a.24xlarge"
+# These SKUs are not available because they mix and match nvme disks and we are not yet able to support that
+#      - "r5ad.large"
+#      - "r5ad.xlarge"
+#      - "r5ad.2xlarge"
+#      - "r5ad.4xlarge"
+#      - "r5ad.12xlarge"
+#      - "r5ad.24xlarge"
+#      - "r5d.large"
+#      - "r5d.xlarge"
+#      - "r5d.2xlarge"
+#      - "r5d.4xlarge"
+#      - "r5d.12xlarge"
+#      - "r5d.24xlarge"
+#      - "r5d.metal"
+    ConstraintDescription: Must contain either "i3" or "r5"
+    Default: "i3.4xlarge"
+    Description: Type and size of EC2 instance for the Viya Compute Node (choose i3 for performance or r5 for auto-recovery)
     Type: String
 
   ServicesInstanceSize:
     AllowedValues:
-      - "2xlarge"
-      - "4xlarge"
-      - "8xlarge"
-    ConstraintDescription: Must be one of "2xlarge", "4xlarge", or "8xlarge"
-    Default: "4xlarge"
-    Description: Determines the size of the r4 EC2 VM instance used for the Viya Services
+      - "r5.2xlarge"
+      - "r5.4xlarge"
+      - "r5.12xlarge"
+      - "r5.24xlarge"
+      - "r4.2xlarge"
+      - "r4.4xlarge"
+      - "r4.8xlarge"
+    ConstraintDescription: Must be one of the allowed r4 or r5 sizes
+    Default: "r5.4xlarge"
+    Description: Determines the type and size of the EC2 VM instance used for the Viya Services
     Type: String
 
   KeyPairName:
@@ -371,7 +407,7 @@ Resources:
         SSLCertificateARN: !Ref SSLCertificateARN
         DomainName: !Ref DomainName
         AWSHostedZoneID: !Ref AWSHostedZoneID
-        CASInstanceType: !Ref CASInstanceType
+        CASInstanceSize: !Ref CASInstanceSize
         ServicesInstanceSize: !Ref ServicesInstanceSize
         DeploymentMirror: !Ref DeploymentMirror
 Outputs:

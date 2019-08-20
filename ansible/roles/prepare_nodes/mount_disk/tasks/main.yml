@@ -1,76 +1,131 @@
 ---
 
-- name: create {{ MOUNT_DIR }} directory
-  file:
-    path: "{{ MOUNT_DIR }}"
-    state: directory
-    owner: "{{ ansible_env.SUDO_UID }}"
-    group: "{{ ansible_env.SUDO_GID }}"
-    mode: 0777
-
-- name: wait for {{ MOUNT_DISK }} device to become available
-  # in some cases, the volume attachments to the VMs happen after other initializaiton code only
-  wait_for:
-    path: "{{ MOUNT_DISK }}"
-    state: present
-    timeout: 300
-    sleep: 1
-
-- name: Ensure that the primary partition is present on the new disk
-  parted:
-    device: "{{ MOUNT_DISK }}"
-    number: 1
-    state: present
-
-- name: check for {{ MOUNT_DISK }} device
-  stat:
-    path: "{{ MOUNT_DISK }}"
-  register: source_disk_stat
+- name: Checking for existing mountpoint on {{ MOUNT_DIR }}
+  command: >-
+    mountpoint -q {{ MOUNT_DIR }}
+  register: volume_stat
+  failed_when: False
+  changed_when: False
 
 - block:
-  - name: format new volume
-    filesystem:
-      fstype: xfs
-      dev: "{{ MOUNT_DISK }}"
+    - name: create {{ MOUNT_DIR }} directory
+      file:
+        path: "{{ MOUNT_DIR }}"
+        state: directory
+        owner: "{{ ansible_env.SUDO_UID }}"
+        group: "{{ ansible_env.SUDO_GID }}"
+        mode: 0777
+
+    - name: innitalize variables
+      set_fact:
+        IS_NITRO: True
+        SOURCE_DISK: 'None'
+
+    - name: "Check if machine actually is not a nitro machine (we do this by checking if there are any mountable devices that start with xvd)"
+      set_fact:
+        IS_NITRO: False
+      with_dict: "{{ ansible_devices }}"
+      loop_control:
+        loop_var: device
+      when: "device.key|regex_search('^xvd', ignorecase=True)"
+
+    - block:
+        - name: "if not nitro, then we derive the target disk from the source device by taking the final letter of the true mount device and mapping it onto the xvd virtual device anme"
+          set_fact:
+            SOURCE_DISK: |-
+              /dev/xvd{{ MOUNT_DISK | regex_replace('^/dev/') | regex_replace('^sd([a-z]+)', '\1') }}
+
+        - name: wait for {{ SOURCE_DISK }} device to become available
+          # in some cases, the volume attachments to the VMs happen after other initializaiton code only
+          wait_for:
+            path: "{{ SOURCE_DISK }}"
+            state: present
+            timeout: 300
+            sleep: 1
+      when: "not IS_NITRO"
+
+    - block:
+        - name: yum install the nvme cli
+          yum:
+            name: nvme-cli
+            state: present
+
+        - include_tasks: find_disk.yml
+          when: "SOURCE_DISK == 'None'"
+
+        - include_tasks: find_disk.yml
+          when: "SOURCE_DISK == 'None'"
+
+        - include_tasks: find_disk.yml
+          when: "SOURCE_DISK == 'None'"
+
+        - include_tasks: find_disk.yml
+          when: "SOURCE_DISK == 'None'"
+
+        - include_tasks: find_disk.yml
+          when: "SOURCE_DISK == 'None'"
+
+        - include_tasks: find_disk.yml
+          when: "SOURCE_DISK == 'None'"
+
+      when: "IS_NITRO"
 
 
-  - name: mount   volume {{ MOUNT_DISK }} on {{ MOUNT_DIR }}
-    mount:
-      name: "{{ MOUNT_DIR }}"
-      src: "{{ MOUNT_DISK }}"
-      fstype: xfs
-      state: mounted
+    - name: Ensure that the primary partition is present on the new disk
+      parted:
+        device: "{{ SOURCE_DISK }}"
+        number: 1
+        state: present
 
-  - name: reapply permissions for {{ MOUNT_DIR }} directory
-    file:
-      path: "{{ MOUNT_DIR }}"
-      state: directory
-      owner: "{{ ansible_env.SUDO_UID }}"
-      group: "{{ ansible_env.SUDO_GID }}"
-      mode: 0777
+    - name: check for {{ SOURCE_DISK }} device
+      stat:
+        path: "{{ SOURCE_DISK }}"
+      register: source_disk_stat
 
-
-  when: source_disk_stat.stat.exists == true
-
-
-- name: tag volumes
-  shell: |
-
-    # get the instance id from the instance metadata
-    INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )
-
-    # get the aws region from the instance metadata
-    AWS_AVAIL_ZONE=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)
-    AWS_REGION=$(echo ${AWS_AVAIL_ZONE}  | sed "s/[a-z]$//")
-
-    # get the stack name from the automatic instance tag "aws:cloudformation:stack-name"
-    STACK_NAME=$(aws --region $AWS_REGION ec2 describe-tags --filter "Name=resource-id,Values=$INSTANCE_ID" --query 'Tags[?Key==`aws:cloudformation:stack-name`].Value' --output text)
-
-    # retrieve all attached volumes
-    DISK_IDS=$(aws --region $AWS_REGION ec2 describe-volumes  --filter "Name=attachment.instance-id, Values=$INSTANCE_ID" --query "Volumes[].VolumeId" --out text)
-
-    # set the Name tag to "<stackname> <hostname>" and the Stack tag to "<stackname>"
-    aws ec2  --region $AWS_REGION  create-tags --resources $DISK_IDS --tags Key=Name,Value="$STACK_NAME $(hostname -s)" Key=Stack,Value="$STACK_NAME"
+    - block:
+      - name: format new volume
+        filesystem:
+          fstype: xfs
+          dev: "{{ SOURCE_DISK }}"
 
 
+      - name: mount   volume {{ SOURCE_DISK }} on {{ MOUNT_DIR }}
+        mount:
+          name: "{{ MOUNT_DIR }}"
+          src: "{{ SOURCE_DISK }}"
+          fstype: xfs
+          state: mounted
+
+      - name: reapply permissions for {{ MOUNT_DIR }} directory
+        file:
+          path: "{{ MOUNT_DIR }}"
+          state: directory
+          owner: "{{ ansible_env.SUDO_UID }}"
+          group: "{{ ansible_env.SUDO_GID }}"
+          mode: 0777
+
+
+      when: source_disk_stat.stat.exists == true
+
+
+    - name: tag volumes
+      shell: |
+
+        # get the instance id from the instance metadata
+        INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )
+
+        # get the aws region from the instance metadata
+        AWS_AVAIL_ZONE=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)
+        AWS_REGION=$(echo ${AWS_AVAIL_ZONE}  | sed "s/[a-z]$//")
+
+        # get the stack name from the automatic instance tag "aws:cloudformation:stack-name"
+        STACK_NAME=$(aws --region $AWS_REGION ec2 describe-tags --filter "Name=resource-id,Values=$INSTANCE_ID" --query 'Tags[?Key==`aws:cloudformation:stack-name`].Value' --output text)
+
+        # retrieve all attached volumes
+        DISK_IDS=$(aws --region $AWS_REGION ec2 describe-volumes  --filter "Name=attachment.instance-id, Values=$INSTANCE_ID" --query "Volumes[].VolumeId" --out text)
+
+        # set the Name tag to "<stackname> <hostname>" and the Stack tag to "<stackname>"
+        aws ec2  --region $AWS_REGION  create-tags --resources $DISK_IDS --tags Key=Name,Value="$STACK_NAME $(hostname -s)" Key=Stack,Value="$STACK_NAME"
+
+  when: volume_stat.rc != 0
 
