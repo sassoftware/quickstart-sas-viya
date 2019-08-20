@@ -18,7 +18,7 @@ set -e
 test -n $FILE_ROOT
 DOWNLOAD_DIR=/sas/install
 INSTALL_USER=$(whoami)
-COMMON_CODE_TAG=6ac38f84cd6c94071a4d2c767c4f6f9f63c48907
+COMMON_CODE_TAG=423761041c839c7bcbb1ee500eb6f70d44cdd351
 
 echo Downloading from ${FILE_ROOT} as ${INSTALL_USER}
 
@@ -57,7 +57,7 @@ pushd $DOWNLOAD_DIR
    find $DIRS -type d | xargs chmod 700
    find $DIRS -type f | xargs chmod 600
    # make all scripts files executable and for owner only
-   find $DIRS -name *.sh | xargs chmod 700
+   find $DIRS -name "*.sh" | xargs chmod 700
 
 
 popd

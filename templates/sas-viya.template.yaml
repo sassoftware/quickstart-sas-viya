@@ -31,7 +31,7 @@ Metadata:
           - PublicSubnetID
           - PrivateSubnetID
       - Label:
-          default: Server DNS Configuration (only required for custom DNS name and SSL)
+          default: Server DNS configuration (only required for custom DNS name and SSL)
         Parameters:
           - DomainName
           - AWSHostedZoneID
@@ -151,7 +151,7 @@ Parameters:
       Name of an existing EC2 key pair. This will allow you to access the Ansible Controller after it launches.
     Type: AWS::EC2::KeyPair::KeyName
     MinLength: '1'
-    ConstraintDescription: must be a existing AWS Key Pair name current AWS region.
+    ConstraintDescription: must be the name of an existing AWS Key Pair in the current AWS region
   WebIngressLocation:
       Description: >-
         Allow inbound HTTP traffic to the SAS Viya Environment from this CIDR block (IP address range). Must be a valid IP CIDR range of the form x.x.x.x/x.
@@ -270,55 +270,64 @@ Parameters:
     Default: ''
 
 Mappings:
+  # regenerate this with the command:
+  #   while read region; do echo "${region}:"; echo "  RHEL74HVM: $(aws ec2 describe-images --filters "Name=name,Values=RHEL-7.6_HVM-20190618-x86_64-0-Hourly2-GP2" --query 'sort_by(Images, &CreationDate)[0].ImageId' --region $region --output text)"; echo "  AMZNLINUXHVM: $(aws ec2 describe-images --filters "Name=name,Values=amzn-ami-hvm-2018.03.0.20190611-x86_64-gp2" --query 'sort_by(Images, &CreationDate)[0].ImageId' --region $region --output text)"; done < <(aws ec2 describe-regions --query "Regions[].{Name:RegionName}" --output text | sort)
   AWSAMIRegionMap:
     AMI:
-      AMZNLINUXHVM: amzn-ami-hvm-2017.09.1.20180115-x86_64-gp2
-      RHEL74HVM: RHEL-7.4_HVM-20180122-x86_64-1-Hourly2-GP2
+      AMZNLINUXHVM: amzn-ami-hvm-2018.03.0.20190611-x86_64-gp2
+      RHEL74HVM: RHEL-7.6_HVM-20190618-x86_64-0-Hourly2-GP2
+    ap-east-1:
+      RHEL74HVM: ami-1a453e6b
+      AMZNLINUXHVM: ami-10186361
     ap-northeast-1:
-      AMZNLINUXHVM: ami-ceafcba8
-      RHEL74HVM: ami-36f09350
+      RHEL74HVM: ami-0e3e6ca71a19ccf06
+      AMZNLINUXHVM: ami-04b2d1589ab1d972c
     ap-northeast-2:
-      AMZNLINUXHVM: ami-863090e8
-      RHEL74HVM: ami-90a201fe
+      RHEL74HVM: ami-0f84aff229263c1fc
+      AMZNLINUXHVM: ami-0be3e6f84d3b968cd
     ap-south-1:
-      AMZNLINUXHVM: ami-531a4c3c
-      RHEL74HVM: ami-5c2f7e33
+      RHEL74HVM: ami-0b105c57e305d9064
+      AMZNLINUXHVM: ami-0b99c7725b9484f9e
     ap-southeast-1:
-      AMZNLINUXHVM: ami-68097514
-      RHEL74HVM: ami-8d90e9f1
+      RHEL74HVM: ami-031290b4bd9eaa715
+      AMZNLINUXHVM: ami-0fb6b6f9e81056553
     ap-southeast-2:
-      AMZNLINUXHVM: ami-942dd1f6
-      RHEL74HVM: ami-e1996783
+      RHEL74HVM: ami-06d2821bfc76dcda3
+      AMZNLINUXHVM: ami-075caa3491def750b
     ca-central-1:
-      AMZNLINUXHVM: ami-a954d1cd
-      RHEL74HVM: ami-71018415
+      RHEL74HVM: ami-0a43efe505004e592
+      AMZNLINUXHVM: ami-0a67d15f2858e33cb
     eu-central-1:
-      AMZNLINUXHVM: ami-5652ce39
-      RHEL74HVM: ami-8a21bfe5
+      RHEL74HVM: ami-0fc86555914f6a9f2
+      AMZNLINUXHVM: ami-026d3b3672c6e7b66
+    eu-north-1:
+      RHEL74HVM: ami-8833bbf6
+      AMZNLINUXHVM: ami-8c169ef2
     eu-west-1:
-      AMZNLINUXHVM: ami-d834aba1
-      RHEL74HVM: ami-ccb7d2b5
+      RHEL74HVM: ami-04c89a19fea29f1f0
+      AMZNLINUXHVM: ami-0862aabda3fb488b5
     eu-west-2:
-      AMZNLINUXHVM: ami-403e2524
-      RHEL74HVM: ami-b4b3a8d0
+      RHEL74HVM: ami-06fe0c124aedcef5f
+      AMZNLINUXHVM: ami-0bdfa1adc3878cd23
     eu-west-3:
-      AMZNLINUXHVM: ami-8ee056f3
-      RHEL74HVM: ami-66d0661b
+      RHEL74HVM: ami-08295de7534115935
+      AMZNLINUXHVM: ami-05b93cd5a1b552734
     sa-east-1:
-      AMZNLINUXHVM: ami-84175ae8
-      RHEL74HVM: ami-1a064a76
+      RHEL74HVM: ami-06efd558d6a5fb959
+      AMZNLINUXHVM: ami-0bb96001cf2299257
     us-east-1:
-      AMZNLINUXHVM: ami-97785bed
-      RHEL74HVM: ami-76a3970c
+      RHEL74HVM: ami-08a7d2bfef687328f
+      AMZNLINUXHVM: ami-035b3c7efe6d061d5
     us-east-2:
-      AMZNLINUXHVM: ami-f63b1193
-      RHEL74HVM: ami-cebe94ab
+      RHEL74HVM: ami-0e166e72fda655c63
+      AMZNLINUXHVM: ami-02f706d959cedf892
     us-west-1:
-      AMZNLINUXHVM: ami-824c4ee2
-      RHEL74HVM: ami-c8020fa8
+      RHEL74HVM: ami-056efb42b219f9abb
+      AMZNLINUXHVM: ami-0fcdcdb074d2bac5f
     us-west-2:
-      AMZNLINUXHVM: ami-f2d3638a
-      RHEL74HVM: ami-1607ba6e
+      RHEL74HVM: ami-02deb4589e0f0d95e
+      AMZNLINUXHVM: ami-0f2176987ee50226e
+
   LinuxAMINameMap:
     RHEL-7.4-HVM:
       Code: RHEL74HVM
@@ -1018,6 +1027,20 @@ Resources:
       AppCookieStickinessPolicy:
         - CookieName: dummy
           PolicyName: AppCookieStickinessPolicy
+      Policies:
+        - Attributes:
+            - Name: Protocol-TLSv1.2
+              Value: True
+            - Name: ECDHE-ECDSA-AES128-GCM-SHA256
+              Value: True
+            - Name: ECDHE-RSA-AES128-GCM-SHA256
+              Value: True
+            - Name: ECDHE-ECDSA-AES256-GCM-SHA384
+              Value: True
+            - Name: ECDHE-RSA-AES256-GCM-SHA384
+              Value: True
+          PolicyType: SSLNegotiationPolicyType
+          PolicyName: SASRestrictedSSL
       Listeners:
         - LoadBalancerPort: '443'
           Protocol:
@@ -1041,7 +1064,10 @@ Resources:
               - HasSSLCertificate
               - AppCookieStickinessPolicy
               - Ref: AWS::NoValue
-
+            - Fn::If:
+              - HasSSLCertificate
+              - SASRestrictedSSL
+              - Ref: AWS::NoValue
       CrossZone: true
       HealthCheck:
         Target: 'TCP:443'
@@ -1171,7 +1197,9 @@ Resources:
           commands:
             01-setup:
               command: !Sub
-                - su -l ec2-user -c 'NFS_SERVER=${ANSIBLE_CONTROLLER_IP} HOST=services /tmp/prereqs.sh &>/tmp/prereqs.log'
+                - |
+                  #!/bin/bash -e
+                  su -l ec2-user -c 'NFS_SERVER=${ANSIBLE_CONTROLLER_IP} HOST=services /tmp/prereqs.sh &>/tmp/prereqs.log'
                 - ANSIBLE_CONTROLLER_IP: !GetAtt AnsibleController.PrivateIp
     Properties:
       KeyName: !Ref KeyPairName
@@ -1207,10 +1235,10 @@ Resources:
       UserData:
         Fn::Base64:
           Fn::Sub: |
-            #!/bin/bash
+            #!/bin/bash -e
             export PATH=$PATH:/usr/local/bin
             curl -O https://bootstrap.pypa.io/get-pip.py && python get-pip.py &> /dev/null
-            pip install awscli --ignore-installed six &> /dev/null
+            pip install awscli==1.15.83 --ignore-installed six &> /dev/null
             easy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
             cfn-init --stack ${AWS::StackName} --resource ViyaServices --configsets quickstart --region ${AWS::Region}
             # Signal the status from cfn-init
@@ -1250,7 +1278,9 @@ Resources:
           commands:
             01-setup:
               command: !Sub
-                - su -l ec2-user -c 'NFS_SERVER=${ANSIBLE_CONTROLLER_IP} HOST=controller /tmp/prereqs.sh &>/tmp/prereqs.log'
+                - |
+                  #!/bin/bash -e
+                  su -l ec2-user -c 'NFS_SERVER=${ANSIBLE_CONTROLLER_IP} HOST=controller /tmp/prereqs.sh &>/tmp/prereqs.log'
                 - ANSIBLE_CONTROLLER_IP: !GetAtt AnsibleController.PrivateIp
     Properties:
       KeyName: !Ref KeyPairName
@@ -1273,10 +1303,10 @@ Resources:
       UserData:
         Fn::Base64:
           Fn::Sub: |
-            #!/bin/bash
+            #!/bin/bash -e
             export PATH=$PATH:/usr/local/bin
             curl -O https://bootstrap.pypa.io/get-pip.py && python get-pip.py &> /dev/null
-            pip install awscli --ignore-installed six &> /dev/null
+            pip install awscli==1.15.83 --ignore-installed six &> /dev/null
             easy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
             cfn-init --stack ${AWS::StackName} --resource CASController --configsets quickstart --region ${AWS::Region}
             # Signal the status from cfn-init
@@ -1602,10 +1632,14 @@ Resources:
         configSets:
           bootstrap:
             - bootstrap
+          fileprep:
+            - fileprep  
           predeployment:
             - predeployment
           deployment:
             - deployment
+          postdeployment:
+            - postdeployment
         bootstrap:
           files:
             /tmp/prereqs.sh:
@@ -1631,14 +1665,17 @@ Resources:
               group: root
               authentication: S3AccessCreds
 
+
           commands:
             01-bastion_bootstrap:
-              command: /tmp/bastion_bootstrap.sh --enable false
-            02-ansible_prereqs:
-              command: su -l ec2-user -c '/tmp/prereqs.sh &>/tmp/prereqs.log'
-
-
-        predeployment:
+              command: |
+                #!/bin/bash -e
+                /tmp/bastion_bootstrap.sh --enable false
+            02-ansible_prereqs: 
+              command: |
+                #!/bin/bash -e
+                su -l ec2-user -c '/tmp/prereqs.sh &>/tmp/prereqs.log'
+        fileprep:
           files:
             /tmp/cloudwatch.conf:
               source: !Sub
@@ -1719,14 +1756,12 @@ Resources:
                   "Ref": SASUserPass
                 SASAdminPass: !Base64
                   "Ref": SASAdminPass
-
           commands:
             01-download_file_tree:
               command: !Sub
                 - |
+                  #!/bin/bash -e
                   su -l ec2-user -c '
-                    #!/bin/bash
-                    set -e
                     # download the project files into /sas/install
                     FILE_ROOT=${S3_FILE_ROOT} /tmp/download_file_tree.sh &>/tmp/download_file_tree.log
                     # update any mustache parms
@@ -1736,27 +1771,38 @@ Resources:
                     update_parms /sas/install/scripts/recover_cascontroller.sh &>>/tmp/update_parms.log
                   '
                 - S3_FILE_ROOT: !Sub "${QSS3BucketName}/${QSS3KeyPrefix}"
-                  
-
-            02-validate_parms:
+            02-process_overrides:
               command: !Sub |
-                FAILMSG=$(/sas/install/scripts/validate_parameters.sh)
+                #!/bin/bash -e
+                su -l ec2-user -c '
+                  FAILMSG=$(/sas/install/scripts/process_overrides.sh)
+                  export RC=$?; export FAILMSG
+                  [ ! $RC = 0 ] && /sas/install/scripts/send_sns_message.sh failure
+                  exit $RC
+                '
+            03-validate_parms:
+              command: !Sub |
+                #!/bin/bash -e
+                FAILMSG="$(/sas/install/scripts/validate_parameters.sh)"
                 export RC=$?; export FAILMSG
                 [ ! $RC = 0 ] && /sas/install/scripts/send_sns_message.sh failure
                 exit $RC
-
-            03-send_start_message:
-              command: /sas/install/scripts/send_sns_message.sh starting
-
             04-cloudwatch:
-              command: >-
+              command: |
+                #!/bin/bash -e
                 sed -i 's/{instance_id}/ansible-controller-commands.log/' /etc/awslogs/awslogs.conf;
                 cat /tmp/cloudwatch.conf >> /etc/awslogs/awslogs.conf;
                 service awslogs restart
-
-            05-nodeprep:
+            05-send_start_message:
+              command: |
+                 #!/bin/bash -e
+                 /sas/install/scripts/send_sns_message.sh starting
+        predeployment:
+          commands:
+            01-nodeprep:
               command: !Sub
                 - |
+                  #!/bin/bash -e
                   su -l ec2-user -c '
                     export ANSIBLE_LOG_PATH=/var/log/sas/install/prepare_nodes.log
                     export ANSIBLE_CONFIG=/sas/install/common/ansible/playbooks/ansible.cfg
@@ -1769,9 +1815,10 @@ Resources:
                    - IsNotI3
                    - '-e "CASCACHE_DISK=/dev/sdd"'
                    - ''
-            06-openldap:
+            02-openldap:
               command: !Sub
                 - |
+                  #!/bin/bash -e
                   if [ -n "${ADMINPASS}" ] && [ -n "${USERPASS}" ]; then
                     su -l ec2-user -c '
                       export ANSIBLE_LOG_PATH=/var/log/sas/install/openldap.log
@@ -1791,6 +1838,7 @@ Resources:
             01-orchestration:
               command: !Sub
                 - |
+                  #!/bin/bash -e
                   su -l ec2-user -c '
                     export ANSIBLE_LOG_PATH=/var/log/sas/install/prepare_deployment.log
                     export ANSIBLE_CONFIG=/sas/install/common/ansible/playbooks/ansible.cfg
@@ -1807,6 +1855,7 @@ Resources:
 
             02-virk:
               command: |
+                #!/bin/bash -e
                 su -l ec2-user -c '
                   export ANSIBLE_LOG_PATH=/var/log/sas/install/virk.log
                   export ANSIBLE_CONFIG=/sas/install/common/ansible/playbooks/ansible.cfg
@@ -1817,6 +1866,7 @@ Resources:
                 '
             03-install:
               command: |
+                #!/bin/bash -e
                 su -l ec2-user -c '
                   export ANSIBLE_LOG_PATH=/var/log/sas/install/viya_deployment.log
                   pushd /sas/install/ansible/sas_viya_playbook
@@ -1824,20 +1874,32 @@ Resources:
                   RC=1
                   until [ $count -gt 3 ]; do ansible-playbook site.yml && RC=0 && break || let count=count+1; done
                 '
-            04-post-install:
+        postdeployment:
+          commands:
+            01-post-install:
               command: |
+                #!/bin/bash -e
                 su -l ec2-user -c '
                   export ANSIBLE_LOG_PATH=/var/log/sas/install/post_deployment.log
                   export ANSIBLE_CONFIG=/sas/install/common/ansible/playbooks/ansible.cfg
                   ansible-playbook -v /sas/install/common/ansible/playbooks/post_deployment.yml
                 '
-            05-post-install-02:
+            02-post-install-02:
               command: !Sub |
+                #!/bin/bash -e
                 su -l ec2-user -c '
                   export ANSIBLE_LOG_PATH=/var/log/sas/install/post_deployment.log
                   export ANSIBLE_CONFIG=/sas/install/common/ansible/playbooks/ansible.cfg
                   ansible-playbook -v /sas/install/ansible/playbooks/post_deployment.yml \
                      -e "SSLCertificateARN=${SSLCertificateARN}"
+                '
+            03-post-install-03:
+              command: !Sub |
+                #!/bin/bash -e
+                su -l ec2-user -c '
+                  export ANSIBLE_LOG_PATH=/var/log/sas/install/post_service_restart.log
+                  export ANSIBLE_CONFIG=/sas/install/common/ansible/playbooks/ansible.cfg
+                  time ansible-playbook -v /sas/install/common/ansible/playbooks/restart_services.yml
                 '
 
     Properties:
@@ -1857,9 +1919,29 @@ Resources:
       UserData:
         Fn::Base64:
           Fn::Sub: |
-            #!/bin/bash
+            #!/bin/bash -e
+
+            trap term EXIT
+
+            MSG_SCRIPT=/sas/install/scripts/send_sns_message.sh 
+            FAILMSG=
+
+            function term {
+              RC=$?
+              if [ $RC = 0 ]; then
+                [ -x $MSG_SCRIPT ] && $MSG_SCRIPT success
+              else
+                [ -x $MSG_SCRIPT ] && RC=$RC FAILMSG=$FAILMSG $MSG_SCRIPT failure
+              fi              
+
+              # update the StackComplete WaitCondition (this concludes the Stack creation)
+              cfn-signal -e $RC --stack ${AWS::StackName} --resource StackComplete --region ${AWS::Region}
+
+              exit $RC
+            }    
+
             export PATH=$PATH:/usr/local/bin:/opt/aws/bin
-            pip install awscli --ignore-installed six &> /dev/null
+            pip install awscli==1.15.83 --ignore-installed six &> /dev/null
             # remove pre-installed cfn bootstrap utilities
             yum -y remove aws-cfn-bootstrap
             hash -d /opt/aws/bin/cfn-init
@@ -1871,39 +1953,40 @@ Resources:
             # Install prereqs
             #
             cfn-init --stack ${AWS::StackName} --resource AnsibleController --configsets bootstrap --region ${AWS::Region}
-            RC=$?
+            
+            #
             # This signal will complete the ansible controller creation and allow the other VMs to start
             # their creation, using the ansible controller private ip as input
             #
+            RC=$?
             cfn-signal -e $RC --stack ${AWS::StackName} --resource AnsibleController --region ${AWS::Region}
             if ! [ $RC = 0 ]; then
               exit $RC
             fi
 
             #
+            # file preparation
+            #
+            cfn-init --stack ${AWS::StackName} --resource AnsibleController --configsets fileprep --region ${AWS::Region}
+
+            #
             # environment preparation
             #
+            FAILMSG="ERROR: Pre-deployment steps failed." 
             cfn-init --stack ${AWS::StackName} --resource AnsibleController --configsets predeployment --region ${AWS::Region}
-            RC=$?
-            # If something goes wrong here, we do not need to continue
-            if ! [ $RC = 0 ]; then
-              RC=$RC FAILMSG="ERROR: Predeployment failed on ansible controller" /sas/install/scripts/send_sns_message.sh failure
-              cfn-signal -e $RC --success false --stack ${AWS::StackName} --resource StackComplete --region ${AWS::Region}
-              exit 1
-            fi
-
+          
             #
             # Start the actual Viya deployment
             #
+            FAILMSG="ERROR: Main Viya deployment failed."
             cfn-init --stack ${AWS::StackName} --resource AnsibleController --configsets deployment --region ${AWS::Region}
-            RC=$?
-            # update the StackComplete WaitCondition (this concludes the Stack creation)
-            if [ $RC = 0 ]; then
-              /sas/install/scripts/send_sns_message.sh success
-            else
-              RC=$RC /sas/install/scripts/send_sns_message.sh failure
-            fi
-            cfn-signal -e $RC --stack ${AWS::StackName} --resource StackComplete --region ${AWS::Region}
+
+            #
+            # Post deployment steps
+            #
+            FAILMSG="ERROR: Post-deployment steps failed."
+            cfn-init --stack ${AWS::StackName} --resource AnsibleController --configsets postdeployment --region ${AWS::Region}
+
 Outputs:
   SASDrive:
     Description: SAS Viya launch page for SAS solutions and SAS Environment Manager
