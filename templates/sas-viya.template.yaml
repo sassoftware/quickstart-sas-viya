@@ -327,7 +327,6 @@ Mappings:
     us-west-2:
       RHEL74HVM: ami-02deb4589e0f0d95e
       AMZNLINUXHVM: ami-0f2176987ee50226e
-
   LinuxAMINameMap:
     RHEL-7.4-HVM:
       Code: RHEL74HVM
