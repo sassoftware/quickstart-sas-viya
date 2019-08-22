@@ -276,9 +276,9 @@ Mappings:
     AMI:
       AMZNLINUXHVM: amzn-ami-hvm-2018.03.0.20190611-x86_64-gp2
       RHEL74HVM: RHEL-7.6_HVM-20190618-x86_64-0-Hourly2-GP2
-    ap-east-1:
-      RHEL74HVM: ami-1a453e6b
-      AMZNLINUXHVM: ami-10186361
+#    ap-east-1:
+#      RHEL74HVM: ami-1a453e6b
+#      AMZNLINUXHVM: ami-10186361
     ap-northeast-1:
       RHEL74HVM: ami-0e3e6ca71a19ccf06
       AMZNLINUXHVM: ami-04b2d1589ab1d972c
