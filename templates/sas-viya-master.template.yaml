@@ -21,6 +21,7 @@ Metadata:
         - AdminIngressLocation
         - SASAdminPass
         - SASUserPass
+        - CASInstanceCount
         - CASInstanceSize
         - ServicesInstanceSize
         - DeploymentMirror
@@ -47,6 +48,8 @@ Metadata:
         default: Quick Start S3 Key Prefix
       DeploymentDataLocation:
         default: SAS Viya Software Order File
+      CASInstanceCount:
+        default: "The number of Cas nodes to create. Note: selecting 1 will install a singleton cas, but selecting 2 or more will create an MPP deploy)"
       CASInstanceSize:
         default: EC2 Instance Size for the CAS compute VM
       ServicesInstanceSize:
@@ -123,6 +126,14 @@ Parameters:
     Default: "i3.4xlarge"
     Description: Type and size of EC2 instance for the Viya Compute Node (choose i3 for performance or r5 for auto-recovery)
     Type: String
+
+  CASInstanceCount:
+    Description: >-
+      The number of Cas nodes to create. Note: selecting 1 will install a singleton cas, but selecting 2 or more will create an MPP deploy).
+    Type: Number
+    MaxValue: 10
+    MinValue: 1
+    Default: 1
 
   ServicesInstanceSize:
     AllowedValues:
@@ -390,7 +401,7 @@ Resources:
   SASViyaStack:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/sas-viya.template.yaml"
+      TemplateURL: !Sub "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/sas-viya-macro.template.yaml"
       Parameters:
         KeyPairName: !Ref KeyPairName
         PrivateSubnetID: !Ref PrivateSubnet
@@ -408,6 +419,7 @@ Resources:
         DomainName: !Ref DomainName
         AWSHostedZoneID: !Ref AWSHostedZoneID
         CASInstanceSize: !Ref CASInstanceSize
+        CASInstanceCount: !Ref CASInstanceCount
         ServicesInstanceSize: !Ref ServicesInstanceSize
         DeploymentMirror: !Ref DeploymentMirror
 Outputs:
