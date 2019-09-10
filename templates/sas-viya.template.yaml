@@ -279,8 +279,6 @@ Parameters:
     Type: String
     Default: ''
 
-#  MacroName:
-#    Type: String
 
 Mappings:
   # regenerate this with the command:
@@ -607,9 +605,6 @@ Conditions:
     - !Equals ["10", !Ref CASInstanceCount]
     - !Equals ["11", !Ref CASInstanceCount]
 
-#Transform:
-#  #  !Sub ${MacroName}
-#  - Name: TestValMacro2
 
 Resources:
 
