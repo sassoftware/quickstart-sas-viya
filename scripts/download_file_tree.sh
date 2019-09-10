@@ -18,7 +18,7 @@ set -e
 test -n $FILE_ROOT
 DOWNLOAD_DIR=/sas/install
 INSTALL_USER=$(whoami)
-COMMON_CODE_TAG=423761041c839c7bcbb1ee500eb6f70d44cdd351
+COMMON_CODE_TAG=4ccbb7a9a466fdb7c7d1ca6b37a60909781a7ec9
 
 echo Downloading from ${FILE_ROOT} as ${INSTALL_USER}
 
@@ -43,8 +43,32 @@ pushd $DOWNLOAD_DIR
    fi
 
    # get common code
-   git clone https://github.com/sassoftware/quickstart-sas-viya-common.git common
-   pushd common &&  git checkout $COMMON_CODE_TAG -b $COMMON_CODE_TAG && rm -rf .git* && popd
+
+   ##
+    ## get Common Code
+    ##
+    RETRIES=10
+    DELAY=10
+    COUNT=1
+    while [ $COUNT -lt $RETRIES ]; do
+      git clone https://github.com/sassoftware/quickstart-sas-viya-common.git "common"
+      if [ $? -eq 0 ]; then
+        RETRIES=0
+        break
+      fi
+      rm -rf "common"
+      let COUNT=$COUNT+1
+      sleep $DELAY
+    done
+    pushd "common"
+    git checkout $COMMON_CODE_TAG
+    set +e
+    git checkout -b $COMMON_CODE_TAG
+    set -e
+    rm -rf .git* && popd
+
+#   git clone https://github.com/sassoftware/quickstart-sas-viya-common.git common
+#   pushd common &&  git checkout $COMMON_CODE_TAG -b $COMMON_CODE_TAG && rm -rf .git* && popd
 
 
    #

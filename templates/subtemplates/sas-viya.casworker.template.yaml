@@ -1,139 +1,38 @@
 ---
 AWSTemplateFormatVersion: 2010-09-09
 Description: >-
-  This template deploys a SAS Cas controller or worker.
-  **WARNING** This template creates EC2 instances and related resources. You
-  will be billed for the AWS resources used if you create a stack from this
-  template. License: Apache 2.0 (Please do not remove) Apr,19,2018 (qs-1ocb9ttqc)
+  This template deploys a SAS Cas controller or worker. This template should only be called as part of the sas-viya.template.yaml, not independently.
 
 Parameters:
-
   CASInstanceName:
-    AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
-    ConstraintDescription: >-
-      Quick Start bucket name can include numbers, lowercase letters, uppercase
-      letters, and hyphens (-). It cannot start or end with a hyphen (-).
-    Default: CASController
-    Description: >-
-      The name of the case worker or controller to create.
-      Only change this value if you customize or extend the Quick Start for your own use.
-      This string can include numbers, lowercase letters, uppercase letters, and hyphens (-).
-      It cannot start or end with a hyphen (-).
     Type: String
-  CASInstanceCount:
-    Description: >-
-      The number of Cas nodes to create. Note: selecting 1 will install a singleton cas, but selecting 2 or more will create an MPP deploy).
-    Type: Number
-    MaxValue: 10
-    MinValue: 1
-    Default: 1
   CASInstanceSize:
-    AllowedValues:
-      - "i3.large"
-      - "i3.xlarge"
-      - "i3.2xlarge"
-      - "i3.4xlarge"
-      - "i3.8xlarge"
-      - "i3.16xlarge"
-      - "i3.metal"
-      - "r5.large"
-      - "r5.xlarge"
-      - "r5.2xlarge"
-      - "r5.4xlarge"
-      - "r5.12xlarge"
-      - "r5.24xlarge"
-      - "r5.metal"
-      - "r5a.large"
-      - "r5a.xlarge"
-      - "r5a.2xlarge"
-      - "r5a.4xlarge"
-      - "r5a.12xlarge"
-      - "r5a.24xlarge"
-# These SKUs are not available because they mix and match nvme disks and we are not yet able to support that
-#      - "r5ad.large"
-#      - "r5ad.xlarge"
-#      - "r5ad.2xlarge"
-#      - "r5ad.4xlarge"
-#      - "r5ad.12xlarge"
-#      - "r5ad.24xlarge"
-#      - "r5d.large"
-#      - "r5d.xlarge"
-#      - "r5d.2xlarge"
-#      - "r5d.4xlarge"
-#      - "r5d.12xlarge"
-#      - "r5d.24xlarge"
-#      - "r5d.metal"
-    ConstraintDescription: Must contain either "i3" or "r5"
-    Default: "i3.4xlarge"
-    Description: Type and size of EC2 instance for the Viya Compute Node (choose i3 for performance or r5 for auto-recovery)
     Type: String
-
   KeyPairName:
-    Description: >-
-      Name of an existing EC2 key pair. This will allow you to access the Ansible Controller after it launches.
     Type: AWS::EC2::KeyPair::KeyName
-    MinLength: '1'
-    ConstraintDescription: must be the name of an existing AWS Key Pair in the current AWS region
-
   PrivateSubnetID:
-    Description: >-
-      ID of private subnet for the SAS Viya Application VMs (e.g. subnet-1234567890abcdef0)
-      (must be in the same AZ as PublicSubnetID)
     Type: AWS::EC2::Subnet::Id
-    MinLength: '15'
-    MaxLength: '24'
-    ConstraintDescription: must be an existing Subnet ID in the current AWS region
-
   QSS3BucketName:
-    AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
-    ConstraintDescription: >-
-      Quick Start bucket name can include numbers, lowercase letters, uppercase
-      letters, and hyphens (-). It cannot start or end with a hyphen (-).
-    Default: aws-quickstart
-    Description: >-
-     S3 bucket name for the Quick Start assets.
-     Only change this value if you customize or extend the Quick Start for your own use.
-     This string can include numbers, lowercase letters, uppercase letters, and hyphens (-).
-     It cannot start or end with a hyphen (-).
     Type: String
   QSS3KeyPrefix:
-    AllowedPattern: ^[0-9a-zA-Z-/]*[/]$
-    ConstraintDescription: >-
-      Quick Start key prefix can include numbers, lowercase letters, uppercase
-      letters, hyphens (-), and forward slash (/) and must terminate in a forward slash.
-    Default: quickstart-sas-viya/
-    Description: >-
-      S3 key prefix for the Quick Start assets.
-      Only change this value if you customize or extend the Quick Start for your own use.
-      Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-),
-      and forward slash (/) and must terminate in a forward slash.
     Type: String
-
   SNSTopicID:
     Type: String
     Default: AWS::NoValue
-
   ViyaSecurityGroupID:
     Type: AWS::EC2::SecurityGroup::Id
-
   ViyaRoleID:
     Type: String
-
   ViyaProfileID:
     Type: String
-
   ViyaPlacementGroupID:
     Type: String
-
   AnsiblePrivateIP:
     Type: String
-
   VMImageId:
     Type: String
-
   CASCacheSize:
     Type: Number
-
   CASLibSize:
     Type: Number
 
@@ -155,10 +54,12 @@ Conditions:
     Fn::Not:
     - Condition: IsI3
 
-  CASCacheCreate: !Not
+  CASCacheCreate: !And
+  - !Not
     - !Equals
       - Ref: CASCacheSize
       - 0
+  - Condition: IsNotI3
 
   CASLibCreate: !Not
     - !Equals
@@ -270,9 +171,7 @@ Resources:
 
 
   CASCacheVolume:
-    Condition: !Or
-      - Condition: IsNotI3
-      - Condition: CASCacheCreate
+    Condition: CASCacheCreate
     Type: AWS::EC2::Volume
     Properties:
       Size: !Ref CASCacheSize
@@ -281,9 +180,7 @@ Resources:
       AvailabilityZone: !GetAtt CASServer.AvailabilityZone
 
   CASCacheAttachment:
-    Condition: !Or
-      - Condition: IsNotI3
-      - Condition: CASCacheCreate
+    Condition: CASCacheCreate
     Type: AWS::EC2::VolumeAttachment
     Properties:
       Device: /dev/sdd

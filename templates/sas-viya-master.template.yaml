@@ -129,7 +129,7 @@ Parameters:
 
   CASInstanceCount:
     Description: >-
-      The number of Cas nodes to create. Note: selecting 1 will install a singleton cas, but selecting 2 or more will create an MPP deploy).
+      The number of Cas nodes to create. Note: selecting 1 will install a singleton cas, but selecting 2 or more will create controller + n workers deploy (max 10).
     Type: Number
     MaxValue: 10
     MinValue: 1
@@ -401,7 +401,7 @@ Resources:
   SASViyaStack:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/sas-viya-macro.template.yaml"
+      TemplateURL: !Sub "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/sas-viya.template.yaml"
       Parameters:
         KeyPairName: !Ref KeyPairName
         PrivateSubnetID: !Ref PrivateSubnet
