@@ -49,7 +49,7 @@ Metadata:
       DeploymentDataLocation:
         default: SAS Viya Software Order File
       CASInstanceCount:
-        default: "The number of Cas nodes to create. Note: selecting 1 will install a singleton cas, but selecting 2 or more will create an MPP deploy)"
+        default: "The number of Cas nodes to create. Note: selecting 1 will install an SMP CAS deployment, but selecting 2 or more will create an MPP CAS deployment (controller + n workers deploy; max 10)."
       CASInstanceSize:
         default: EC2 Instance Size for the CAS compute VM
       ServicesInstanceSize:
@@ -129,7 +129,7 @@ Parameters:
 
   CASInstanceCount:
     Description: >-
-      The number of Cas nodes to create. Note: selecting 1 will install a singleton cas, but selecting 2 or more will create controller + n workers deploy (max 10).
+      The number of Cas nodes to create. Note: selecting 1 will install an SMP CAS deployment, but selecting 2 or more will create an MPP CAS deployment (controller + n workers deploy; max 10).
     Type: Number
     MaxValue: 10
     MinValue: 1
