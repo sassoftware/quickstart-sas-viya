@@ -59,7 +59,7 @@ Metadata:
       CASInstanceSize:
         default: EC2 Instance Size for the CAS compute VM
       CASInstanceCount:
-        default: "The number of Cas nodes to create. Note: selecting 1 will install an SMP CAS deployment, but selecting 2 or more will create an MPP CAS deployment (controller + n workers deploy; max 10)."
+        default: "The number of CAS nodes to create. Note: Selecting 1 will install an SMP CAS deployment, but selecting 2 or more will create an MPP CAS deployment (controller + n workers deployment; max number of workers is 10)."
       ServicesInstanceSize:
         default: EC2 Instance Size for the Viya Services VM
       VPCID:
@@ -96,7 +96,7 @@ Parameters:
     ConstraintDescription: must be a zip file in a valid S3 bucket location, e.g. mysasbucket/viya_deployment_data/SAS_Viya_deployment_data.zip
   CASInstanceCount:
     Description: >-
-      The number of Cas nodes to create. Note: selecting 1 will install an SMP CAS deployment, but selecting 2 or more will create an MPP CAS deployment (controller + n workers deploy; max 10).
+      The number of CAS nodes to create. Note: Selecting 1 will install an SMP CAS deployment, but selecting 2 or more will create an MPP CAS deployment (controller + n workers deployment; max number of workers is 10).
     Type: Number
     MaxValue: 10
     MinValue: 1
