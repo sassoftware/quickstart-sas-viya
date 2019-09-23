@@ -23,8 +23,11 @@ COMMON_CODE_TAG=4ccbb7a9a466fdb7c7d1ca6b37a60909781a7ec9
 echo Downloading from ${FILE_ROOT} as ${INSTALL_USER}
 
 pushd $DOWNLOAD_DIR
+    temploc="$(aws s3api get-bucket-location --bucket $(echo "${FILE_ROOT}" | cut -f1 -d"/") --output text)"
+    loc="${temploc/None/us-east-1}"
 
-   aws s3 cp --recursive s3://${FILE_ROOT} . \
+   aws s3 --region ${loc} cp \
+      --recursive s3://${FILE_ROOT} . \
       --exclude 'templates/*' \
       --exclude 'doc/*'  \
       --exclude 'images/*' \

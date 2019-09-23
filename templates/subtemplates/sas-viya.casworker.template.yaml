@@ -18,7 +18,7 @@ Parameters:
     Type: String
   SNSTopicID:
     Type: String
-    Default: AWS::NoValue
+    Default: ""
   ViyaSecurityGroupID:
     Type: AWS::EC2::SecurityGroup::Id
   ViyaRoleID:
@@ -65,6 +65,11 @@ Conditions:
     - !Equals
       - Ref: CASLibSize
       - 0
+
+  SNSCondition: !Not
+    - !Equals
+      - !Ref SNSTopicID
+      - ''
 
 Resources:
 
@@ -202,7 +207,10 @@ Resources:
       Threshold: 1
       AlarmActions:
         - !Sub "arn:aws:automate:${AWS::Region}:ec2:recover"
-        - !Ref SNSTopicID
+        - !If
+          - SNSCondition
+          - !Ref SNSTopicID
+          - !Ref AWS::NoValue
       Dimensions:
       - Name: InstanceId
         Value:

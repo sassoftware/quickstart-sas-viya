@@ -633,7 +633,7 @@ Resources:
           rD = {}
           rS = FAILED
           reason = ""
-          s3 = boto3.client('s3')
+
           def license(event, context):
             rD["s3_mirror_bucket"] = ''
             rD["s3_mirror_path"] = ''
@@ -646,10 +646,16 @@ Resources:
             bucket = ddl[:ddl.find('/')]
             key = ddl[ddl.find('/')+1:]
             try:
+              s3 = boto3.client('s3')
+              locset = s3.get_bucket_location(Bucket=bucket)
+              loc = locset['LocationConstraint']
+              if loc is None:
+                loc = 'us-east-1'
+              s3 = boto3.client('s3', region_name=loc)
               obj = s3.get_object(Bucket=bucket, Key=key)
             except Exception as e:
               rS = FAILED
-              reason = 'DeploymentDataLocation ' + event['ResourceProperties']['DeploymentDataLocation'] +  ' is not accessible.'
+              reason = 'DeploymentDataLocation ' + event['ResourceProperties']['DeploymentDataLocation'] +  ' is not accessible. {}'.format(e)
               send(event, context, rS, rD, reason)
             with io.BytesIO(obj["Body"].read()) as tf:
               tf.seek(0)
@@ -1315,7 +1321,7 @@ Resources:
         SNSTopicID: !If
           - SNSCondition
           - !Ref SNSTopic
-          - !Ref AWS::NoValue
+          - ""
         AnsiblePrivateIP: !GetAtt AnsibleController.PrivateIp
         ViyaSecurityGroupID: !Ref ViyaSecurityGroup
         ViyaRoleID: !Ref ViyaRole
@@ -1356,7 +1362,7 @@ Resources:
         SNSTopicID: !If
           - SNSCondition
           - !Ref SNSTopic
-          - !Ref AWS::NoValue
+          - ""
         AnsiblePrivateIP: !GetAtt AnsibleController.PrivateIp
         ViyaSecurityGroupID: !Ref ViyaSecurityGroup
         ViyaRoleID: !Ref ViyaRole
@@ -1389,7 +1395,7 @@ Resources:
         SNSTopicID: !If
           - SNSCondition
           - !Ref SNSTopic
-          - !Ref AWS::NoValue
+          - ""
         AnsiblePrivateIP: !GetAtt AnsibleController.PrivateIp
         ViyaSecurityGroupID: !Ref ViyaSecurityGroup
         ViyaRoleID: !Ref ViyaRole
@@ -1424,7 +1430,7 @@ Resources:
         SNSTopicID: !If
           - SNSCondition
           - !Ref SNSTopic
-          - !Ref AWS::NoValue
+          - ""
         AnsiblePrivateIP: !GetAtt AnsibleController.PrivateIp
         ViyaSecurityGroupID: !Ref ViyaSecurityGroup
         ViyaRoleID: !Ref ViyaRole
@@ -1459,7 +1465,7 @@ Resources:
         SNSTopicID: !If
           - SNSCondition
           - !Ref SNSTopic
-          - !Ref AWS::NoValue
+          - ""
         AnsiblePrivateIP: !GetAtt AnsibleController.PrivateIp
         ViyaSecurityGroupID: !Ref ViyaSecurityGroup
         ViyaRoleID: !Ref ViyaRole
@@ -1494,7 +1500,7 @@ Resources:
         SNSTopicID: !If
           - SNSCondition
           - !Ref SNSTopic
-          - !Ref AWS::NoValue
+          - ""
         AnsiblePrivateIP: !GetAtt AnsibleController.PrivateIp
         ViyaSecurityGroupID: !Ref ViyaSecurityGroup
         ViyaRoleID: !Ref ViyaRole
@@ -1529,7 +1535,7 @@ Resources:
         SNSTopicID: !If
           - SNSCondition
           - !Ref SNSTopic
-          - !Ref AWS::NoValue
+          - ""
         AnsiblePrivateIP: !GetAtt AnsibleController.PrivateIp
         ViyaSecurityGroupID: !Ref ViyaSecurityGroup
         ViyaRoleID: !Ref ViyaRole
@@ -1564,7 +1570,7 @@ Resources:
         SNSTopicID: !If
           - SNSCondition
           - !Ref SNSTopic
-          - !Ref AWS::NoValue
+          - ""
         AnsiblePrivateIP: !GetAtt AnsibleController.PrivateIp
         ViyaSecurityGroupID: !Ref ViyaSecurityGroup
         ViyaRoleID: !Ref ViyaRole
@@ -1599,7 +1605,7 @@ Resources:
         SNSTopicID: !If
           - SNSCondition
           - !Ref SNSTopic
-          - !Ref AWS::NoValue
+          - ""
         AnsiblePrivateIP: !GetAtt AnsibleController.PrivateIp
         ViyaSecurityGroupID: !Ref ViyaSecurityGroup
         ViyaRoleID: !Ref ViyaRole
@@ -1634,7 +1640,7 @@ Resources:
         SNSTopicID: !If
           - SNSCondition
           - !Ref SNSTopic
-          - !Ref AWS::NoValue
+          - ""
         AnsiblePrivateIP: !GetAtt AnsibleController.PrivateIp
         ViyaSecurityGroupID: !Ref ViyaSecurityGroup
         ViyaRoleID: !Ref ViyaRole
@@ -1669,7 +1675,7 @@ Resources:
         SNSTopicID: !If
           - SNSCondition
           - !Ref SNSTopic
-          - !Ref AWS::NoValue
+          - ""
         AnsiblePrivateIP: !GetAtt AnsibleController.PrivateIp
         ViyaSecurityGroupID: !Ref ViyaSecurityGroup
         ViyaRoleID: !Ref ViyaRole
@@ -1781,15 +1787,27 @@ Resources:
               - Action: s3:GetObject
                 Resource: !Sub arn:aws:s3:::${QSS3BucketName}/*
                 Effect: Allow
+              - Effect: Allow
+                Action:
+                  - s3:GetBucketLocation
+                Resource: !Sub arn:aws:s3:::${QSS3BucketName}
 
         # Permissions for accessing SAS SOE file
         - PolicyName: viya-playbook-s3-policy
           PolicyDocument:
             Version: 2012-10-17
             Statement:
-              - Action: s3:getObject
+              - Action:
+                  - s3:getObject
                 Resource: !Sub arn:aws:s3:::${DeploymentDataLocation}
                 Effect: Allow
+
+              - Effect: Allow
+                Action:
+                  - s3:GetBucketLocation
+                Resource: !Sub
+                  - 'arn:aws:s3:::${target_bucket_name}'
+                  - {target_bucket_name: !Select [0, !Split [ '/', !Sub "${DeploymentDataLocation}" ] ] }
 
         # Permissions for accessing stack information (for various utility scripts)
         - PolicyName: ansible-controller-stack-policy
@@ -2143,7 +2161,8 @@ Resources:
                   export ANSIBLE_INVENTORY=/sas/install/ansible/sas_viya_playbook/inventory.ini
                   ansible-playbook -v /sas/install/ansible/sas_viya_playbook/viya-ark/playbooks/pre-install-playbook/viya_pre_install_playbook.yml \
                      -e "use_pause=false" \
-                     --skip-tags skipmemfail,skipcoresfail,skipstoragefail,skipnicssfail,bandwidth
+                     --skip-tags skipmemfail,skipcoresfail,skipstoragefail,skipnicssfail,bandwidth \
+                     -e "DefaultTimeoutStartSec=3600s"
                 '
             03-install:
               command: |

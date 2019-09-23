@@ -3,7 +3,9 @@
 - name: download SOE file
   shell: |
 
-    EC2_AVAIL_ZONE=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)
-    EC2_REGION=$(echo ${EC2_AVAIL_ZONE}  | sed "s/[a-z]$//")
+    #EC2_AVAIL_ZONE=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)
+    #EC2_REGION=$(echo ${EC2_AVAIL_ZONE}  | sed "s/[a-z]$//")
+    EC2_REGION=$(aws s3api get-bucket-location --bucket {{ DEPLOYMENT_DATA_LOCATION.split("/")[0] }} --output text)
+    EC2_REGION="${EC2_REGION/None/us-east-1}"
 
     aws --region ${EC2_REGION} s3 cp s3://{{ DEPLOYMENT_DATA_LOCATION }} {{ TEMPORARY_SOE_FILE }}
