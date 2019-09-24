@@ -647,8 +647,28 @@ Resources:
             key = ddl[ddl.find('/')+1:]
             try:
               s3 = boto3.client('s3')
-              locset = s3.get_bucket_location(Bucket=bucket)
-              loc = locset['LocationConstraint']
+              try:
+                locset = s3.get_bucket_location(Bucket=bucket)
+                loc = locset['LocationConstraint']
+
+              except:
+                ec2 = boto3.client("ec2")
+                locs = ec2.describe_regions()['Regions']
+                succ = False
+                for loct in locs:
+                  try:
+                    s3 = boto3.client('s3', region_name=loct["RegionName"])
+                    locset = s3.get_bucket_location(Bucket=bucket)
+                    succ = True
+                    break
+                  except:
+                    succ = False
+                if not succ:
+                  raise Exception("No Region could be found to host bucket. Ensure s3:GetBucketLocation is granted.")
+                loc = locset['LocationConstraint']
+                if loc is None:
+                  loc = 'us-east-1'
+                s3 = boto3.client('s3', region_name=loc)
               if loc is None:
                 loc = 'us-east-1'
               s3 = boto3.client('s3', region_name=loc)
@@ -758,6 +778,10 @@ Resources:
             Resource: !Sub
               - 'arn:aws:s3:::${target_bucket_name}'
               - {target_bucket_name: !Select [0, !Split [ '/', !Sub "${DeploymentDataLocation}" ] ] }
+          - Effect: Allow
+            Action:
+              - ec2:DescribeRegions
+            Resource: "*"
   # create the log Group for Lambda by Cloudformation to ensure
   # it is deleted at termination
   LicenseLambdaFunctionLogGroup:
@@ -1847,6 +1871,9 @@ Resources:
                   # permissions for assigning EIP in script
                   - ec2:AssociateAddress
                   - ec2:DescribeAddresses
+
+                  # permission to get all region names
+                  - ec2:DescribeRegions
                 Resource:
                   - '*'
                 Effect: Allow

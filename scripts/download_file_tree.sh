@@ -23,7 +23,21 @@ COMMON_CODE_TAG=4ccbb7a9a466fdb7c7d1ca6b37a60909781a7ec9
 echo Downloading from ${FILE_ROOT} as ${INSTALL_USER}
 
 pushd $DOWNLOAD_DIR
+    set +e
     temploc="$(aws s3api get-bucket-location --bucket $(echo "${FILE_ROOT}" | cut -f1 -d"/") --output text)"
+    loc_ret=$?
+    if [ "$loc_ret" -ne 0 ]; then
+        for region in $(aws ec2 describe-regions --output text --query "Regions[].RegionName"); do
+        echo "Checking region $region"
+        temploc="$(aws s3api get-bucket-location --bucket $(echo "${FILE_ROOT}" | cut -f1 -d"/") --output text)"
+        loc_ret=$?
+        if [ "$loc_ret" -eq 0 ]; then
+            break
+        fi
+        done
+
+    fi
+    set -e
     loc="${temploc/None/us-east-1}"
 
    aws s3 --region ${loc} cp \
@@ -53,9 +67,11 @@ pushd $DOWNLOAD_DIR
     RETRIES=10
     DELAY=10
     COUNT=1
+    set +e
     while [ $COUNT -lt $RETRIES ]; do
       git clone https://github.com/sassoftware/quickstart-sas-viya-common.git "common"
-      if [ $? -eq 0 ]; then
+      ret=$?
+      if [ $ret -eq 0 ]; then
         RETRIES=0
         break
       fi
@@ -63,6 +79,10 @@ pushd $DOWNLOAD_DIR
       let COUNT=$COUNT+1
       sleep $DELAY
     done
+    if [ $ret -ne 0 ]; then
+      exit $ret
+    fi
+    set -e
     pushd "common"
     git checkout $COMMON_CODE_TAG
     set +e
