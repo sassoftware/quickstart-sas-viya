@@ -29,26 +29,35 @@ pushd $DOWNLOAD_DIR
     if [ "$loc_ret" -ne 0 ]; then
         for region in $(aws ec2 describe-regions --region us-east-1 --output text --query "Regions[].RegionName"); do
         echo "Checking region $region"
-        temploc="$(aws s3api get-bucket-location --bucket $(echo "${FILE_ROOT}" | cut -f1 -d"/") --output text)"
+        # temploc="$(aws s3api get-bucket-location --region ${region} --bucket $(echo "${FILE_ROOT}" | cut -f1 -d"/") --output text)"
+		aws s3 --region ${region} cp \
+		  --recursive s3://${FILE_ROOT} . \
+		  --exclude 'templates/*' \
+		  --exclude 'doc/*'  \
+		  --exclude 'images/*' \
+		  --exclude '*file_tree*' \
+		  --exclude '*/README.md' \
+		  --exclude '*/.*' \
+		  --exclude 'ci/*'
         loc_ret=$?
         if [ "$loc_ret" -eq 0 ]; then
             break
         fi
         done
-
+	else
+		loc="${temploc/None/us-east-1}"
+		set -e
+	   aws s3 --region ${loc} cp \
+		  --recursive s3://${FILE_ROOT} . \
+		  --exclude 'templates/*' \
+		  --exclude 'doc/*'  \
+		  --exclude 'images/*' \
+		  --exclude '*file_tree*' \
+		  --exclude '*/README.md' \
+		  --exclude '*/.*' \
+		  --exclude 'ci/*'
     fi
     set -e
-    loc="${temploc/None/us-east-1}"
-
-   aws s3 --region ${loc} cp \
-      --recursive s3://${FILE_ROOT} . \
-      --exclude 'templates/*' \
-      --exclude 'doc/*'  \
-      --exclude 'images/*' \
-      --exclude '*file_tree*' \
-      --exclude '*/README.md' \
-      --exclude '*/.*' \
-      --exclude 'ci/*'
 
    # delete files that were uploaded earlier via cfn-init
    rm -f scripts/cloudwatch.ansiblecontroller.conf

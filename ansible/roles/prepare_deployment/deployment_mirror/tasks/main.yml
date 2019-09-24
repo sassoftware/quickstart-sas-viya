@@ -21,18 +21,20 @@
     loc_ret=$?
     if [ "$loc_ret" -ne 0 ]; then
       for region in $(aws ec2 describe-regions --region us-east-1 --output text --query "Regions[].RegionName"); do
-      echo "Checking region $region"
-      EC2_REGION="$(aws s3api get-bucket-location --bucket {{ DEPLOYMENT_DATA_LOCATION.split("/")[0] }} --output text)"
-      loc_ret=$?
-      if [ "$loc_ret" -eq 0 ]; then
+        echo "Checking region $region"
+        aws --region ${region} s3 sync ${DM} /opt/sas/mirror
+        loc_ret=$?
+        if [ "$loc_ret" -eq 0 ]; then
           break
-      fi
+        fi
       done
+    else
+      EC2_REGION="${EC2_REGION/None/us-east-1}"
+
+      aws --region ${EC2_REGION} s3 sync ${DM} /opt/sas/mirror
 
     fi
-    EC2_REGION="${EC2_REGION/None/us-east-1}"
 
-    aws --region ${EC2_REGION} s3 sync ${DM} /opt/sas/mirror
 
 
 - name: install httpd

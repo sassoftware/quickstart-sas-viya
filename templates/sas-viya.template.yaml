@@ -1829,6 +1829,7 @@ Resources:
               - Effect: Allow
                 Action:
                   - s3:GetBucketLocation
+                  - s3:ListBucket
                 Resource: !Sub
                   - 'arn:aws:s3:::${target_bucket_name}'
                   - {target_bucket_name: !Select [0, !Split [ '/', !Sub "${DeploymentDataLocation}" ] ] }
