@@ -27,7 +27,7 @@ pushd $DOWNLOAD_DIR
     temploc="$(aws s3api get-bucket-location --bucket $(echo "${FILE_ROOT}" | cut -f1 -d"/") --output text)"
     loc_ret=$?
     if [ "$loc_ret" -ne 0 ]; then
-        for region in $(aws ec2 describe-regions --output text --query "Regions[].RegionName"); do
+        for region in $(aws ec2 describe-regions --region us-east-1 --output text --query "Regions[].RegionName"); do
         echo "Checking region $region"
         temploc="$(aws s3api get-bucket-location --bucket $(echo "${FILE_ROOT}" | cut -f1 -d"/") --output text)"
         loc_ret=$?
