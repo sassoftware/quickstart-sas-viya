@@ -23,18 +23,41 @@ COMMON_CODE_TAG=4ccbb7a9a466fdb7c7d1ca6b37a60909781a7ec9
 echo Downloading from ${FILE_ROOT} as ${INSTALL_USER}
 
 pushd $DOWNLOAD_DIR
+    set +e
     temploc="$(aws s3api get-bucket-location --bucket $(echo "${FILE_ROOT}" | cut -f1 -d"/") --output text)"
-    loc="${temploc/None/us-east-1}"
-
-   aws s3 --region ${loc} cp \
-      --recursive s3://${FILE_ROOT} . \
-      --exclude 'templates/*' \
-      --exclude 'doc/*'  \
-      --exclude 'images/*' \
-      --exclude '*file_tree*' \
-      --exclude '*/README.md' \
-      --exclude '*/.*' \
-      --exclude 'ci/*'
+    loc_ret=$?
+    if [ "$loc_ret" -ne 0 ]; then
+        for region in $(aws ec2 describe-regions --region us-east-1 --output text --query "Regions[].RegionName"); do
+        echo "Checking region $region"
+        # temploc="$(aws s3api get-bucket-location --region ${region} --bucket $(echo "${FILE_ROOT}" | cut -f1 -d"/") --output text)"
+		aws s3 --region ${region} cp \
+		  --recursive s3://${FILE_ROOT} . \
+		  --exclude 'templates/*' \
+		  --exclude 'doc/*'  \
+		  --exclude 'images/*' \
+		  --exclude '*file_tree*' \
+		  --exclude '*/README.md' \
+		  --exclude '*/.*' \
+		  --exclude 'ci/*'
+        loc_ret=$?
+        if [ "$loc_ret" -eq 0 ]; then
+            break
+        fi
+        done
+	else
+		loc="${temploc/None/us-east-1}"
+		set -e
+	   aws s3 --region ${loc} cp \
+		  --recursive s3://${FILE_ROOT} . \
+		  --exclude 'templates/*' \
+		  --exclude 'doc/*'  \
+		  --exclude 'images/*' \
+		  --exclude '*file_tree*' \
+		  --exclude '*/README.md' \
+		  --exclude '*/.*' \
+		  --exclude 'ci/*'
+    fi
+    set -e
 
    # delete files that were uploaded earlier via cfn-init
    rm -f scripts/cloudwatch.ansiblecontroller.conf
@@ -53,9 +76,11 @@ pushd $DOWNLOAD_DIR
     RETRIES=10
     DELAY=10
     COUNT=1
+    set +e
     while [ $COUNT -lt $RETRIES ]; do
       git clone https://github.com/sassoftware/quickstart-sas-viya-common.git "common"
-      if [ $? -eq 0 ]; then
+      ret=$?
+      if [ $ret -eq 0 ]; then
         RETRIES=0
         break
       fi
@@ -63,6 +88,10 @@ pushd $DOWNLOAD_DIR
       let COUNT=$COUNT+1
       sleep $DELAY
     done
+    if [ $ret -ne 0 ]; then
+      exit $ret
+    fi
+    set -e
     pushd "common"
     git checkout $COMMON_CODE_TAG
     set +e
