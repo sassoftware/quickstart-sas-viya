@@ -21,8 +21,8 @@ Metadata:
         - AdminIngressLocation
         - SASAdminPass
         - SASUserPass
-        - CASInstanceCount
         - CASInstanceSize
+        - CASInstanceCount
         - ServicesInstanceSize
         - DeploymentMirror
         - OperatorEmail
