@@ -1844,6 +1844,7 @@ Resources:
                 Resource:
                   - !Ref AWS::StackId
                   - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}/*"
+                  - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}*"
                 Effect: Allow
 
         # Permissions for utility script

@@ -16,9 +16,9 @@ pushd /sas/install/ansible/sas_viya_playbook
    # It is necessary to disable the automatic service restarts.
    # Without disabling the service restart, the services will come up as each VM restarts.
    # Instead, we want to control the order at restart.
-   ansible-playbook viya-ark/playbooks/service-management/viya-services-disable.yml
+   ansible-playbook viya-ark/playbooks/viya-mmsu/viya-services-disable.yml
    # This stops the services in the correct order
-   ansible-playbook viya-ark/playbooks/service-management/viya-services-stop.yml
+   ansible-playbook viya-ark/playbooks/viya-mmsu/viya-services-stop.yml
 popd
 
 
@@ -39,6 +39,10 @@ STACK_NAME=$(aws --region $AWS_REGION ec2 describe-tags --filter "Name=resource-
 
 
 IDS=$(aws --region $AWS_REGION cloudformation describe-stack-resources --stack-name $STACK_NAME --query 'StackResources[?ResourceType==`AWS::EC2::Instance`  && LogicalResourceId!=`AnsibleController`].PhysicalResourceId' --output text)
+
+for stack in $(aws  --region $AWS_REGION cloudformation describe-stack-resources --stack-name $STACK_NAME --query 'StackResources[?ResourceType==`AWS::CloudFormation::Stack`].PhysicalResourceId' --output text); do
+	IDS="$IDS $(aws --region $AWS_REGION cloudformation describe-stack-resources --stack-name $stack --query 'StackResources[?ResourceType==`AWS::EC2::Instance`].PhysicalResourceId' --output text)"
+done
 
 #
 # stop the VMs
