@@ -59,7 +59,7 @@ Metadata:
       CASInstanceSize:
         default: EC2 Instance Size for the CAS compute VM
       CASInstanceCount:
-        default: "Note: Selecting 1 will install an SMP CAS deployment, but selecting 2 or more will create an MPP CAS deployment (controller + n workers deployment; max number of workers is 10)."
+        default: CAS Instance Count
       ServicesInstanceSize:
         default: EC2 Instance Size for the Viya Services VM
       VPCID:
@@ -137,7 +137,7 @@ Parameters:
 
   CASInstanceCount:
     Description: >-
-      The number of CAS nodes to create.
+      The number of CAS nodes to create. Note: Selecting 1 will install an SMP CAS deployment, but selecting 2 or more will create an MPP CAS deployment (controller + n workers deployment; max number of workers is 10).
     Type: Number
     MaxValue: 10
     MinValue: 1
