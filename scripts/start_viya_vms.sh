@@ -22,6 +22,9 @@ STACK_NAME=$(aws --region $AWS_REGION ec2 describe-tags --filter "Name=resource-
 
 # get all the VMs of the stack, except the ansible controller
 IDS=$(aws --region $AWS_REGION cloudformation describe-stack-resources --stack-name $STACK_NAME --query 'StackResources[?ResourceType==`AWS::EC2::Instance`  && LogicalResourceId!=`AnsibleController`].PhysicalResourceId' --output text)
+for stack in $(aws  --region $AWS_REGION cloudformation describe-stack-resources --stack-name $STACK_NAME --query 'StackResources[?ResourceType==`AWS::CloudFormation::Stack`].PhysicalResourceId' --output text); do
+	IDS="$IDS $(aws --region $AWS_REGION cloudformation describe-stack-resources --stack-name $stack --query 'StackResources[?ResourceType==`AWS::EC2::Instance`].PhysicalResourceId' --output text)"
+done
 # transform into array
 IFS=" " IDs=(${IDS})
 unset IFS
@@ -65,6 +68,6 @@ set -e # set fail on error back
 echo "Starting Viya services..."
 pushd /sas/install/ansible/sas_viya_playbook
     # start the services in the correct order
-    ansible-playbook viya-ark/playbooks/service-management/viya-services-start.yml
+    ansible-playbook viya-ark/playbooks/viya-mmsu/viya-services-start.yml
 popd
 
