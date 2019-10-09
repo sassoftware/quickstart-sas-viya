@@ -1233,6 +1233,7 @@ Resources:
                   - ec2:describeVolumes
                   - ec2:createTags
                   - ec2:describeTags
+                  - ec2:DescribeRegions
                 Resource:
                   - '*'
                 Effect: Allow
