@@ -42,7 +42,19 @@
 # ViyaPlacementGroup
 # ViyaSecurityGroup
 
-
+# If you are not rebuilding the controller but a worker, then you will need to add the worker name to the command. EX.
+#	./recover_cascontroller.sh worker01
+if [[ -z "$TARGET" ]]; then
+	if [[ -z "$1" ]]; then
+		TARGET="Controller"
+	else
+	TARGET="$1"
+	fi
+fi
+SERVER_NAME_IN_INVENTORY="CASControllerServer"
+if [[ "${TARGET,,}" != "controller" ]]; then
+	SERVER_NAME_IN_INVENTORY="${TARGET,,}"
+fi
 
 
 #
@@ -67,7 +79,12 @@ AWS_REGION=$(echo ${AWS_AVAIL_ZONE}  | sed "s/[a-z]$//")
 #
 INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )
 STACK_NAME=$(aws --region $AWS_REGION ec2 describe-tags --filter "Name=resource-id,Values=$INSTANCE_ID" --query 'Tags[?Key==`aws:cloudformation:stack-name`].Value' --output text)
-
+for stack in $(aws  --region $AWS_REGION cloudformation describe-stack-resources --stack-name $STACK_NAME --query 'StackResources[?ResourceType==`AWS::CloudFormation::Stack`].PhysicalResourceId' --output text); do
+	if echo "${stack,,}" | grep "sasviya${TARGET,,}stack"; then
+		echo "FOUND"
+		STACK_NAME="$stack"
+	fi
+done
 
 #
 # get CAS controller volume ids
@@ -157,9 +174,9 @@ export ANSIBLE_LOG_PATH=/var/log/sas/install/recover_cascontroller.log
 #
 export ANSIBLE_CONFIG=/sas/install/common/ansible/playbooks/ansible.cfg
 ansible-playbook -v /sas/install/common/ansible/playbooks/prepare_nodes.yml \
-  -e "USERLIB_DISK=/dev/xvdl" \
-  -e "SAS_INSTALL_DISK=/dev/xvdg" \
-  -l CASControllerServer
+  -e "USERLIB_DISK=/dev/sdl" \
+  -e "SAS_INSTALL_DISK=/dev/sdg" \
+  -l ${SERVER_NAME_IN_INVENTORY}
 
 
 #
@@ -180,7 +197,7 @@ pushd /sas/install/ansible/sas_viya_playbook
     ansible-playbook -v viya-ark/playbooks/pre-install-playbook/viya_pre_install_playbook.yml \
          -e "use_pause=false" \
          --skip-tags skipmemfail,skipcoresfail,skipstoragefail,skipnicssfail,bandwidth \
-         -l CASControllerServer
+         -l ${SERVER_NAME_IN_INVENTORY}
     #
     # rerun viya install
     #
