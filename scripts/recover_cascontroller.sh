@@ -148,8 +148,8 @@ aws --region "$AWS_REGION" ec2 attach-volume --instance-id $NEW_ID --device /dev
 
 # remove old host key from ansible controller
 ssh-keygen -R $CONTROLLER_IP
-ssh-keygen -R controller.viya.sas
-ssh-keygen -R controller
+ssh-keygen -R ${TARGET,,}.viya.sas
+ssh-keygen -R ${TARGET,,}
 
 # wait for sshd on the new VM to become available
 while ! ssh -o StrictHostKeyChecking=no $CONTROLLER_IP 'exit' 2>/dev/null
@@ -159,8 +159,8 @@ done
 
 # seed known_hosts file on ansible-controller
 ssh -o StrictHostKeyChecking=no $CONTROLLER_IP exit
-ssh -o StrictHostKeyChecking=no controller.viya.sas exit
-ssh -o StrictHostKeyChecking=no controller exit
+ssh -o StrictHostKeyChecking=no ${TARGET,,}.viya.sas exit
+ssh -o StrictHostKeyChecking=no ${TARGET,,} exit
 
 #
 # confingure VM and reinstall viya
