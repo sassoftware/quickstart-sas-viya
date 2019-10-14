@@ -60,7 +60,7 @@ fi
 #
 # get private ip address of cas controller
 #
-CONTROLLER_IP=$(cat /etc/hosts | grep controller | cut -d" " -f1)
+CONTROLLER_IP=$(cat /etc/hosts | grep ${TARGET,,} | cut -d" " -f1)
 
 #
 # get ansible controller private IP
