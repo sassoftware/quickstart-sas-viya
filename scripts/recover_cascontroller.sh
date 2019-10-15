@@ -197,7 +197,7 @@ pushd /sas/install/ansible/sas_viya_playbook
     ansible-playbook -v viya-ark/playbooks/pre-install-playbook/viya_pre_install_playbook.yml \
          -e "use_pause=false" \
          --skip-tags skipmemfail,skipcoresfail,skipstoragefail,skipnicssfail,bandwidth \
-         -l ${SERVER_NAME_IN_INVENTORY}
+         -l "${SERVER_NAME_IN_INVENTORY},controller"
     #
     # rerun viya install
     #
