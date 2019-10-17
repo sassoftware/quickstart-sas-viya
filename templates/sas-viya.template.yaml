@@ -2023,7 +2023,7 @@ Resources:
               group: ec2-user
               authentication: S3AccessCreds
               context:
-                CASInstanceType: !Ref CASInstanceSize
+                CASInstanceSize: !Ref CASInstanceSize
             /tmp/parms.json:
               # use this file later to apply pystache to any files downloaded via file_tree
               content: !Sub |
