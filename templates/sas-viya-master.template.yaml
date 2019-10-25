@@ -22,6 +22,7 @@ Metadata:
         - SASAdminPass
         - SASUserPass
         - CASInstanceSize
+        - CASInstanceCount
         - ServicesInstanceSize
         - DeploymentMirror
         - OperatorEmail
@@ -49,6 +50,8 @@ Metadata:
         default: SAS Viya Software Order File
       CASInstanceSize:
         default: EC2 Instance Size for the CAS compute VM
+      CASInstanceCount:
+        default: Viya Compute Node Count
       ServicesInstanceSize:
         default: EC2 Instance Size for the Viya Services VM
       DeploymentMirror:
@@ -123,6 +126,14 @@ Parameters:
     Default: "i3.4xlarge"
     Description: Type and size of EC2 instance for the Viya Compute Node (choose i3 for performance or r5 for auto-recovery)
     Type: String
+
+  CASInstanceCount:
+    Description: >-
+      The number of Viya compute nodes to create. Note: Selecting 1 will install an SMP CAS deployment, but selecting 2 or more will create an MPP CAS deployment (controller + n workers deployment; max number of workers is 10).
+    Type: Number
+    MaxValue: 10
+    MinValue: 1
+    Default: 1
 
   ServicesInstanceSize:
     AllowedValues:
@@ -408,6 +419,7 @@ Resources:
         DomainName: !Ref DomainName
         AWSHostedZoneID: !Ref AWSHostedZoneID
         CASInstanceSize: !Ref CASInstanceSize
+        CASInstanceCount: !Ref CASInstanceCount
         ServicesInstanceSize: !Ref ServicesInstanceSize
         DeploymentMirror: !Ref DeploymentMirror
 Outputs:

@@ -42,13 +42,25 @@
 # ViyaPlacementGroup
 # ViyaSecurityGroup
 
-
+# If you are not rebuilding the controller but a worker, then you will need to add the worker name to the command. EX.
+#	./recover_cascontroller.sh worker01
+if [[ -z "$TARGET" ]]; then
+	if [[ -z "$1" ]]; then
+		TARGET="Controller"
+	else
+	TARGET="$1"
+	fi
+fi
+SERVER_NAME_IN_INVENTORY="CASControllerServer"
+if [[ "${TARGET,,}" != "controller" ]]; then
+	SERVER_NAME_IN_INVENTORY="${TARGET,,}"
+fi
 
 
 #
 # get private ip address of cas controller
 #
-CONTROLLER_IP=$(cat /etc/hosts | grep controller | cut -d" " -f1)
+CONTROLLER_IP=$(cat /etc/hosts | grep ${TARGET,,} | cut -d" " -f1)
 
 #
 # get ansible controller private IP
@@ -67,7 +79,12 @@ AWS_REGION=$(echo ${AWS_AVAIL_ZONE}  | sed "s/[a-z]$//")
 #
 INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )
 STACK_NAME=$(aws --region $AWS_REGION ec2 describe-tags --filter "Name=resource-id,Values=$INSTANCE_ID" --query 'Tags[?Key==`aws:cloudformation:stack-name`].Value' --output text)
-
+for stack in $(aws  --region $AWS_REGION cloudformation describe-stack-resources --stack-name $STACK_NAME --query 'StackResources[?ResourceType==`AWS::CloudFormation::Stack`].PhysicalResourceId' --output text); do
+	if echo "${stack,,}" | grep "sasviya${TARGET,,}stack"; then
+		echo "FOUND"
+		STACK_NAME="$stack"
+	fi
+done
 
 #
 # get CAS controller volume ids
@@ -113,7 +130,7 @@ NEW_ID=$(aws --region "$AWS_REGION"  ec2 run-instances \
 
    aws s3 cp s3://{{S3_FILE_ROOT}}common/scripts/sasnodes_prereqs.sh /tmp/prereqs.sh
    chmod +x /tmp/prereqs.sh
-   su -l ec2-user -c "NFS_SERVER='${ANSIBLE_IP}' HOST=controller /tmp/prereqs.sh &>/tmp/prereqs.log"
+   su -l ec2-user -c "NFS_SERVER='${ANSIBLE_IP}' HOST=${TARGET,,} /tmp/prereqs.sh &>/tmp/prereqs.log"
   ' \
 --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$STACK_NAME CAS Controller}]" \
 --query 'Instances[0].InstanceId' --output text
@@ -131,8 +148,8 @@ aws --region "$AWS_REGION" ec2 attach-volume --instance-id $NEW_ID --device /dev
 
 # remove old host key from ansible controller
 ssh-keygen -R $CONTROLLER_IP
-ssh-keygen -R controller.viya.sas
-ssh-keygen -R controller
+ssh-keygen -R ${TARGET,,}.viya.sas
+ssh-keygen -R ${TARGET,,}
 
 # wait for sshd on the new VM to become available
 while ! ssh -o StrictHostKeyChecking=no $CONTROLLER_IP 'exit' 2>/dev/null
@@ -142,8 +159,8 @@ done
 
 # seed known_hosts file on ansible-controller
 ssh -o StrictHostKeyChecking=no $CONTROLLER_IP exit
-ssh -o StrictHostKeyChecking=no controller.viya.sas exit
-ssh -o StrictHostKeyChecking=no controller exit
+ssh -o StrictHostKeyChecking=no ${TARGET,,}.viya.sas exit
+ssh -o StrictHostKeyChecking=no ${TARGET,,} exit
 
 #
 # confingure VM and reinstall viya
@@ -157,9 +174,9 @@ export ANSIBLE_LOG_PATH=/var/log/sas/install/recover_cascontroller.log
 #
 export ANSIBLE_CONFIG=/sas/install/common/ansible/playbooks/ansible.cfg
 ansible-playbook -v /sas/install/common/ansible/playbooks/prepare_nodes.yml \
-  -e "USERLIB_DISK=/dev/xvdl" \
-  -e "SAS_INSTALL_DISK=/dev/xvdg" \
-  -l CASControllerServer
+  -e "USERLIB_DISK=/dev/sdl" \
+  -e "SAS_INSTALL_DISK=/dev/sdg" \
+  -l ${SERVER_NAME_IN_INVENTORY}
 
 
 #
@@ -180,7 +197,7 @@ pushd /sas/install/ansible/sas_viya_playbook
     ansible-playbook -v viya-ark/playbooks/pre-install-playbook/viya_pre_install_playbook.yml \
          -e "use_pause=false" \
          --skip-tags skipmemfail,skipcoresfail,skipstoragefail,skipnicssfail,bandwidth \
-         -l CASControllerServer
+         -l "${SERVER_NAME_IN_INVENTORY},controller"
     #
     # rerun viya install
     #

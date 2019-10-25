@@ -21,6 +21,7 @@ Metadata:
           - SASAdminPass
           - SASUserPass
           - CASInstanceSize
+          - CASInstanceCount
           - ServicesInstanceSize
           - DeploymentMirror
           - OperatorEmail
@@ -57,6 +58,8 @@ Metadata:
         default: SAS Viya Software Order File
       CASInstanceSize:
         default: EC2 Instance Size for the CAS compute VM
+      CASInstanceCount:
+        default: Viya Compute Node Count
       ServicesInstanceSize:
         default: EC2 Instance Size for the Viya Services VM
       VPCID:
@@ -131,6 +134,14 @@ Parameters:
     Default: "i3.4xlarge"
     Description: Type and size of EC2 instance for the Viya Compute Node (choose i3 for performance or r5 for auto-recovery)
     Type: String
+
+  CASInstanceCount:
+    Description: >-
+      The number of Viya compute nodes to create. Note: Selecting 1 will install an SMP CAS deployment, but selecting 2 or more will create an MPP CAS deployment (controller + n workers deployment; max number of workers is 10).
+    Type: Number
+    MaxValue: 10
+    MinValue: 1
+    Default: 1
 
   ServicesInstanceSize:
     AllowedValues:
@@ -268,6 +279,7 @@ Parameters:
     Description: Existing DNS Zone ID for the DomainName (blank = generated ELB name will be used as application DNS name)
     Type: String
     Default: ''
+
 
 Mappings:
   # regenerate this with the command:
@@ -529,6 +541,71 @@ Conditions:
     Fn::Not:
     - Condition: NoSSLCertificate
 
+  Has2Workers: !Or
+    - !Equals ["2", !Ref CASInstanceCount]
+    - !Equals ["3", !Ref CASInstanceCount]
+    - !Equals ["4", !Ref CASInstanceCount]
+    - !Equals ["5", !Ref CASInstanceCount]
+    - !Equals ["6", !Ref CASInstanceCount]
+    - !Equals ["7", !Ref CASInstanceCount]
+    - !Equals ["8", !Ref CASInstanceCount]
+    - !Equals ["9", !Ref CASInstanceCount]
+    - !Equals ["10", !Ref CASInstanceCount]
+    - !Equals ["11", !Ref CASInstanceCount]
+  Has3Workers: !Or
+    - !Equals ["3", !Ref CASInstanceCount]
+    - !Equals ["4", !Ref CASInstanceCount]
+    - !Equals ["5", !Ref CASInstanceCount]
+    - !Equals ["6", !Ref CASInstanceCount]
+    - !Equals ["7", !Ref CASInstanceCount]
+    - !Equals ["8", !Ref CASInstanceCount]
+    - !Equals ["9", !Ref CASInstanceCount]
+    - !Equals ["10", !Ref CASInstanceCount]
+    - !Equals ["11", !Ref CASInstanceCount]
+  Has4Workers: !Or
+    - !Equals ["4", !Ref CASInstanceCount]
+    - !Equals ["5", !Ref CASInstanceCount]
+    - !Equals ["6", !Ref CASInstanceCount]
+    - !Equals ["7", !Ref CASInstanceCount]
+    - !Equals ["8", !Ref CASInstanceCount]
+    - !Equals ["9", !Ref CASInstanceCount]
+    - !Equals ["10", !Ref CASInstanceCount]
+    - !Equals ["11", !Ref CASInstanceCount]
+  Has5Workers: !Or
+    - !Equals ["5", !Ref CASInstanceCount]
+    - !Equals ["6", !Ref CASInstanceCount]
+    - !Equals ["7", !Ref CASInstanceCount]
+    - !Equals ["8", !Ref CASInstanceCount]
+    - !Equals ["9", !Ref CASInstanceCount]
+    - !Equals ["10", !Ref CASInstanceCount]
+    - !Equals ["11", !Ref CASInstanceCount]
+  Has6Workers: !Or
+    - !Equals ["6", !Ref CASInstanceCount]
+    - !Equals ["7", !Ref CASInstanceCount]
+    - !Equals ["8", !Ref CASInstanceCount]
+    - !Equals ["9", !Ref CASInstanceCount]
+    - !Equals ["10", !Ref CASInstanceCount]
+    - !Equals ["11", !Ref CASInstanceCount]
+  Has7Workers: !Or
+    - !Equals ["7", !Ref CASInstanceCount]
+    - !Equals ["8", !Ref CASInstanceCount]
+    - !Equals ["9", !Ref CASInstanceCount]
+    - !Equals ["10", !Ref CASInstanceCount]
+    - !Equals ["11", !Ref CASInstanceCount]
+  Has8Workers: !Or
+    - !Equals ["8", !Ref CASInstanceCount]
+    - !Equals ["9", !Ref CASInstanceCount]
+    - !Equals ["10", !Ref CASInstanceCount]
+    - !Equals ["11", !Ref CASInstanceCount]
+  Has9Workers: !Or
+    - !Equals ["9", !Ref CASInstanceCount]
+    - !Equals ["10", !Ref CASInstanceCount]
+    - !Equals ["11", !Ref CASInstanceCount]
+  Has10Workers: !Or
+    - !Equals ["10", !Ref CASInstanceCount]
+    - !Equals ["11", !Ref CASInstanceCount]
+
+
 Resources:
 
   StackComplete:
@@ -556,7 +633,7 @@ Resources:
           rD = {}
           rS = FAILED
           reason = ""
-          s3 = boto3.client('s3')
+
           def license(event, context):
             rD["s3_mirror_bucket"] = ''
             rD["s3_mirror_path"] = ''
@@ -569,10 +646,36 @@ Resources:
             bucket = ddl[:ddl.find('/')]
             key = ddl[ddl.find('/')+1:]
             try:
+              s3 = boto3.client('s3')
+              try:
+                locset = s3.get_bucket_location(Bucket=bucket)
+                loc = locset['LocationConstraint']
+
+              except:
+                ec2 = boto3.client("ec2")
+                locs = ec2.describe_regions()['Regions']
+                succ = False
+                for loct in locs:
+                  try:
+                    s3 = boto3.client('s3', region_name=loct["RegionName"])
+                    locset = s3.get_bucket_location(Bucket=bucket)
+                    succ = True
+                    break
+                  except:
+                    succ = False
+                if not succ:
+                  raise Exception("No Region could be found to host bucket. Ensure s3:GetBucketLocation is granted.")
+                loc = locset['LocationConstraint']
+                if loc is None:
+                  loc = 'us-east-1'
+                s3 = boto3.client('s3', region_name=loc)
+              if loc is None:
+                loc = 'us-east-1'
+              s3 = boto3.client('s3', region_name=loc)
               obj = s3.get_object(Bucket=bucket, Key=key)
             except Exception as e:
               rS = FAILED
-              reason = 'DeploymentDataLocation ' + event['ResourceProperties']['DeploymentDataLocation'] +  ' is not accessible.'
+              reason = 'DeploymentDataLocation ' + event['ResourceProperties']['DeploymentDataLocation'] +  ' is not accessible. {}'.format(e)
               send(event, context, rS, rD, reason)
             with io.BytesIO(obj["Body"].read()) as tf:
               tf.seek(0)
@@ -675,6 +778,10 @@ Resources:
             Resource: !Sub
               - 'arn:aws:s3:::${target_bucket_name}'
               - {target_bucket_name: !Select [0, !Split [ '/', !Sub "${DeploymentDataLocation}" ] ] }
+          - Effect: Allow
+            Action:
+              - ec2:DescribeRegions
+            Resource: "*"
   # create the log Group for Lambda by Cloudformation to ensure
   # it is deleted at termination
   LicenseLambdaFunctionLogGroup:
@@ -904,29 +1011,6 @@ Resources:
         Value:
           Ref: ViyaServices
 
-  RecoveryAlarmController:
-    Condition: IsNotI3
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      AlarmDescription: Trigger a recovery when instance status check fails more than once in 2 minutes.
-      Namespace: AWS/EC2
-      MetricName: StatusCheckFailed_System
-      Statistic: Maximum
-      Period: 60
-      EvaluationPeriods: 2
-      ComparisonOperator: GreaterThanOrEqualToThreshold
-      Threshold: 1
-      AlarmActions:
-        - !Sub "arn:aws:automate:${AWS::Region}:ec2:recover"
-        - !If
-          - SNSCondition
-          - !Ref SNSTopic
-          - !Ref AWS::NoValue
-      Dimensions:
-      - Name: InstanceId
-        Value:
-          Ref: CASController
-
 
   ViyaPlacementGroup:
     Type: AWS::EC2::PlacementGroup
@@ -1148,6 +1232,7 @@ Resources:
                   - ec2:describeVolumes
                   - ec2:createTags
                   - ec2:describeTags
+                  - ec2:DescribeRegions
                 Resource:
                   - '*'
                 Effect: Allow
@@ -1243,159 +1328,399 @@ Resources:
             # Signal the status from cfn-init
             cfn-signal -e $? --stack ${AWS::StackName} --resource ViyaServices --region ${AWS::Region}
 
-  CASController:
-    Type: AWS::EC2::Instance
-    CreationPolicy:
-      ResourceSignal:
-        Count: 1
-        Timeout: 'PT20M'
-    Metadata:
-      'AWS::CloudFormation::Authentication':
-        S3AccessCreds:
-          type: S3
-          roleName: !Ref ViyaRole
-          buckets:
-            - !Ref QSS3BucketName
-      'AWS::CloudFormation::Init':
-        configSets:
-          quickstart:
-            - prereqs
-        prereqs:
-          files:
-            /tmp/prereqs.sh:
-              source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/sasnodes_prereqs.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
-              mode: '000550'
-              owner: ec2-user
-              group: ec2-user
-              authentication: S3AccessCreds
 
-          commands:
-            01-setup:
-              command: !Sub
-                - |
-                  #!/bin/bash -e
-                  su -l ec2-user -c 'NFS_SERVER=${ANSIBLE_CONTROLLER_IP} HOST=controller /tmp/prereqs.sh &>/tmp/prereqs.log'
-                - ANSIBLE_CONTROLLER_IP: !GetAtt AnsibleController.PrivateIp
+  SASViyaControllerStack:
+    Type: AWS::CloudFormation::Stack
     Properties:
-      KeyName: !Ref KeyPairName
-      ImageId: !FindInMap
-        - AWSAMIRegionMap
-        - !Ref AWS::Region
-        - RHEL74HVM
-      SubnetId: !Ref PrivateSubnetID
-      IamInstanceProfile: !Ref ViyaProfile
-      # transform "Nxlarge (N cores)" to "r4.Nxlarge"
-      InstanceType: !Ref CASInstanceSize
-      EbsOptimized: true
-      PlacementGroupName: !Ref ViyaPlacementGroup
-      SecurityGroupIds:
-        - !Ref ViyaSecurityGroup
+      TemplateURL: !Sub "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/subtemplates/sas-viya.casworker.template.yaml"
+      Parameters:
+        CASInstanceName: controller
+        KeyPairName: !Ref KeyPairName
+        PrivateSubnetID: !Ref PrivateSubnetID
+        QSS3BucketName: !Ref QSS3BucketName
+        QSS3KeyPrefix: !Ref QSS3KeyPrefix
+        CASInstanceSize: !If
+          - Has2Workers
+          - m5.large
+          - !Ref CASInstanceSize
+        SNSTopicID: !If
+          - SNSCondition
+          - !Ref SNSTopic
+          - ""
+        AnsiblePrivateIP: !GetAtt AnsibleController.PrivateIp
+        ViyaSecurityGroupID: !Ref ViyaSecurityGroup
+        ViyaRoleID: !Ref ViyaRole
+        ViyaProfileID: !Ref ViyaProfile
+        ViyaPlacementGroupID: !Ref ViyaPlacementGroup
+        VMImageId: !FindInMap
+          - AWSAMIRegionMap
+          - !Ref AWS::Region
+          - RHEL74HVM
+        CASLibSize: !If
+          - Has2Workers
+          - "0"
+          - !FindInMap
+            - CasSizeToStorage
+            - !Ref CASInstanceSize
+            - CASLibSize
+        CASCacheSize: !If
+          - Has2Workers
+          - "32"
+          - !FindInMap
+            - CasSizeToStorage
+            - !Ref CASInstanceSize
+            - CASCacheSize
 
-      Tags:
-        - Key: Name
-          Value: !Sub ${AWS::StackName} CAS Controller
-      UserData:
-        Fn::Base64:
-          Fn::Sub: |
-            #!/bin/bash -e
-            export PATH=$PATH:/usr/local/bin
-            curl -O https://bootstrap.pypa.io/get-pip.py && python get-pip.py &> /dev/null
-            pip install awscli==1.15.83 --ignore-installed six &> /dev/null
-            easy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
-            cfn-init --stack ${AWS::StackName} --resource CASController --configsets quickstart --region ${AWS::Region}
-            # Signal the status from cfn-init
-            cfn-signal -e $? --stack ${AWS::StackName} --resource CASController --region ${AWS::Region}
 
-
-  CASViyaVolume:
-    Type: AWS::EC2::Volume
+  SASViyaWorker01Stack:
+    Condition: Has2Workers
+    Type: AWS::CloudFormation::Stack
     Properties:
-      Size: 50
-      VolumeType: gp2
-      Encrypted: true
-      AvailabilityZone: !GetAtt CASController.AvailabilityZone
-
-  CASViyaAttachment:
-    Type: AWS::EC2::VolumeAttachment
+      TemplateURL: !Sub "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/subtemplates/sas-viya.casworker.template.yaml"
+      Parameters:
+        CASInstanceName: worker01
+        KeyPairName: !Ref KeyPairName
+        PrivateSubnetID: !Ref PrivateSubnetID
+        QSS3BucketName: !Ref QSS3BucketName
+        QSS3KeyPrefix: !Ref QSS3KeyPrefix
+        CASInstanceSize: !Ref CASInstanceSize
+        SNSTopicID: !If
+          - SNSCondition
+          - !Ref SNSTopic
+          - ""
+        AnsiblePrivateIP: !GetAtt AnsibleController.PrivateIp
+        ViyaSecurityGroupID: !Ref ViyaSecurityGroup
+        ViyaRoleID: !Ref ViyaRole
+        ViyaProfileID: !Ref ViyaProfile
+        ViyaPlacementGroupID: !Ref ViyaPlacementGroup
+        VMImageId: !FindInMap
+          - AWSAMIRegionMap
+          - !Ref AWS::Region
+          - RHEL74HVM
+        CASLibSize: !FindInMap
+          - CasSizeToStorage
+          - !Ref CASInstanceSize
+          - CASLibSize
+        CASCacheSize: !FindInMap
+          - CasSizeToStorage
+          - !Ref CASInstanceSize
+          - CASCacheSize
+  SASViyaWorker02Stack:
+    Condition: Has2Workers
+    Type: AWS::CloudFormation::Stack
     Properties:
-      # SAS Install drive /opt/sas
-      Device: /dev/sdg
-      InstanceId: !Ref CASController
-      VolumeId: !Ref CASViyaVolume
+      TemplateURL: !Sub "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/subtemplates/sas-viya.casworker.template.yaml"
+      Parameters:
+        CASInstanceName: worker02
+        KeyPairName: !Ref KeyPairName
+        PrivateSubnetID: !Ref PrivateSubnetID
+        QSS3BucketName: !Ref QSS3BucketName
+        QSS3KeyPrefix: !Ref QSS3KeyPrefix
+        CASInstanceSize: !Ref CASInstanceSize
+        SNSTopicID: !If
+          - SNSCondition
+          - !Ref SNSTopic
+          - ""
+        AnsiblePrivateIP: !GetAtt AnsibleController.PrivateIp
+        ViyaSecurityGroupID: !Ref ViyaSecurityGroup
+        ViyaRoleID: !Ref ViyaRole
+        ViyaProfileID: !Ref ViyaProfile
+        ViyaPlacementGroupID: !Ref ViyaPlacementGroup
+        VMImageId: !FindInMap
+          - AWSAMIRegionMap
+          - !Ref AWS::Region
+          - RHEL74HVM
+        CASLibSize: !FindInMap
+          - CasSizeToStorage
+          - !Ref CASInstanceSize
+          - CASLibSize
+        CASCacheSize: !FindInMap
+          - CasSizeToStorage
+          - !Ref CASInstanceSize
+          - CASCacheSize
 
 
-  CASLibVolume:
-    Type: AWS::EC2::Volume
+  SASViyaWorker03Stack:
+    Condition: Has3Workers
+    Type: AWS::CloudFormation::Stack
     Properties:
-      Size: !FindInMap
-        - CasSizeToStorage
-        - !Ref CASInstanceSize
-        - CASLibSize
-      VolumeType: gp2
-      Encrypted: true
-      AvailabilityZone: !GetAtt CASController.AvailabilityZone
+      TemplateURL: !Sub "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/subtemplates/sas-viya.casworker.template.yaml"
+      Parameters:
+        CASInstanceName: worker03
+        KeyPairName: !Ref KeyPairName
+        PrivateSubnetID: !Ref PrivateSubnetID
+        QSS3BucketName: !Ref QSS3BucketName
+        QSS3KeyPrefix: !Ref QSS3KeyPrefix
+        CASInstanceSize: !Ref CASInstanceSize
+        SNSTopicID: !If
+          - SNSCondition
+          - !Ref SNSTopic
+          - ""
+        AnsiblePrivateIP: !GetAtt AnsibleController.PrivateIp
+        ViyaSecurityGroupID: !Ref ViyaSecurityGroup
+        ViyaRoleID: !Ref ViyaRole
+        ViyaProfileID: !Ref ViyaProfile
+        ViyaPlacementGroupID: !Ref ViyaPlacementGroup
+        VMImageId: !FindInMap
+          - AWSAMIRegionMap
+          - !Ref AWS::Region
+          - RHEL74HVM
+        CASLibSize: !FindInMap
+          - CasSizeToStorage
+          - !Ref CASInstanceSize
+          - CASLibSize
+        CASCacheSize: !FindInMap
+          - CasSizeToStorage
+          - !Ref CASInstanceSize
+          - CASCacheSize
 
-  CASLibAttachment:
-    Type: AWS::EC2::VolumeAttachment
+
+  SASViyaWorker04Stack:
+    Condition: Has4Workers
+    Type: AWS::CloudFormation::Stack
     Properties:
-      # User library /opt/sas/viya/config/data/cas
-      Device: /dev/sdl
-      InstanceId: !Ref CASController
-      VolumeId: !Ref CASLibVolume
+      TemplateURL: !Sub "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/subtemplates/sas-viya.casworker.template.yaml"
+      Parameters:
+        CASInstanceName: worker04
+        KeyPairName: !Ref KeyPairName
+        PrivateSubnetID: !Ref PrivateSubnetID
+        QSS3BucketName: !Ref QSS3BucketName
+        QSS3KeyPrefix: !Ref QSS3KeyPrefix
+        CASInstanceSize: !Ref CASInstanceSize
+        SNSTopicID: !If
+          - SNSCondition
+          - !Ref SNSTopic
+          - ""
+        AnsiblePrivateIP: !GetAtt AnsibleController.PrivateIp
+        ViyaSecurityGroupID: !Ref ViyaSecurityGroup
+        ViyaRoleID: !Ref ViyaRole
+        ViyaProfileID: !Ref ViyaProfile
+        ViyaPlacementGroupID: !Ref ViyaPlacementGroup
+        VMImageId: !FindInMap
+          - AWSAMIRegionMap
+          - !Ref AWS::Region
+          - RHEL74HVM
+        CASLibSize: !FindInMap
+          - CasSizeToStorage
+          - !Ref CASInstanceSize
+          - CASLibSize
+        CASCacheSize: !FindInMap
+          - CasSizeToStorage
+          - !Ref CASInstanceSize
+          - CASCacheSize
 
 
-  CASCacheVolume:
-    Condition: IsNotI3
-    Type: AWS::EC2::Volume
+  SASViyaWorker05Stack:
+    Condition: Has5Workers
+    Type: AWS::CloudFormation::Stack
     Properties:
-      Size: !FindInMap
-        - CasSizeToStorage
-        - !Ref CASInstanceSize
-        - CASCacheSize
-      VolumeType: gp2
-      Encrypted: true
-      AvailabilityZone: !GetAtt CASController.AvailabilityZone
+      TemplateURL: !Sub "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/subtemplates/sas-viya.casworker.template.yaml"
+      Parameters:
+        CASInstanceName: worker05
+        KeyPairName: !Ref KeyPairName
+        PrivateSubnetID: !Ref PrivateSubnetID
+        QSS3BucketName: !Ref QSS3BucketName
+        QSS3KeyPrefix: !Ref QSS3KeyPrefix
+        CASInstanceSize: !Ref CASInstanceSize
+        SNSTopicID: !If
+          - SNSCondition
+          - !Ref SNSTopic
+          - ""
+        AnsiblePrivateIP: !GetAtt AnsibleController.PrivateIp
+        ViyaSecurityGroupID: !Ref ViyaSecurityGroup
+        ViyaRoleID: !Ref ViyaRole
+        ViyaProfileID: !Ref ViyaProfile
+        ViyaPlacementGroupID: !Ref ViyaPlacementGroup
+        VMImageId: !FindInMap
+          - AWSAMIRegionMap
+          - !Ref AWS::Region
+          - RHEL74HVM
+        CASLibSize: !FindInMap
+          - CasSizeToStorage
+          - !Ref CASInstanceSize
+          - CASLibSize
+        CASCacheSize: !FindInMap
+          - CasSizeToStorage
+          - !Ref CASInstanceSize
+          - CASCacheSize
 
-  CASCacheAttachment:
-    Condition: IsNotI3
-    Type: AWS::EC2::VolumeAttachment
+
+  SASViyaWorker06Stack:
+    Condition: Has6Workers
+    Type: AWS::CloudFormation::Stack
     Properties:
-      Device: /dev/sdd
-      InstanceId: !Ref CASController
-      VolumeId: !Ref CASCacheVolume
+      TemplateURL: !Sub "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/subtemplates/sas-viya.casworker.template.yaml"
+      Parameters:
+        CASInstanceName: worker06
+        KeyPairName: !Ref KeyPairName
+        PrivateSubnetID: !Ref PrivateSubnetID
+        QSS3BucketName: !Ref QSS3BucketName
+        QSS3KeyPrefix: !Ref QSS3KeyPrefix
+        CASInstanceSize: !Ref CASInstanceSize
+        SNSTopicID: !If
+          - SNSCondition
+          - !Ref SNSTopic
+          - ""
+        AnsiblePrivateIP: !GetAtt AnsibleController.PrivateIp
+        ViyaSecurityGroupID: !Ref ViyaSecurityGroup
+        ViyaRoleID: !Ref ViyaRole
+        ViyaProfileID: !Ref ViyaProfile
+        ViyaPlacementGroupID: !Ref ViyaPlacementGroup
+        VMImageId: !FindInMap
+          - AWSAMIRegionMap
+          - !Ref AWS::Region
+          - RHEL74HVM
+        CASLibSize: !FindInMap
+          - CasSizeToStorage
+          - !Ref CASInstanceSize
+          - CASLibSize
+        CASCacheSize: !FindInMap
+          - CasSizeToStorage
+          - !Ref CASInstanceSize
+          - CASCacheSize
 
-  # Permissions needed to verify that the SSL Cert is valid
-  # Turns out the error generated by CFN for an invalid hosted zone is sufficient
-  # and early enough, so no additional check is needed:
-  # E.g.
-  # Server Certificate not found for the key: arn:aws:acm:us-east-1:869791842936:certificate/42ef3680-be89-4c80-ae5b-ed12309a2595
-  # (Service: AmazonElasticLoadBalancing; Status Code: 400;        Error Code: CertificateNotFound; ...
-#  AnsibleControllerCertPolicy:
-#    Condition: HasSSLCertificate
-#    Type: AWS::IAM::Policy
-#    Properties:
-#      PolicyDocument:
-#       # needed to verify if the SSLCertificateARN input parm is a valid certificate
-#        Version: 2012-10-17
-#        Statement:
-#          - Action:
-#              - acm:describeCertificate
-#            Resource:
-#              - !Ref SSLCertificateARN
-#            Effect: Allow
-#          - Action:
-#               - iam:getServerCertificate
-#            Resource:
-#              - !Ref SSLCertificateARN
-#            Effect: Allow
-#      PolicyName: ansiblecontroller-cert-verification-policy
-#      Roles:
-#        - !Ref AnsibleControllerRole
+
+  SASViyaWorker07Stack:
+    Condition: Has7Workers
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/subtemplates/sas-viya.casworker.template.yaml"
+      Parameters:
+        CASInstanceName: worker07
+        KeyPairName: !Ref KeyPairName
+        PrivateSubnetID: !Ref PrivateSubnetID
+        QSS3BucketName: !Ref QSS3BucketName
+        QSS3KeyPrefix: !Ref QSS3KeyPrefix
+        CASInstanceSize: !Ref CASInstanceSize
+        SNSTopicID: !If
+          - SNSCondition
+          - !Ref SNSTopic
+          - ""
+        AnsiblePrivateIP: !GetAtt AnsibleController.PrivateIp
+        ViyaSecurityGroupID: !Ref ViyaSecurityGroup
+        ViyaRoleID: !Ref ViyaRole
+        ViyaProfileID: !Ref ViyaProfile
+        ViyaPlacementGroupID: !Ref ViyaPlacementGroup
+        VMImageId: !FindInMap
+          - AWSAMIRegionMap
+          - !Ref AWS::Region
+          - RHEL74HVM
+        CASLibSize: !FindInMap
+          - CasSizeToStorage
+          - !Ref CASInstanceSize
+          - CASLibSize
+        CASCacheSize: !FindInMap
+          - CasSizeToStorage
+          - !Ref CASInstanceSize
+          - CASCacheSize
+
+
+  SASViyaWorker08Stack:
+    Condition: Has8Workers
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/subtemplates/sas-viya.casworker.template.yaml"
+      Parameters:
+        CASInstanceName: worker08
+        KeyPairName: !Ref KeyPairName
+        PrivateSubnetID: !Ref PrivateSubnetID
+        QSS3BucketName: !Ref QSS3BucketName
+        QSS3KeyPrefix: !Ref QSS3KeyPrefix
+        CASInstanceSize: !Ref CASInstanceSize
+        SNSTopicID: !If
+          - SNSCondition
+          - !Ref SNSTopic
+          - ""
+        AnsiblePrivateIP: !GetAtt AnsibleController.PrivateIp
+        ViyaSecurityGroupID: !Ref ViyaSecurityGroup
+        ViyaRoleID: !Ref ViyaRole
+        ViyaProfileID: !Ref ViyaProfile
+        ViyaPlacementGroupID: !Ref ViyaPlacementGroup
+        VMImageId: !FindInMap
+          - AWSAMIRegionMap
+          - !Ref AWS::Region
+          - RHEL74HVM
+        CASLibSize: !FindInMap
+          - CasSizeToStorage
+          - !Ref CASInstanceSize
+          - CASLibSize
+        CASCacheSize: !FindInMap
+          - CasSizeToStorage
+          - !Ref CASInstanceSize
+          - CASCacheSize
+
+
+  SASViyaWorker09Stack:
+    Condition: Has9Workers
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/subtemplates/sas-viya.casworker.template.yaml"
+      Parameters:
+        CASInstanceName: worker09
+        KeyPairName: !Ref KeyPairName
+        PrivateSubnetID: !Ref PrivateSubnetID
+        QSS3BucketName: !Ref QSS3BucketName
+        QSS3KeyPrefix: !Ref QSS3KeyPrefix
+        CASInstanceSize: !Ref CASInstanceSize
+        SNSTopicID: !If
+          - SNSCondition
+          - !Ref SNSTopic
+          - ""
+        AnsiblePrivateIP: !GetAtt AnsibleController.PrivateIp
+        ViyaSecurityGroupID: !Ref ViyaSecurityGroup
+        ViyaRoleID: !Ref ViyaRole
+        ViyaProfileID: !Ref ViyaProfile
+        ViyaPlacementGroupID: !Ref ViyaPlacementGroup
+        VMImageId: !FindInMap
+          - AWSAMIRegionMap
+          - !Ref AWS::Region
+          - RHEL74HVM
+        CASLibSize: !FindInMap
+          - CasSizeToStorage
+          - !Ref CASInstanceSize
+          - CASLibSize
+        CASCacheSize: !FindInMap
+          - CasSizeToStorage
+          - !Ref CASInstanceSize
+          - CASCacheSize
+
+
+  SASViyaWorker10Stack:
+    Condition: Has10Workers
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/subtemplates/sas-viya.casworker.template.yaml"
+      Parameters:
+        CASInstanceName: worker10
+        KeyPairName: !Ref KeyPairName
+        PrivateSubnetID: !Ref PrivateSubnetID
+        QSS3BucketName: !Ref QSS3BucketName
+        QSS3KeyPrefix: !Ref QSS3KeyPrefix
+        CASInstanceSize: !Ref CASInstanceSize
+        SNSTopicID: !If
+          - SNSCondition
+          - !Ref SNSTopic
+          - ""
+        AnsiblePrivateIP: !GetAtt AnsibleController.PrivateIp
+        ViyaSecurityGroupID: !Ref ViyaSecurityGroup
+        ViyaRoleID: !Ref ViyaRole
+        ViyaProfileID: !Ref ViyaProfile
+        ViyaPlacementGroupID: !Ref ViyaPlacementGroup
+        VMImageId: !FindInMap
+          - AWSAMIRegionMap
+          - !Ref AWS::Region
+          - RHEL74HVM
+        CASLibSize: !FindInMap
+          - CasSizeToStorage
+          - !Ref CASInstanceSize
+          - CASLibSize
+        CASCacheSize: !FindInMap
+          - CasSizeToStorage
+          - !Ref CASInstanceSize
+          - CASCacheSize
+
+
+
 
   # Permissions to set self signed certificate on ELB
   AnsibleControllerCertPolicy:
@@ -1469,27 +1794,6 @@ Resources:
       Roles:
         - !Ref AnsibleControllerRole
 
-  # Permissions to verify that the hosted zone is valid
-  # Turns out the error generated by CFN for an invalid hosted zone is sufficient
-  # and early enough, so no additional check is needed:
-  # e.g. No hosted zone found with ID: Z2BP7UMCNDE5Z8 (Service: AmazonRoute53; Status Code: 404; ...)
-#  AnsibleControllerRoute53Policy:
-#    Condition: HasDNSEntry
-#    Type: AWS::IAM::Policy
-#    Properties:
-#      PolicyDocument:
-#        Version: 2012-10-17
-#        Statement:
-#        - Action:
-#            - 'route53:GetHostedZone'
-#            - 'route53:ListResourceRecordSets'
-#          Resource: !Sub arn:aws:route53:::hostedzone/${AWSHostedZoneID}
-#          Effect: Allow
-#      PolicyName: ansiblecontroller-route53-policy
-#      Roles:
-#        - !Ref AnsibleControllerRole
-
-
 
 
   AnsibleControllerRole:
@@ -1508,15 +1812,28 @@ Resources:
               - Action: s3:GetObject
                 Resource: !Sub arn:aws:s3:::${QSS3BucketName}/*
                 Effect: Allow
+              - Effect: Allow
+                Action:
+                  - s3:GetBucketLocation
+                Resource: !Sub arn:aws:s3:::${QSS3BucketName}
 
         # Permissions for accessing SAS SOE file
         - PolicyName: viya-playbook-s3-policy
           PolicyDocument:
             Version: 2012-10-17
             Statement:
-              - Action: s3:getObject
+              - Action:
+                  - s3:getObject
                 Resource: !Sub arn:aws:s3:::${DeploymentDataLocation}
                 Effect: Allow
+
+              - Effect: Allow
+                Action:
+                  - s3:GetBucketLocation
+                  - s3:ListBucket
+                Resource: !Sub
+                  - 'arn:aws:s3:::${target_bucket_name}'
+                  - {target_bucket_name: !Select [0, !Split [ '/', !Sub "${DeploymentDataLocation}" ] ] }
 
         # Permissions for accessing stack information (for various utility scripts)
         - PolicyName: ansible-controller-stack-policy
@@ -1527,6 +1844,7 @@ Resources:
                 Resource:
                   - !Ref AWS::StackId
                   - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}/*"
+                  - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}*"
                 Effect: Allow
 
         # Permissions for utility script
@@ -1556,6 +1874,9 @@ Resources:
                   # permissions for assigning EIP in script
                   - ec2:AssociateAddress
                   - ec2:DescribeAddresses
+
+                  # permission to get all region names
+                  - ec2:DescribeRegions
                 Resource:
                   - '*'
                 Effect: Allow
@@ -1701,7 +2022,7 @@ Resources:
               group: ec2-user
               authentication: S3AccessCreds
               context:
-                CASInstanceType: !Ref CASInstanceSize
+                CASInstanceSize: !Ref CASInstanceSize
             /tmp/parms.json:
               # use this file later to apply pystache to any files downloaded via file_tree
               content: !Sub |
@@ -1798,6 +2119,15 @@ Resources:
                  /sas/install/scripts/send_sns_message.sh starting
         predeployment:
           commands:
+            00-inventoryprep:
+              command: !Sub |-
+                  #!/bin/bash -e
+                  su -l ec2-user -c '
+                    export ANSIBLE_LOG_PATH=/var/log/sas/install/prepare_inventory.log
+                    export ANSIBLE_CONFIG=/sas/install/common/ansible/playbooks/ansible.cfg
+                    ansible-playbook -v /sas/install/common/ansible/playbooks/assemble_main_inventory.yml \
+                      -e "CAS_INSTANCE_COUNT=${CASInstanceCount}"
+                  '
             01-nodeprep:
               command: !Sub
                 - |
@@ -1861,7 +2191,8 @@ Resources:
                   export ANSIBLE_INVENTORY=/sas/install/ansible/sas_viya_playbook/inventory.ini
                   ansible-playbook -v /sas/install/ansible/sas_viya_playbook/viya-ark/playbooks/pre-install-playbook/viya_pre_install_playbook.yml \
                      -e "use_pause=false" \
-                     --skip-tags skipmemfail,skipcoresfail,skipstoragefail,skipnicssfail,bandwidth
+                     --skip-tags skipmemfail,skipcoresfail,skipstoragefail,skipnicssfail,bandwidth \
+                     -e "DefaultTimeoutStartSec=3600s"
                 '
             03-install:
               command: |
@@ -1911,7 +2242,7 @@ Resources:
         - AMZNLINUXHVM
       SecurityGroupIds:
         - !Ref AnsibleControllerSecurityGroup
-      InstanceType: t2.small
+      InstanceType: t3.small
       Tags:
         - Key: Name
           Value: !Sub "${AWS::StackName} Ansible Controller"
