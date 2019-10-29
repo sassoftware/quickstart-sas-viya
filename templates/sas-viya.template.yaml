@@ -288,57 +288,57 @@ Mappings:
     AMI:
       AMZNLINUXHVM: amzn-ami-hvm-2018.03.0.20190611-x86_64-gp2
       RHEL74HVM: RHEL-7.6_HVM-20190618-x86_64-0-Hourly2-GP2
-#    ap-east-1:
-#      RHEL74HVM: ami-1a453e6b
-#      AMZNLINUXHVM: ami-10186361
+    ap-east-1:
+      RHEL74HVM: ami-1a453e6b
+      AMZNLINUXHVM: ami-10186361
     ap-northeast-1:
       RHEL74HVM: ami-0e3e6ca71a19ccf06
-      AMZNLINUXHVM: ami-0ab3e16f9c414dee7
+      AMZNLINUXHVM: ami-04b2d1589ab1d972c
     ap-northeast-2:
       RHEL74HVM: ami-0f84aff229263c1fc
-      AMZNLINUXHVM: ami-0e1e385b0a934254a
+      AMZNLINUXHVM: ami-0be3e6f84d3b968cd
     ap-south-1:
       RHEL74HVM: ami-0b105c57e305d9064
-      AMZNLINUXHVM: ami-02913db388613c3e1
+      AMZNLINUXHVM: ami-0b99c7725b9484f9e
     ap-southeast-1:
       RHEL74HVM: ami-031290b4bd9eaa715
-      AMZNLINUXHVM: ami-05c859630889c79c8
+      AMZNLINUXHVM: ami-0fb6b6f9e81056553
     ap-southeast-2:
       RHEL74HVM: ami-06d2821bfc76dcda3
-      AMZNLINUXHVM: ami-07cc15c3ba6f8e287
+      AMZNLINUXHVM: ami-075caa3491def750b
     ca-central-1:
       RHEL74HVM: ami-0a43efe505004e592
-      AMZNLINUXHVM: ami-04070f04f450607dc
+      AMZNLINUXHVM: ami-0a67d15f2858e33cb
     eu-central-1:
       RHEL74HVM: ami-0fc86555914f6a9f2
-      AMZNLINUXHVM: ami-010fae13a16763bb4
+      AMZNLINUXHVM: ami-026d3b3672c6e7b66
     eu-north-1:
       RHEL74HVM: ami-8833bbf6
-      AMZNLINUXHVM: ami-6a1f9414
+      AMZNLINUXHVM: ami-8c169ef2
     eu-west-1:
       RHEL74HVM: ami-04c89a19fea29f1f0
-      AMZNLINUXHVM: ami-028188d9b49b32a80
+      AMZNLINUXHVM: ami-0862aabda3fb488b5
     eu-west-2:
       RHEL74HVM: ami-06fe0c124aedcef5f
-      AMZNLINUXHVM: ami-04de2b60dd25fbb2e
+      AMZNLINUXHVM: ami-0bdfa1adc3878cd23
     eu-west-3:
       RHEL74HVM: ami-08295de7534115935
-      AMZNLINUXHVM: ami-0652eb0db9b20aeaf
+      AMZNLINUXHVM: ami-05b93cd5a1b552734
     sa-east-1:
       RHEL74HVM: ami-06efd558d6a5fb959
-      AMZNLINUXHVM: ami-0e2c2c29d8017dd99
+      AMZNLINUXHVM: ami-0bb96001cf2299257
     us-east-1:
       RHEL74HVM: ami-08a7d2bfef687328f
-      AMZNLINUXHVM: ami-00eb20669e0990cb4
+      AMZNLINUXHVM: ami-035b3c7efe6d061d5
     us-east-2:
       RHEL74HVM: ami-0e166e72fda655c63
-      AMZNLINUXHVM: ami-0c64dd618a49aeee8
+      AMZNLINUXHVM: ami-02f706d959cedf892
     us-west-1:
       RHEL74HVM: ami-056efb42b219f9abb
-      AMZNLINUXHVM: ami-0bce08e823ed38bdd
+      AMZNLINUXHVM: ami-0fcdcdb074d2bac5f
     us-west-2:
       RHEL74HVM: ami-02deb4589e0f0d95e
-      AMZNLINUXHVM: ami-08d489468314a58df
+      AMZNLINUXHVM: ami-0f2176987ee50226e
   LinuxAMINameMap:
     RHEL-7.4-HVM:
       Code: RHEL74HVM
