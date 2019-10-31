@@ -291,7 +291,7 @@ Mappings:
     ap-east-1:
       RHEL74HVM: ami-1a453e6b
       AMZNLINUXHVM: ami-10186361
-ap-northeast-1:
+    ap-northeast-1:
       RHEL74HVM: ami-0e3e6ca71a19ccf06
       AMZNLINUXHVM: ami-0ab3e16f9c414dee7
     ap-northeast-2:
