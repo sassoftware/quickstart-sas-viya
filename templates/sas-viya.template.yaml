@@ -1328,6 +1328,8 @@ Resources:
         Fn::Base64:
           Fn::Sub: |
             #!/bin/bash -e
+            setenforce 0
+            sed -i.bak -e 's/SELINUX=enforcing/SELINUX=permissive/g' /etc/selinux/config
             export PATH=$PATH:/usr/local/bin
             curl -O https://bootstrap.pypa.io/get-pip.py && python get-pip.py &> /dev/null
             pip install awscli==1.15.83 --ignore-installed six &> /dev/null
