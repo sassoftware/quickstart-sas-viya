@@ -18,7 +18,7 @@ set -e
 test -n $FILE_ROOT
 DOWNLOAD_DIR=/sas/install
 INSTALL_USER=$(whoami)
-COMMON_CODE_TAG=4ccbb7a9a466fdb7c7d1ca6b37a60909781a7ec9
+COMMON_CODE_TAG=7c7f8f888af3f9be4fcb1358ea009baec5d1129f
 
 echo Downloading from ${FILE_ROOT} as ${INSTALL_USER}
 
