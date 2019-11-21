@@ -1096,6 +1096,14 @@ Resources:
       FromPort: 0
       ToPort: 65535
       SourceSecurityGroupId: !Ref ViyaSecurityGroup
+  ViyatoviyaICMPIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref ViyaSecurityGroup
+      IpProtocol: icmp
+      FromPort: -1
+      ToPort: -1
+      SourceSecurityGroupId: !Ref ViyaSecurityGroup
 
 
 
