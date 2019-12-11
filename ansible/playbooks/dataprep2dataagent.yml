@@ -66,10 +66,9 @@
       name: "{{ item }}"
       state: restarted
     with_list:
-      - "sas-viya-dagentcont-default"
-      - "sas-viya-dagentmgmt-default"
+      - "sas-viya-dataagentservices-default"
 
-- hosts: [sas-casserver-primary, sas_casserver_primary]
+- hosts: [DataServices]
   gather_facts: False
   become: yes
   become_user: sas
@@ -79,5 +78,4 @@
       shell:
         chdir: /opt/sas/viya/home/bin
         cmd: |
-          ./da_reg_server.sh --customerid shared --remotehost {{ data_agent_host }}  --remoteport 443 --sasadministratoruser {{ adminuser }} --sasadministratorpassword {{ adminpw }} --secret {{ secret }} --sas-endpoint https://{{hostvars[groups['CoreServices']|first]['corehost']}}:443 --regoverwrite Y
-
+          ./da_reg_server.sh --customerid shared --remotehost {{ data_agent_host }}  --remoteport 443 --sasadministratoruser {{ adminuser }} --sasadministratorpassword {{ adminpw }} --secret {{ secret }} --sas-endpoint https://localhost:443 --regoverwrite Y
