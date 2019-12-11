@@ -124,6 +124,8 @@ NEW_ID=$(aws --region "$AWS_REGION"  ec2 run-instances \
 --private-ip-address $CONTROLLER_IP \
 --user-data \
   '#!/bin/bash
+   setenforce 0
+   sed -i.bak -e "s/SELINUX=enforcing/SELINUX=permissive/g" /etc/selinux/config
    export PATH=$PATH:/usr/local/bin
    curl -O https://bootstrap.pypa.io/get-pip.py && python get-pip.py &> /dev/null
    pip install awscli --ignore-installed six &> /dev/null
