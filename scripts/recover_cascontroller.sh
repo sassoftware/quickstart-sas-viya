@@ -130,7 +130,7 @@ NEW_ID=$(aws --region "$AWS_REGION"  ec2 run-instances \
    curl -O https://bootstrap.pypa.io/get-pip.py && python get-pip.py &> /dev/null
    pip install awscli --ignore-installed six &> /dev/null
 
-   aws s3 cp s3://{{S3_FILE_ROOT}}common/scripts/sasnodes_prereqs.sh /tmp/prereqs.sh
+   aws s3 cp s3://{{S3_FILE_ROOT}}scripts/sasnodes_prereqs.sh /tmp/prereqs.sh
    chmod +x /tmp/prereqs.sh
    su -l ec2-user -c "NFS_SERVER='${ANSIBLE_IP}' HOST=${TARGET,,} /tmp/prereqs.sh &>/tmp/prereqs.log"
   ' \
@@ -198,7 +198,7 @@ pushd /sas/install/ansible/sas_viya_playbook
     #
     ansible-playbook -v viya-ark/playbooks/pre-install-playbook/viya_pre_install_playbook.yml \
          -e "use_pause=false" \
-         --skip-tags skipmemfail,skipcoresfail,skipstoragefail,skipnicssfail,bandwidth \
+         --skip-tags skipmemfail,skipcoresfail,skipstoragefail,skipnicssfail,bandwidth,short_hostname_check \
          -l "${SERVER_NAME_IN_INVENTORY},controller"
     #
     # rerun viya install
