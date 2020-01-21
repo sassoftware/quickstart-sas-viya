@@ -942,7 +942,7 @@ Resources:
           def delcert(event, context):
             if event['RequestType'] == 'Delete':
               certname = event['ResourceProperties']['CertName']
-              print "certname: {}".format(certname)
+              print ("certname: {}".format(certname))
               if len(certname) > 0:
                 while True:
                   try:
@@ -964,7 +964,7 @@ Resources:
                        sleep(5)
             cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
       Handler: index.delcert
-      Runtime: python2.7
+      Runtime: python3.6
       Timeout: 30
       Role: !GetAtt DelCertLambdaExecutionRole.Arn
       Description: !Sub DelCert Custom Property for Stack ${AWS::StackName}
