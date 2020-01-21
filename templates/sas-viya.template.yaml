@@ -726,7 +726,7 @@ Resources:
 
             json_rB = json.dumps(rB)
 
-            print ("Response body:\n" + json_rB)
+            print(("Response body:\n" + json_rB))
 
             headers = {
                 'content-type' : '',
@@ -737,9 +737,9 @@ Resources:
                 response = requests.put(responseUrl,
                                         data=json_rB,
                                         headers=headers)
-                print ("Status code: " + response.reason)
+                print(("Status code: " + response.reason))
             except Exception as e:
-                print ("send(..) failed executing requests.put(..): " + str(e))
+                print(("send(..) failed executing requests.put(..): " + str(e)))
       Handler: index.license
       Runtime: python3.6
       Timeout: 30
