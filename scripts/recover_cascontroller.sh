@@ -178,7 +178,7 @@ export ANSIBLE_CONFIG=/sas/install/common/ansible/playbooks/ansible.cfg
 ansible-playbook -v /sas/install/common/ansible/playbooks/prepare_nodes.yml \
   -e "USERLIB_DISK=/dev/sdl" \
   -e "SAS_INSTALL_DISK=/dev/sdg" \
-  -l ${SERVER_NAME_IN_INVENTORY}
+  -l "${SERVER_NAME_IN_INVENTORY},AnsibleController"
 
 
 #
