@@ -111,6 +111,14 @@ test -n $STACK_NAME
 test -n $AWS_REGION
 
 #
+# Remove current readiness file, if it exists
+#
+
+if test -f "/sas/install/nfs/readiness_flags/${TARGET,,}"; then
+    rm /sas/install/nfs/readiness_flags/${TARGET,,}
+fi
+
+#
 # create new instance
 #
 NEW_ID=$(aws --region "$AWS_REGION"  ec2 run-instances \
@@ -132,7 +140,7 @@ NEW_ID=$(aws --region "$AWS_REGION"  ec2 run-instances \
 
    aws s3 cp s3://{{S3_FILE_ROOT}}scripts/sasnodes_prereqs.sh /tmp/prereqs.sh
    chmod +x /tmp/prereqs.sh
-   su -l ec2-user -c "NFS_SERVER='${ANSIBLE_IP}' HOST=${TARGET,,} /tmp/prereqs.sh &>/tmp/prereqs.log"
+   su -l ec2-user -c "NFS_SERVER='${ANSIBLE_IP}' HOST='${TARGET,,}' /tmp/prereqs.sh &>/tmp/prereqs.log"
   ' \
 --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$STACK_NAME CAS Controller}]" \
 --query 'Instances[0].InstanceId' --output text
