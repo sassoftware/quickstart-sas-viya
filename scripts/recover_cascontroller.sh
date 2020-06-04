@@ -1,5 +1,7 @@
 #!/bin/bash -e
 
+set -x
+
 # Run this script to recover the CAS controller if it experienced a catastrophic failure and
 # did not automatically recover.
 # Please note that this script should be used for recovery from a catastrophic event only.
