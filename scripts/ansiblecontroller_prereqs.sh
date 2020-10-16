@@ -73,7 +73,7 @@ fi
 #
 if ! type -p ansible;  then
    # install Ansible
-   sudo pip install 'ansible==2.7.10'
+   sudo pip install 'ansible==2.10.1'
 fi
 
 #
