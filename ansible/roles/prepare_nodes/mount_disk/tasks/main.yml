@@ -110,7 +110,6 @@
 
     - name: tag volumes
       shell: |
-
         # get the instance id from the instance metadata
         INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )
 
@@ -128,4 +127,3 @@
         aws ec2  --region $AWS_REGION  create-tags --resources $DISK_IDS --tags Key=Name,Value="$STACK_NAME $(hostname -s)" Key=Stack,Value="$STACK_NAME"
 
   when: volume_stat.rc != 0
-

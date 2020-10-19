@@ -73,7 +73,7 @@ fi
 #
 if ! type -p ansible;  then
    # install Ansible
-   sudo pip install 'ansible==2.10.1'
+   sudo pip install 'ansible==2.9.14'
 fi
 
 #
@@ -108,11 +108,3 @@ fi
 #
 ssh-keygen -t rsa -f ~/.ssh/id_rsa -q -N ''
 cp ~/.ssh/id_rsa.pub ${ANSIBLE_KEY_DIR}/id_rsa.pub
-
-
-
-
-
-
-
-
