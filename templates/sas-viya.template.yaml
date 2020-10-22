@@ -711,7 +711,7 @@ Resources:
           def send(event, context, rS, rD, reason="", physicalResourceId=None, noEcho=False):
             responseUrl = event['ResponseURL']
 
-            print (responseUrl)
+            print(responseUrl)
             if reason == "":
               reason = 'See the details in CloudWatch Log Stream: ' + context.log_stream_name
             rB = {}
@@ -726,7 +726,7 @@ Resources:
 
             json_rB = json.dumps(rB)
 
-            print ("Response body:\n" + json_rB)
+            print("Response body:\n" + json_rB)
 
             headers = {
                 'content-type' : '',
@@ -737,9 +737,9 @@ Resources:
                 response = requests.put(responseUrl,
                                         data=json_rB,
                                         headers=headers)
-                print ("Status code: " + response.reason)
+                print("Status code: " + response.reason)
             except Exception as e:
-                print ("send(..) failed executing requests.put(..): " + str(e))
+                print("send(..) failed executing requests.put(..): " + str(e))
       Handler: index.license
       Runtime: python3.6
       Timeout: 30
@@ -942,7 +942,7 @@ Resources:
           def delcert(event, context):
             if event['RequestType'] == 'Delete':
               certname = event['ResourceProperties']['CertName']
-              print "certname: {}".format(certname)
+              print("certname: {}".format(certname))
               if len(certname) > 0:
                 while True:
                   try:
@@ -950,7 +950,7 @@ Resources:
                   except ClientError as e:
                      if e.response['ResponseMetadata']['HTTPStatusCode'] == '200':
                        # delete was successful
-                       print e.response
+                       print(e.response)
                        break
                      elif e.response['Error']['Code'] == 'NoSuchEntity':
                        # this can happen if the Stack did not fully create, and no Cert was create
@@ -960,11 +960,11 @@ Resources:
                        # typically when the ELB is still alive, which should not happen
                        # because ELB has the DependsOn= attribute set to the DelCert custom property.
                        # It should be deleted before the objects it depends on
-                       print e.response['Error']['Code']
+                       print(e.response['Error']['Code'])
                        sleep(5)
             cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
       Handler: index.delcert
-      Runtime: python2.7
+      Runtime: python3.6
       Timeout: 30
       Role: !GetAtt DelCertLambdaExecutionRole.Arn
       Description: !Sub DelCert Custom Property for Stack ${AWS::StackName}
