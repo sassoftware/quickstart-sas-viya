@@ -1,5 +1,7 @@
 #!/bin/bash -e
 
+set -x
+
 # Run this script to recover the CAS controller if it experienced a catastrophic failure and
 # did not automatically recover.
 # Please note that this script should be used for recovery from a catastrophic event only.
@@ -111,6 +113,14 @@ test -n $STACK_NAME
 test -n $AWS_REGION
 
 #
+# Remove current readiness file, if it exists
+#
+
+if test -f "/sas/install/nfs/readiness_flags/${TARGET,,}"; then
+    rm /sas/install/nfs/readiness_flags/${TARGET,,}
+fi
+
+#
 # create new instance
 #
 NEW_ID=$(aws --region "$AWS_REGION"  ec2 run-instances \
@@ -132,7 +142,7 @@ NEW_ID=$(aws --region "$AWS_REGION"  ec2 run-instances \
 
    aws s3 cp s3://{{S3_FILE_ROOT}}scripts/sasnodes_prereqs.sh /tmp/prereqs.sh
    chmod +x /tmp/prereqs.sh
-   su -l ec2-user -c "NFS_SERVER='${ANSIBLE_IP}' HOST=${TARGET,,} /tmp/prereqs.sh &>/tmp/prereqs.log"
+   su -l ec2-user -c "NFS_SERVER='${ANSIBLE_IP}' HOST='${TARGET,,}' /tmp/prereqs.sh &>/tmp/prereqs.log"
   ' \
 --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$STACK_NAME CAS Controller}]" \
 --query 'Instances[0].InstanceId' --output text
@@ -178,7 +188,7 @@ export ANSIBLE_CONFIG=/sas/install/common/ansible/playbooks/ansible.cfg
 ansible-playbook -v /sas/install/common/ansible/playbooks/prepare_nodes.yml \
   -e "USERLIB_DISK=/dev/sdl" \
   -e "SAS_INSTALL_DISK=/dev/sdg" \
-  -l ${SERVER_NAME_IN_INVENTORY}
+  -l "${SERVER_NAME_IN_INVENTORY},AnsibleController"
 
 
 #
