@@ -16,6 +16,10 @@ Parameters:
     Type: String
   QSS3KeyPrefix:
     Type: String
+  QSS3BucketRegion:
+    Default: 'us-east-1'
+    Description: 'The AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. When using your own bucket, you must specify this value.'
+    Type: String
   SNSTopicID:
     Type: String
     Default: ""
@@ -38,9 +42,7 @@ Parameters:
 
 
 Conditions:
-  GovCloudCondition: !Equals
-    - !Ref AWS::Region
-    - us-gov-west-1
+  UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-quickstart']
 
   IsI3: !Equals
     - Fn::Select:
@@ -84,8 +86,7 @@ Resources:
         S3AccessCreds:
           type: S3
           roleName: !Ref ViyaRoleID
-          buckets:
-            - !Ref QSS3BucketName
+          buckets: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       'AWS::CloudFormation::Init':
         configSets:
           quickstart:
@@ -94,11 +95,9 @@ Resources:
           files:
             /tmp/prereqs.sh:
               source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/sasnodes_prereqs.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
+                - https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}scripts/sasnodes_prereqs.sh
+                - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+                  S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
               mode: '000550'
               owner: ec2-user
               group: ec2-user
