@@ -1,0 +1,50 @@
+project:
+  name: quickstart-sas-viya
+  owner: quickstart-eng@amazon.com
+  shorten_stack_name: true
+  s3_regional_buckets: true
+  package_lambda: false
+  regions:
+  - ap-northeast-1
+  - ap-northeast-2
+  - ap-south-1
+  - ap-southeast-1
+  - ap-southeast-2
+  - ca-central-1
+  - eu-central-1
+  - eu-west-1
+  - eu-west-2
+  - sa-east-1
+  - us-east-1
+  - us-east-2
+  - us-west-1
+  - us-west-2
+  s3_bucket: ''
+tests:
+  sas-viya-master:
+    parameters:
+      AdminIngressLocation: 10.0.0.0/16
+      AvailabilityZone: $[alfred_genaz_1]
+      DeploymentDataLocation: $[alfred_getlicensecontent]/sas/viya/deployment-key.txt
+      KeyPairName: $[alfred_getkeypair]
+      OperatorEmail: quickstart@example.com
+      QSS3BucketName: $[taskcat_autobucket]
+      QSS3BucketRegion: $[taskcat_current_region]
+      SASAdminPass: $[alfred_genpass_12]
+      SASUserPass: $[alfred_genpass_12]
+      WebIngressLocation: 10.0.0.0/16
+    regions:
+    - ap-northeast-1
+    - ap-northeast-2
+    - ap-south-1
+    - ap-southeast-1
+    - ca-central-1
+    - eu-central-1
+    - eu-west-1
+    - eu-west-2
+    - us-east-1
+    - us-east-2
+    - us-west-1
+    - us-west-2
+    s3_bucket: ''
+    template: templates/sas-viya-master.template.yaml
