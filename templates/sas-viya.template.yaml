@@ -1865,16 +1865,24 @@ Resources:
           PolicyDocument:
             Version: 2012-10-17
             Statement:
-              - Action: s3:ListBucket
-                Resource: !Sub arn:aws:s3:::${QSS3BucketName}
-                Effect: Allow
-              - Action: s3:GetObject
-                Resource: !Sub arn:aws:s3:::${QSS3BucketName}/*
-                Effect: Allow
-              - Effect: Allow
-                Action:
-                  - s3:GetBucketLocation
-                Resource: !Sub arn:aws:s3:::${QSS3BucketName}
+              - Action:
+                  - 's3:ListBucket'
+                  Resource: !Sub
+                    - arn:${AWS::Partition}:s3:::${S3Bucket}
+                    - S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+                  Effect: Allow
+              - Action:
+                  - 's3:GetObject'
+                  Resource: !Sub
+                    - arn:${AWS::Partition}:s3:::${S3Bucket}/*
+                    - S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+                  Effect: Allow
+              - Action:
+                  - 's3:GetBucketLocation'
+                  Resource: !Sub
+                    - arn:${AWS::Partition}:s3:::${S3Bucket}
+                    - S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+                  Effect: Allow
 
         # Permissions for accessing SAS SOE file
         - PolicyName: viya-playbook-s3-policy
@@ -2005,7 +2013,7 @@ Resources:
           type: S3
           roleName: !Ref AnsibleControllerRole
           buckets:
-            - !Ref QSS3BucketName
+            - !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
             - !Ref DeploymentDataLocation
       'AWS::CloudFormation::Init':
         configSets:
