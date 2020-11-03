@@ -1867,22 +1867,22 @@ Resources:
             Statement:
               - Action:
                   - 's3:ListBucket'
-                  Resource: !Sub
-                    - arn:${AWS::Partition}:s3:::${S3Bucket}
-                    - S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
-                  Effect: Allow
+                Resource: !Sub
+                  - arn:${AWS::Partition}:s3:::${S3Bucket}
+                  - S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+                Effect: Allow
               - Action:
                   - 's3:GetObject'
-                  Resource: !Sub
-                    - arn:${AWS::Partition}:s3:::${S3Bucket}/*
-                    - S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
-                  Effect: Allow
+                Resource: !Sub
+                  - arn:${AWS::Partition}:s3:::${S3Bucket}/*
+                  - S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+                Effect: Allow
               - Action:
                   - 's3:GetBucketLocation'
-                  Resource: !Sub
-                    - arn:${AWS::Partition}:s3:::${S3Bucket}
-                    - S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
-                  Effect: Allow
+                Resource: !Sub
+                  - arn:${AWS::Partition}:s3:::${S3Bucket}
+                  - S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+                Effect: Allow
 
         # Permissions for accessing SAS SOE file
         - PolicyName: viya-playbook-s3-policy
