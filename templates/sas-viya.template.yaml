@@ -1273,7 +1273,7 @@ Resources:
           type: S3
           roleName: !Ref ViyaRole
           buckets:
-            - !Ref QSS3BucketName
+            - !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       'AWS::CloudFormation::Init':
         configSets:
           quickstart:
