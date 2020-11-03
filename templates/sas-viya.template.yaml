@@ -2130,7 +2130,7 @@ Resources:
                 SecurityGroupId: !Ref ViyaSecurityGroup
                 SubnetId: !Ref PrivateSubnetID
                 IamInstanceProfile: !Ref ViyaProfile
-                S3_FILE_ROOT: !Sub "${QSS3BucketName}/${QSS3KeyPrefix}"
+                S3_FILE_ROOT:  !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}/${QSS3KeyPrefix}', !Sub '${QSS3BucketName}/${QSS3KeyPrefix}']
                 SASUserPass: !Base64
                   "Ref": SASUserPass
                 SASAdminPass: !Base64
@@ -2149,7 +2149,7 @@ Resources:
                     update_parms /sas/install/scripts/validate_parameters.sh &>>/tmp/update_parms.log
                     update_parms /sas/install/scripts/recover_cascontroller.sh &>>/tmp/update_parms.log
                   '
-                - S3_FILE_ROOT: !Sub "${QSS3BucketName}/${QSS3KeyPrefix}"
+                - S3_FILE_ROOT: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}/${QSS3KeyPrefix}', !Sub '${QSS3BucketName}/${QSS3KeyPrefix}']
             02-process_overrides:
               command: !Sub |
                 #!/bin/bash -e
