@@ -41,6 +41,7 @@ Metadata:
           default: AWS Quick Start Configuration
         Parameters:
           - QSS3BucketName
+          - QSS3BucketRegion
           - QSS3KeyPrefix
 
     ParameterLabels:
@@ -52,6 +53,8 @@ Metadata:
         default: Public Subnet ID
       QSS3BucketName:
         default: Quick Start S3 Bucket Name
+      QSS3BucketRegion:
+        default: Quick Start S3 bucket Region
       QSS3KeyPrefix:
         default: Quick Start S3 Key Prefix
       DeploymentDataLocation:
@@ -243,6 +246,10 @@ Parameters:
      Only change this value if you customize or extend the Quick Start for your own use.
      This string can include numbers, lowercase letters, uppercase letters, and hyphens (-).
      It cannot start or end with a hyphen (-).
+    Type: String
+  QSS3BucketRegion:
+    Default: 'us-east-1'
+    Description: 'The AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. When using your own bucket, you must specify this value.'
     Type: String
   QSS3KeyPrefix:
     AllowedPattern: ^[0-9a-zA-Z-/]*[/]$
@@ -496,9 +503,7 @@ Rules:
         AssertDescription: DomainName and AWSHostedZoneID need to be set together
 
 Conditions:
-  GovCloudCondition: !Equals
-    - !Ref AWS::Region
-    - us-gov-west-1
+  UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-quickstart']
 
   SNSCondition: !Not
     - !Equals
@@ -742,7 +747,7 @@ Resources:
                 print("send(..) failed executing requests.put(..): " + str(e))
       Handler: index.license
       Runtime: python3.6
-      Timeout: 30
+      Timeout: 300
       Role: !GetAtt LicenseLambdaExecutionRole.Arn
       Description: !Sub LicenseInfo Custom Property for Stack ${AWS::StackName}
   LicenseLambdaExecutionRole:
@@ -875,7 +880,7 @@ Resources:
               print("send(..) failed executing requests.put(..): " + str(e))
       Handler: index.is_license_public
       Runtime: python3.6
-      Timeout: 30
+      Timeout: 120
       Role: !GetAtt LicenseLambdaExecutionRole.Arn
       Description: !Sub IsLicensePublicInfo Custom prereq checker for Stack ${AWS::StackName}
   # Custom Property to force execution of the IsLicensePublicFunction function
@@ -965,7 +970,7 @@ Resources:
             cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
       Handler: index.delcert
       Runtime: python3.6
-      Timeout: 30
+      Timeout: 120
       Role: !GetAtt DelCertLambdaExecutionRole.Arn
       Description: !Sub DelCert Custom Property for Stack ${AWS::StackName}
 
@@ -1228,7 +1233,9 @@ Resources:
             Statement:
               - Action:
                   - 's3:GetObject'
-                Resource: !Sub 'arn:aws:s3:::${QSS3BucketName}/${QSS3KeyPrefix}*'
+                Resource: !Sub
+                  - arn:${AWS::Partition}:s3:::${S3Bucket}/${QSS3KeyPrefix}*
+                  - S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
                 Effect: Allow
 
         # needed for tagging the inline ebs volumes
@@ -1266,7 +1273,7 @@ Resources:
           type: S3
           roleName: !Ref ViyaRole
           buckets:
-            - !Ref QSS3BucketName
+            - !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       'AWS::CloudFormation::Init':
         configSets:
           quickstart:
@@ -1275,11 +1282,9 @@ Resources:
           files:
             /tmp/prereqs.sh:
               source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/sasnodes_prereqs.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
+                - https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}scripts/sasnodes_prereqs.sh
+                - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+                  S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
               mode: '000550'
               owner: ec2-user
               group: ec2-user
@@ -1342,12 +1347,16 @@ Resources:
   SASViyaControllerStack:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/subtemplates/sas-viya.casworker.template.yaml"
+      TemplateURL: !Sub
+        - https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/subtemplates/sas-viya.casworker.template.yaml
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
         CASInstanceName: controller
         KeyPairName: !Ref KeyPairName
         PrivateSubnetID: !Ref PrivateSubnetID
         QSS3BucketName: !Ref QSS3BucketName
+        QSS3BucketRegion: !Ref QSS3BucketRegion
         QSS3KeyPrefix: !Ref QSS3KeyPrefix
         CASInstanceSize: !If
           - Has2Workers
@@ -1386,12 +1395,16 @@ Resources:
     Condition: Has2Workers
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/subtemplates/sas-viya.casworker.template.yaml"
+      TemplateURL: !Sub
+        - https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/subtemplates/sas-viya.casworker.template.yaml
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
         CASInstanceName: worker01
         KeyPairName: !Ref KeyPairName
         PrivateSubnetID: !Ref PrivateSubnetID
         QSS3BucketName: !Ref QSS3BucketName
+        QSS3BucketRegion: !Ref QSS3BucketRegion
         QSS3KeyPrefix: !Ref QSS3KeyPrefix
         CASInstanceSize: !Ref CASInstanceSize
         SNSTopicID: !If
@@ -1419,12 +1432,16 @@ Resources:
     Condition: Has2Workers
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/subtemplates/sas-viya.casworker.template.yaml"
+      TemplateURL: !Sub
+        - https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/subtemplates/sas-viya.casworker.template.yaml
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
         CASInstanceName: worker02
         KeyPairName: !Ref KeyPairName
         PrivateSubnetID: !Ref PrivateSubnetID
         QSS3BucketName: !Ref QSS3BucketName
+        QSS3BucketRegion: !Ref QSS3BucketRegion
         QSS3KeyPrefix: !Ref QSS3KeyPrefix
         CASInstanceSize: !Ref CASInstanceSize
         SNSTopicID: !If
@@ -1454,12 +1471,16 @@ Resources:
     Condition: Has3Workers
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/subtemplates/sas-viya.casworker.template.yaml"
+      TemplateURL: !Sub
+        - https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/subtemplates/sas-viya.casworker.template.yaml
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
         CASInstanceName: worker03
         KeyPairName: !Ref KeyPairName
         PrivateSubnetID: !Ref PrivateSubnetID
         QSS3BucketName: !Ref QSS3BucketName
+        QSS3BucketRegion: !Ref QSS3BucketRegion
         QSS3KeyPrefix: !Ref QSS3KeyPrefix
         CASInstanceSize: !Ref CASInstanceSize
         SNSTopicID: !If
@@ -1489,12 +1510,16 @@ Resources:
     Condition: Has4Workers
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/subtemplates/sas-viya.casworker.template.yaml"
+      TemplateURL: !Sub
+        - https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/subtemplates/sas-viya.casworker.template.yaml
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
         CASInstanceName: worker04
         KeyPairName: !Ref KeyPairName
         PrivateSubnetID: !Ref PrivateSubnetID
         QSS3BucketName: !Ref QSS3BucketName
+        QSS3BucketRegion: !Ref QSS3BucketRegion
         QSS3KeyPrefix: !Ref QSS3KeyPrefix
         CASInstanceSize: !Ref CASInstanceSize
         SNSTopicID: !If
@@ -1524,12 +1549,16 @@ Resources:
     Condition: Has5Workers
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/subtemplates/sas-viya.casworker.template.yaml"
+      TemplateURL: !Sub
+        - https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/subtemplates/sas-viya.casworker.template.yaml
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
         CASInstanceName: worker05
         KeyPairName: !Ref KeyPairName
         PrivateSubnetID: !Ref PrivateSubnetID
         QSS3BucketName: !Ref QSS3BucketName
+        QSS3BucketRegion: !Ref QSS3BucketRegion
         QSS3KeyPrefix: !Ref QSS3KeyPrefix
         CASInstanceSize: !Ref CASInstanceSize
         SNSTopicID: !If
@@ -1559,12 +1588,16 @@ Resources:
     Condition: Has6Workers
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/subtemplates/sas-viya.casworker.template.yaml"
+      TemplateURL: !Sub
+        - https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/subtemplates/sas-viya.casworker.template.yaml
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
         CASInstanceName: worker06
         KeyPairName: !Ref KeyPairName
         PrivateSubnetID: !Ref PrivateSubnetID
         QSS3BucketName: !Ref QSS3BucketName
+        QSS3BucketRegion: !Ref QSS3BucketRegion
         QSS3KeyPrefix: !Ref QSS3KeyPrefix
         CASInstanceSize: !Ref CASInstanceSize
         SNSTopicID: !If
@@ -1594,12 +1627,16 @@ Resources:
     Condition: Has7Workers
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/subtemplates/sas-viya.casworker.template.yaml"
+      TemplateURL: !Sub
+        - https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/subtemplates/sas-viya.casworker.template.yaml
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
         CASInstanceName: worker07
         KeyPairName: !Ref KeyPairName
         PrivateSubnetID: !Ref PrivateSubnetID
         QSS3BucketName: !Ref QSS3BucketName
+        QSS3BucketRegion: !Ref QSS3BucketRegion
         QSS3KeyPrefix: !Ref QSS3KeyPrefix
         CASInstanceSize: !Ref CASInstanceSize
         SNSTopicID: !If
@@ -1629,12 +1666,16 @@ Resources:
     Condition: Has8Workers
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/subtemplates/sas-viya.casworker.template.yaml"
+      TemplateURL: !Sub
+        - https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/subtemplates/sas-viya.casworker.template.yaml
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
         CASInstanceName: worker08
         KeyPairName: !Ref KeyPairName
         PrivateSubnetID: !Ref PrivateSubnetID
         QSS3BucketName: !Ref QSS3BucketName
+        QSS3BucketRegion: !Ref QSS3BucketRegion
         QSS3KeyPrefix: !Ref QSS3KeyPrefix
         CASInstanceSize: !Ref CASInstanceSize
         SNSTopicID: !If
@@ -1664,12 +1705,16 @@ Resources:
     Condition: Has9Workers
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/subtemplates/sas-viya.casworker.template.yaml"
+      TemplateURL: !Sub
+        - https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/subtemplates/sas-viya.casworker.template.yaml
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
         CASInstanceName: worker09
         KeyPairName: !Ref KeyPairName
         PrivateSubnetID: !Ref PrivateSubnetID
         QSS3BucketName: !Ref QSS3BucketName
+        QSS3BucketRegion: !Ref QSS3BucketRegion
         QSS3KeyPrefix: !Ref QSS3KeyPrefix
         CASInstanceSize: !Ref CASInstanceSize
         SNSTopicID: !If
@@ -1699,12 +1744,16 @@ Resources:
     Condition: Has10Workers
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/subtemplates/sas-viya.casworker.template.yaml"
+      TemplateURL: !Sub
+        - https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/subtemplates/sas-viya.casworker.template.yaml
+        - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+          S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
         CASInstanceName: worker10
         KeyPairName: !Ref KeyPairName
         PrivateSubnetID: !Ref PrivateSubnetID
         QSS3BucketName: !Ref QSS3BucketName
+        QSS3BucketRegion: !Ref QSS3BucketRegion
         QSS3KeyPrefix: !Ref QSS3KeyPrefix
         CASInstanceSize: !Ref CASInstanceSize
         SNSTopicID: !If
@@ -1816,16 +1865,24 @@ Resources:
           PolicyDocument:
             Version: 2012-10-17
             Statement:
-              - Action: s3:ListBucket
-                Resource: !Sub arn:aws:s3:::${QSS3BucketName}
+              - Action:
+                  - 's3:ListBucket'
+                Resource: !Sub
+                  - arn:${AWS::Partition}:s3:::${S3Bucket}
+                  - S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
                 Effect: Allow
-              - Action: s3:GetObject
-                Resource: !Sub arn:aws:s3:::${QSS3BucketName}/*
+              - Action:
+                  - 's3:GetObject'
+                Resource: !Sub
+                  - arn:${AWS::Partition}:s3:::${S3Bucket}/*
+                  - S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
                 Effect: Allow
-              - Effect: Allow
-                Action:
-                  - s3:GetBucketLocation
-                Resource: !Sub arn:aws:s3:::${QSS3BucketName}
+              - Action:
+                  - 's3:GetBucketLocation'
+                Resource: !Sub
+                  - arn:${AWS::Partition}:s3:::${S3Bucket}
+                  - S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+                Effect: Allow
 
         # Permissions for accessing SAS SOE file
         - PolicyName: viya-playbook-s3-policy
@@ -1956,7 +2013,7 @@ Resources:
           type: S3
           roleName: !Ref AnsibleControllerRole
           buckets:
-            - !Ref QSS3BucketName
+            - !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
             - !Ref DeploymentDataLocation
       'AWS::CloudFormation::Init':
         configSets:
@@ -1974,22 +2031,18 @@ Resources:
           files:
             /tmp/prereqs.sh:
               source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/ansiblecontroller_prereqs.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
+                - https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}scripts/ansiblecontroller_prereqs.sh
+                - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+                  S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
               mode: '000550'
               owner: ec2-user
               group: ec2-user
               authentication: S3AccessCreds
             /tmp/bastion_bootstrap.sh:
               source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/bastion_bootstrap.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
+                - https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}scripts/bastion_bootstrap.sh
+                - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+                  S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
               mode: '000550'
               owner: root
               group: root
@@ -2009,11 +2062,9 @@ Resources:
           files:
             /tmp/cloudwatch.conf:
               source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/cloudwatch.ansiblecontroller.conf
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
+                - https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}scripts/cloudwatch.ansiblecontroller.conf
+                - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+                  S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
               mode: '000440'
               owner: root
               group: root
@@ -2022,11 +2073,9 @@ Resources:
                 LogGroup: !Ref CloudWatchLogGroup
             /tmp/download_file_tree.sh:
               source: !Sub
-                - https://${QSS3BucketName}.${QSS3Region}.amazonaws.com/${QSS3KeyPrefix}scripts/download_file_tree.sh
-                - QSS3Region: !If
-                    - GovCloudCondition
-                    - s3-us-gov-west-1
-                    - s3
+                - https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}scripts/download_file_tree.sh
+                - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+                  S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
               mode: '000500'
               owner: ec2-user
               group: ec2-user
@@ -2081,7 +2130,7 @@ Resources:
                 SecurityGroupId: !Ref ViyaSecurityGroup
                 SubnetId: !Ref PrivateSubnetID
                 IamInstanceProfile: !Ref ViyaProfile
-                S3_FILE_ROOT: !Sub "${QSS3BucketName}/${QSS3KeyPrefix}"
+                S3_FILE_ROOT:  !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}/${QSS3KeyPrefix}', !Sub '${QSS3BucketName}/${QSS3KeyPrefix}']
                 SASUserPass: !Base64
                   "Ref": SASUserPass
                 SASAdminPass: !Base64
@@ -2100,7 +2149,7 @@ Resources:
                     update_parms /sas/install/scripts/validate_parameters.sh &>>/tmp/update_parms.log
                     update_parms /sas/install/scripts/recover_cascontroller.sh &>>/tmp/update_parms.log
                   '
-                - S3_FILE_ROOT: !Sub "${QSS3BucketName}/${QSS3KeyPrefix}"
+                - S3_FILE_ROOT: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}/${QSS3KeyPrefix}', !Sub '${QSS3BucketName}/${QSS3KeyPrefix}']
             02-process_overrides:
               command: !Sub |
                 #!/bin/bash -e
