@@ -1336,7 +1336,7 @@ Resources:
             setenforce 0
             sed -i.bak -e 's/SELINUX=enforcing/SELINUX=permissive/g' /etc/selinux/config
             export PATH=$PATH:/usr/local/bin
-            curl -O https://bootstrap.pypa.io/get-pip.py && python get-pip.py &> /dev/null
+            curl -O https://bootstrap.pypa.io/2.7/get-pip.py && python get-pip.py &> /dev/null
             pip install awscli==1.15.83 --ignore-installed six &> /dev/null
             easy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
             cfn-init --stack ${AWS::StackName} --resource ViyaServices --configsets quickstart --region ${AWS::Region}
