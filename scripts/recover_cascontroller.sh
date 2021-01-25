@@ -137,7 +137,7 @@ NEW_ID=$(aws --region "$AWS_REGION"  ec2 run-instances \
    setenforce 0
    sed -i.bak -e "s/SELINUX=enforcing/SELINUX=permissive/g" /etc/selinux/config
    export PATH=$PATH:/usr/local/bin
-   curl -O https://bootstrap.pypa.io/get-pip.py && python get-pip.py &> /dev/null
+   curl -O https://bootstrap.pypa.io/2.7/get-pip.py && python get-pip.py &> /dev/null
    pip install awscli --ignore-installed six &> /dev/null
 
    aws s3 cp s3://{{S3_FILE_ROOT}}scripts/sasnodes_prereqs.sh /tmp/prereqs.sh
