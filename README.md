@@ -1,9 +1,6 @@
 # quickstart-sas-viya
 ## SAS Viya on the AWS Cloud
 
-**As of 25JAN2021, we are investigating deployment failures due to a new version of pip, the package installer for Python.**
-
-
 This Quick Start automatically deploys a highly available, production-ready SAS platform on the Amazon Web Services (AWS) Cloud. It deploys SAS Visual Analytics on Linux, SAS Visual Statistics on Linux, or SAS Visual Data Mining and Machine Learning on Linux into a configuration of your choice in about an hour.
 
 This Quick Start uses AWS CloudFormation templates to deploy the SAS Viya products into a virtual private cloud (VPC) in your AWS account. You can build a new VPC for SAS Viya or deploy the software into your existing VPC.
